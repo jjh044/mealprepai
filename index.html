@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PrepWise Meal Prep</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="top-bar">
+        <div class="brand-row">
+          <div class="brand-mark" aria-hidden="true">PW</div>
+          <div>
+            <p class="eyebrow">Simple budget meal prep</p>
+            <h1>PrepWise</h1>
+          </div>
+        </div>
+        <nav class="steps" aria-label="App pages">
+          <button class="step is-active" type="button" data-page="setup">Budget</button>
+          <button class="step" type="button" data-page="meals">Meals</button>
+          <button class="step" type="button" data-page="groceries">Grocery list</button>
+          <button class="step" type="button" data-page="stores">Price comparison</button>
+        </nav>
+      </header>
+
+      <section id="setup" class="page is-active" aria-label="Meal prep setup">
+        <div class="intro">
+          <p class="eyebrow">Start here</p>
+          <h2>Build a 5-day meal prep plan around your budget.</h2>
+          <p>Enter the basics and PrepWise will choose one bulk breakfast, one bulk lunch, and one bulk dinner for the week.</p>
+        </div>
+
+        <form id="planner-form" class="setup-card">
+          <label>
+            Weekly budget
+            <span class="money-field">
+              <span>$</span>
+              <input id="budget" name="budget" type="number" min="35" max="350" value="125" />
+            </span>
+          </label>
+
+          <label>
+            ZIP code
+            <input id="zip" name="zip" type="text" inputmode="numeric" maxlength="5" value="60614" />
+          </label>
+
+          <label>
+            Number of people
+            <input id="people" name="people" type="number" min="1" max="8" value="2" />
+          </label>
+
+          <fieldset>
+            <legend>Food preference</legend>
+            <div class="segmented">
+              <input type="radio" name="preference" id="pref-balanced" value="balanced" checked />
+              <label for="pref-balanced">Balanced</label>
+              <input type="radio" name="preference" id="pref-high-protein" value="high-protein" />
+              <label for="pref-high-protein">High protein</label>
+              <input type="radio" name="preference" id="pref-vegetarian" value="vegetarian" />
+              <label for="pref-vegetarian">Vegetarian</label>
+              <input type="radio" name="preference" id="pref-vegan" value="vegan" />
+              <label for="pref-vegan">Vegan</label>
+              <input type="radio" name="preference" id="pref-gluten-free" value="gluten-free" />
+              <label for="pref-gluten-free">Gluten free</label>
+            </div>
+          </fieldset>
+
+          <button class="primary-action" type="submit">Build meal prep</button>
+        </form>
+      </section>
+
+      <section id="meals" class="page" aria-label="Selected weekly meals">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">Your bulk meals</p>
+            <h2>Breakfast, lunch, and dinner for 5 days</h2>
+            <p id="recipe-source-status">Using starter recipe data.</p>
+          </div>
+        </div>
+        <div id="meal-grid" class="meal-grid"></div>
+        <section id="prep-tips-panel" class="prep-tips-panel" hidden>
+          <div>
+            <p class="eyebrow">AI prep helper</p>
+            <h3>Fastest way to prep this plan</h3>
+          </div>
+          <div id="prep-tips-content"></div>
+        </section>
+        <div class="page-footer">
+          <button class="primary-action next-action pulse-action" type="button" data-page-link="groceries">View grocery list</button>
+        </div>
+      </section>
+
+      <section id="groceries" class="page" aria-label="Collective grocery list">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">Collective list</p>
+            <h2>Everything needed for the week</h2>
+          </div>
+        </div>
+        <div id="grocery-list" class="grocery-list"></div>
+        <div class="page-footer split-footer">
+          <button id="copy-list" class="ghost-action" type="button">Copy list</button>
+          <button class="primary-action compact next-action" type="button" data-page-link="stores">Compare stores</button>
+        </div>
+      </section>
+
+      <section id="stores" class="page" aria-label="Store price comparison">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">Price comparison</p>
+            <h2>Which store saves the most?</h2>
+            <p id="store-context"></p>
+          </div>
+          <button class="ghost-action" type="button" data-page-link="setup">Change setup</button>
+        </div>
+        <div id="store-list" class="store-list"></div>
+        <section class="instacart-panel">
+          <div>
+            <p class="eyebrow">Live Instacart products</p>
+            <h3>Browse real product listings</h3>
+            <p>This uses the tested Instacart listing endpoint. It can take a minute or more to respond.</p>
+          </div>
+          <button id="load-instacart-products" class="ghost-action" type="button">Load Instacart products</button>
+          <div id="instacart-products" class="instacart-products"></div>
+        </section>
+      </section>
+    </main>
+
+    <template id="meal-card-template">
+      <article class="meal-card">
+        <img alt="" />
+        <div class="meal-body">
+          <div class="meal-meta"></div>
+          <h3></h3>
+          <p></p>
+          <button class="favorite-action" type="button" aria-pressed="false">Save favorite</button>
+          <h4>Ingredients</h4>
+          <ul class="meal-ingredients"></ul>
+          <div class="chip-row"></div>
+          <button class="swap-meal-action" type="button"></button>
+        </div>
+      </article>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+</html>
