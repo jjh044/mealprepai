@@ -152,6 +152,14 @@ h1 {
   font-size: 1.05rem;
 }
 
+.intro .start-message {
+  color: var(--leaf);
+  font-size: clamp(2.4rem, 7vw, 4.8rem);
+  font-weight: 850;
+  line-height: 0.98;
+  white-space: nowrap;
+}
+
 .setup-card {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -551,6 +559,11 @@ fieldset {
 .grocery-items span {
   display: grid;
   gap: 3px;
+}
+
+.grocery-item-name {
+  font-size: 1.12rem;
+  font-weight: 800;
 }
 
 .grocery-items small {

@@ -265,10 +265,10 @@ const starterRecipeBank = [
 let recipeBank = [...starterRecipeBank];
 
 const fallbackStores = [
-  { name: "Kroger", distance: "1.4 mi", multiplier: 0.98, coverage: "retailer API candidate" },
-  { name: "ALDI", distance: "2.1 mi", multiplier: 0.9, coverage: "estimated basket" },
-  { name: "Target Grocery", distance: "2.6 mi", multiplier: 1.05, coverage: "retailer feed candidate" },
-  { name: "Whole Foods", distance: "3.0 mi", multiplier: 1.24, coverage: "premium estimate" }
+  { name: "Kroger", distance: "1.4 mi", multiplier: 0.98, coverage: "price estimate, no live retailer pricing" },
+  { name: "ALDI", distance: "2.1 mi", multiplier: 0.9, coverage: "price estimate, no live retailer pricing" },
+  { name: "Target Grocery", distance: "2.6 mi", multiplier: 1.05, coverage: "price estimate, no live retailer pricing" },
+  { name: "Whole Foods", distance: "3.0 mi", multiplier: 1.24, coverage: "price estimate, no live retailer pricing" }
 ];
 
 const meals = ["Breakfast", "Lunch", "Dinner"];
@@ -296,6 +296,7 @@ let ingredientNutrition = new Map();
 let activeTipsId = 0;
 let activeStoresId = 0;
 let activeInstructionsId = 0;
+let recentRecipeIds = [];
 
 function dollars(value) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
@@ -385,7 +386,7 @@ function clearPlanViews(message) {
 
 async function loadRealRecipes(prefs, renderId) {
   if (location.protocol === "file:") {
-    setRecipeStatus("Using starter recipe data. Run the local server to load Spoonacular recipes.");
+    setRecipeStatus("Using starter recipe data. Run the local server to load live recipe APIs.");
     return;
   }
 
@@ -393,7 +394,7 @@ async function loadRealRecipes(prefs, renderId) {
     return;
   }
 
-  setRecipeStatus("Loading real recipes from Spoonacular...");
+  setRecipeStatus("Loading real recipes from Spoonacular and Tasty...");
 
   try {
     const response = await fetch(`/api/recipes?preference=${encodeURIComponent(prefs.preference)}`);
@@ -412,12 +413,13 @@ async function loadRealRecipes(prefs, renderId) {
 
     recipeBank = recipes;
     lastRecipePreference = prefs.preference;
-    setRecipeStatus("Using live Spoonacular recipe data.");
+    const providers = [...new Set(recipes.map((recipe) => recipe.provider || recipe.source).filter(Boolean))];
+    setRecipeStatus(`Using live recipe data from ${providers.length ? providers.join(" and ") : "recipe APIs"}.`);
   } catch (error) {
     console.error(error);
     recipeBank = [...starterRecipeBank];
     lastRecipePreference = "";
-    setRecipeStatus("Using starter recipe data. Spoonacular recipes could not be loaded.");
+    setRecipeStatus("Using starter recipe data. Live recipe APIs could not be loaded.");
   }
 }
 
@@ -464,7 +466,12 @@ function buildPlan(prefs) {
     const preferredRecipes = mealRecipes.filter((recipe) => matchesPreference(recipe, prefs.preference));
     const uniqueRecipes = (preferredRecipes.length > 0 ? preferredRecipes : mealRecipes)
       .filter((recipe) => !usedTitles.has(recipe.title.toLowerCase()));
-    const candidateRecipes = uniqueRecipes.length > 0 ? uniqueRecipes : (preferredRecipes.length > 0 ? preferredRecipes : mealRecipes);
+    const freshRecipes = uniqueRecipes.filter((recipe) => !recentRecipeIds.includes(recipe.id));
+    const candidateRecipes = freshRecipes.length > 0
+      ? freshRecipes
+      : uniqueRecipes.length > 0
+        ? uniqueRecipes
+        : (preferredRecipes.length > 0 ? preferredRecipes : mealRecipes);
     const candidates = candidateRecipes
       .map((recipe) => ({
         recipe,
@@ -472,7 +479,7 @@ function buildPlan(prefs) {
       }))
       .sort((a, b) => b.score - a.score);
 
-    const selectedMeal = { ...chooseFromTop(candidates).recipe, servings: prefs.people * prepDays };
+    const selectedMeal = { ...chooseFromTop(candidates, 8).recipe, servings: prefs.people * prepDays };
     usedTitles.add(selectedMeal.title.toLowerCase());
     selected.push(selectedMeal);
   });
@@ -492,6 +499,11 @@ function buildPlan(prefs) {
   }
 
   return selected;
+}
+
+function rememberRecentRecipes(plan) {
+  const ids = plan.map((item) => item.id).filter(Boolean);
+  recentRecipeIds = [...ids, ...recentRecipeIds.filter((id) => !ids.includes(id))].slice(0, 12);
 }
 
 function buildGroceries(plan, prefs) {
@@ -810,7 +822,7 @@ function renderGroceries(groceries) {
 
           return `
             <li>
-              <span>${item.name}${nutritionText}</span>
+              <span><span class="grocery-item-name">${item.name}</span>${nutritionText}</span>
               <strong>${formatAmount(item.amount)} ${item.unit}</strong>
             </li>
           `;
@@ -893,7 +905,7 @@ async function renderStores(plan, prefs) {
 
     if (nearby?.stores?.length) {
       storeSource = {
-        context: `${nearby.location?.label || `ZIP ${prefs.zip}`} - nearby stores from Google Places. Basket totals are estimates until retailer pricing is connected.`,
+        context: `${nearby.location?.label || `ZIP ${prefs.zip}`} - Google Places finds nearby stores only. Basket totals are app estimates, not Google Maps prices.`,
         stores: nearby.stores
       };
     } else {
@@ -933,7 +945,7 @@ async function renderStores(plan, prefs) {
           </div>
           <div class="store-price">
             <strong>${dollars(store.total)}</strong>
-            <span>5-day basket</span>
+            <span>estimated 5-day basket</span>
           </div>
         </article>
       `;
@@ -1064,6 +1076,7 @@ async function rerender(options = {}) {
   }
 
   currentPlan = buildPlan(prefs);
+  rememberRecentRecipes(currentPlan);
   currentGroceries = buildGroceries(currentPlan, prefs);
 
   renderPlan(currentPlan, prefs);

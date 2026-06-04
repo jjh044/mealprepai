@@ -16,6 +16,8 @@ const INSTACART_RAPIDAPI_HOST =
   process.env.RAPIDAPI_INSTACART_HOST || "instacart-api1.p.rapidapi.com";
 const GOOGLE_PLACES_RAPIDAPI_HOST =
   process.env.RAPIDAPI_GOOGLE_PLACES_HOST || "google-map-places.p.rapidapi.com";
+const GOOGLE_PLACES_NEW_RAPIDAPI_HOST =
+  process.env.RAPIDAPI_GOOGLE_PLACES_NEW_HOST || "google-map-places-new-v2.p.rapidapi.com";
 const TASTY_RAPIDAPI_HOST =
   process.env.RAPIDAPI_TASTY_HOST || "tasty.p.rapidapi.com";
 const ingredientCache = new Map();
@@ -365,26 +367,35 @@ async function handleStoresRequest(requestUrl, res) {
     return;
   }
 
-  const nearby = await rapidApiGetFromHost(
-    GOOGLE_PLACES_RAPIDAPI_HOST,
-    `/maps/api/place/nearbysearch/json?${new URLSearchParams({
-      location: `${location.lat},${location.lng}`,
-      radius: "8000",
-      type: "grocery_or_supermarket",
-      keyword: "supermarket grocery store",
-      language: "en",
-      rankby: "prominence"
-    })}`
+  const nearby = await rapidApiPostToHost(
+    GOOGLE_PLACES_NEW_RAPIDAPI_HOST,
+    "/v1/places:searchNearby",
+    {
+      languageCode: "en",
+      regionCode: "US",
+      includedTypes: ["supermarket"],
+      maxResultCount: 20,
+      locationRestriction: {
+        circle: {
+          center: {
+            latitude: location.lat,
+            longitude: location.lng
+          },
+          radius: 8000
+        }
+      }
+    },
+    30000,
+    {
+      "X-Goog-FieldMask":
+        "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.currentOpeningHours,places.types,places.primaryType"
+    }
   );
 
-  if (nearby.status !== "OK" && nearby.status !== "ZERO_RESULTS") {
-    throw new Error(`Google Places returned ${nearby.status}`);
-  }
-
-  const stores = (nearby.results || [])
+  const stores = dedupeStoreBrands((nearby.places || [])
     .filter(isGroceryStore)
-    .slice(0, 8)
-    .map((place, index) => normalizeStore(place, location, index));
+    .map((place, index) => normalizeStore(place, location, index)))
+    .slice(0, 8);
   const payload = {
     zip,
     location: {
@@ -439,13 +450,40 @@ async function normalizeIngredient(ingredient) {
 }
 
 async function fetchMealPrepRecipes(preference) {
+  const results = await Promise.allSettled([
+    fetchSpoonacularMealPrepRecipes(preference),
+    fetchTastyMealPrepRecipes(preference)
+  ]);
+
+  const recipesByKey = new Map();
+  const errors = [];
+
+  results.forEach((result) => {
+    if (result.status === "fulfilled") {
+      result.value.forEach((recipe) => {
+        recipesByKey.set(recipeDedupeKey(recipe), recipe);
+      });
+      return;
+    }
+
+    console.error(result.reason);
+    errors.push(result.reason);
+  });
+
+  if (recipesByKey.size === 0 && errors.length) {
+    throw errors[0];
+  }
+
+  return shuffle([...recipesByKey.values()]);
+}
+
+async function fetchSpoonacularMealPrepRecipes(preference) {
   const mealRequests = [
     ["Breakfast", "breakfast"],
     ["Lunch", "main course"],
     ["Dinner", "main course"]
   ];
-
-  const recipesById = new Map();
+  const recipes = [];
 
   for (const [meal, type] of mealRequests) {
     const response = await rapidApiGet(
@@ -464,15 +502,12 @@ async function fetchMealPrepRecipes(preference) {
     (response.results || [])
       .map((recipe) => normalizeRecipe(recipe, meal, preference))
       .filter((recipe) => recipe.minutes <= 30 && recipe.ingredients.length >= 3)
-      .forEach((recipe) => recipesById.set(recipe.id, recipe));
+      .forEach((recipe) => recipes.push(recipe));
 
     await wait(850);
   }
 
-  const tastyRecipes = await fetchTastyMealPrepRecipes(preference);
-  tastyRecipes.forEach((recipe) => recipesById.set(recipe.id, recipe));
-
-  return shuffle([...recipesById.values()]);
+  return recipes;
 }
 
 async function fetchTastyMealPrepRecipes(preference) {
@@ -504,6 +539,13 @@ async function fetchTastyMealPrepRecipes(preference) {
   }
 
   return recipes;
+}
+
+function recipeDedupeKey(recipe) {
+  return `${recipe.meal}:${recipe.title}`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 function preferenceSearchParams(preference) {
@@ -622,7 +664,7 @@ function openAiPost(apiPath, payload) {
   });
 }
 
-function rapidApiPostToHost(hostname, apiPath, payload, timeoutMs = 30000) {
+function rapidApiPostToHost(hostname, apiPath, payload, timeoutMs = 30000, extraHeaders = {}) {
   const data = JSON.stringify(payload);
   const options = {
     method: "POST",
@@ -632,7 +674,8 @@ function rapidApiPostToHost(hostname, apiPath, payload, timeoutMs = 30000) {
       "x-rapidapi-key": process.env.RAPIDAPI_KEY,
       "x-rapidapi-host": hostname,
       "Content-Type": "application/json",
-      "Content-Length": Buffer.byteLength(data)
+      "Content-Length": Buffer.byteLength(data),
+      ...extraHeaders
     }
   };
 
@@ -756,26 +799,74 @@ function instacartPrice(product) {
 }
 
 function normalizeStore(place, origin, index) {
-  const location = place.geometry?.location || {};
-  const miles = distanceMiles(origin.lat, origin.lng, location.lat, location.lng);
+  const name = place.displayName?.text || place.name || "Nearby grocery store";
+  const location = place.geometry?.location || place.location || {};
+  const latitude = location.lat ?? location.latitude;
+  const longitude = location.lng ?? location.longitude;
+  const miles = distanceMiles(origin.lat, origin.lng, latitude, longitude);
 
   return {
-    id: place.place_id || `store-${index}`,
-    name: place.name || "Nearby grocery store",
-    address: place.vicinity || place.formatted_address || "",
+    id: place.place_id || place.id || `store-${index}`,
+    name,
+    address: place.vicinity || place.formatted_address || place.formattedAddress || "",
     distance: miles === null ? "" : `${miles.toFixed(1)} mi`,
+    distanceMiles: miles,
     rating: typeof place.rating === "number" ? place.rating : null,
-    ratingsTotal: place.user_ratings_total || 0,
-    openNow: place.opening_hours?.open_now ?? null,
-    multiplier: estimateStoreMultiplier(place.name || "", index),
-    coverage: "Google Places nearby result"
+    ratingsTotal: place.user_ratings_total || place.userRatingCount || 0,
+    openNow: place.opening_hours?.open_now ?? place.currentOpeningHours?.openNow ?? null,
+    multiplier: estimateStoreMultiplier(name, index),
+    coverage: "Google Places store location only, price estimate"
   };
+}
+
+function dedupeStoreBrands(stores) {
+  const byBrand = new Map();
+
+  stores.forEach((store) => {
+    const brand = canonicalStoreBrand(store.name);
+    const existing = byBrand.get(brand);
+
+    if (!existing || compareStoreLocations(store, existing) < 0) {
+      byBrand.set(brand, store);
+    }
+  });
+
+  return Array.from(byBrand.values()).sort(compareStoreLocations);
+}
+
+function compareStoreLocations(a, b) {
+  const distanceA = typeof a.distanceMiles === "number" ? a.distanceMiles : Number.POSITIVE_INFINITY;
+  const distanceB = typeof b.distanceMiles === "number" ? b.distanceMiles : Number.POSITIVE_INFINITY;
+
+  if (distanceA !== distanceB) return distanceA - distanceB;
+  return (b.rating || 0) - (a.rating || 0);
+}
+
+function canonicalStoreBrand(name) {
+  const lower = String(name || "").toLowerCase();
+
+  if (lower.includes("aldi")) return "aldi";
+  if (lower.includes("trader joe")) return "trader joes";
+  if (lower.includes("whole foods")) return "whole foods";
+  if (lower.includes("jewel")) return "jewel osco";
+  if (lower.includes("mariano")) return "marianos";
+  if (lower.includes("kroger")) return "kroger";
+  if (lower.includes("walmart")) return "walmart";
+  if (lower.includes("target")) return "target";
+  if (lower.includes("costco")) return "costco";
+  if (lower.includes("sam's club") || lower.includes("sams club")) return "sams club";
+
+  return lower
+    .replace(/&/g, " and ")
+    .replace(/\b(the|market|supermarket|grocery|grocer|store|stores|food|foods)\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 }
 
 function isGroceryStore(place) {
   const types = Array.isArray(place.types) ? place.types : [];
   const typeSet = new Set(types);
-  const name = String(place.name || "").toLowerCase();
+  const name = String(place.displayName?.text || place.name || "").toLowerCase();
   const excludedNamePattern =
     /\b(7-eleven|bp|casey's|chevron|circle k|citgo|conoco|exxon|flying j|kum\s*&?\s*go|love's|marathon|mobil|pilot|quiktrip|shell|sheetz|speedway|sunoco|texaco|thorntons|valero|wawa)\b/;
 
@@ -787,7 +878,7 @@ function isGroceryStore(place) {
     return false;
   }
 
-  return typeSet.has("supermarket") || typeSet.has("grocery_or_supermarket");
+  return typeSet.has("supermarket") || typeSet.has("grocery_store") || typeSet.has("grocery_or_supermarket");
 }
 
 function estimateStoreMultiplier(name, index) {
@@ -873,6 +964,7 @@ function normalizeRecipe(recipe, meal, preference) {
     minutes: recipe.readyInMinutes || 30,
     protein,
     tags,
+    provider: "Spoonacular",
     source: recipe.sourceName || "Spoonacular",
     image: recipe.image,
     ingredients
@@ -902,6 +994,7 @@ function normalizeTastyRecipe(recipe, meal, preference) {
     minutes,
     protein,
     tags: buildTastyTags(tagNames, preference, minutes),
+    provider: "Tasty",
     source: "Tasty",
     image: recipe.thumbnail_url,
     ingredients
