@@ -36,7 +36,7 @@ const mimeTypes = {
   ".svg": "image/svg+xml"
 };
 
-const server = http.createServer(async (req, res) => {
+async function handleRequest(req, res) {
   try {
     const requestUrl = new URL(req.url, `http://${req.headers.host}`);
 
@@ -115,11 +115,17 @@ const server = http.createServer(async (req, res) => {
     console.error(error);
     sendJson(res, 500, { error: "Unexpected server error" });
   }
-});
+}
 
-server.listen(PORT, () => {
-  console.log(`PrepWise running at http://localhost:${PORT}`);
-});
+if (require.main === module) {
+  const server = http.createServer(handleRequest);
+
+  server.listen(PORT, () => {
+    console.log(`PrepWise running at http://localhost:${PORT}`);
+  });
+}
+
+module.exports = handleRequest;
 
 function loadLocalEnv() {
   const envPath = path.join(ROOT, ".env");
@@ -295,7 +301,7 @@ async function handleInstacartProductsRequest(requestUrl, res) {
     INSTACART_RAPIDAPI_HOST,
     "/scrapers/api/instacart/product/listing-by-url",
     { url },
-    125000
+    55000
   );
   const products = (response.data || []).slice(0, 12).map(normalizeInstacartProduct);
 
@@ -331,7 +337,7 @@ async function handleInstacartProductRequest(req, res) {
     INSTACART_RAPIDAPI_HOST,
     "/scrapers/api/instacart/product/get-by-url",
     { url },
-    125000
+    55000
   );
   const product = normalizeInstacartProductDetail(unwrapInstacartProduct(response), url);
 

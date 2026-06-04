@@ -12,6 +12,24 @@ node server.js
 
 Then open `http://localhost:3000`.
 
+## Deploying on Vercel
+
+This repo is configured for Vercel with static frontend files at the project root and API routes handled by `api/[...path].js`.
+
+Set these Vercel environment variables before deploying:
+
+- `RAPIDAPI_KEY`
+- `OPENAI_API_KEY`
+- `OPENAI_MODEL`
+- `RAPIDAPI_SPOONACULAR_HOST`
+- `RAPIDAPI_EDAMAM_HOST`
+- `RAPIDAPI_INSTACART_HOST`
+- `RAPIDAPI_GOOGLE_PLACES_HOST`
+- `RAPIDAPI_GOOGLE_PLACES_NEW_HOST`
+- `RAPIDAPI_TASTY_HOST`
+
+Google Places is used only for nearby store discovery. Basket prices are app estimates until a retailer pricing API is connected.
+
 ## What is included
 
 - Four simple pages: setup, weekly meals, grocery list, and store comparison
