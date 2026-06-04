@@ -14,8 +14,14 @@ const EDAMAM_RAPIDAPI_HOST =
   process.env.RAPIDAPI_EDAMAM_HOST || "edamam-food-and-grocery-database.p.rapidapi.com";
 const INSTACART_RAPIDAPI_HOST =
   process.env.RAPIDAPI_INSTACART_HOST || "instacart-api1.p.rapidapi.com";
+const GOOGLE_PLACES_RAPIDAPI_HOST =
+  process.env.RAPIDAPI_GOOGLE_PLACES_HOST || "google-map-places.p.rapidapi.com";
+const TASTY_RAPIDAPI_HOST =
+  process.env.RAPIDAPI_TASTY_HOST || "tasty.p.rapidapi.com";
 const ingredientCache = new Map();
 const instacartCache = new Map();
+const instacartProductCache = new Map();
+const storeCache = new Map();
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -62,12 +68,42 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (requestUrl.pathname === "/api/ai/meal-instructions") {
+      try {
+        await handleMealInstructionsRequest(req, res);
+      } catch (error) {
+        console.error(error);
+        sendJson(res, 502, { error: "OpenAI meal instructions failed", detail: error.message });
+      }
+      return;
+    }
+
     if (requestUrl.pathname === "/api/instacart/products") {
       try {
         await handleInstacartProductsRequest(requestUrl, res);
       } catch (error) {
         console.error(error);
         sendJson(res, 502, { error: "Instacart provider request failed", detail: error.message });
+      }
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/instacart/product") {
+      try {
+        await handleInstacartProductRequest(req, res);
+      } catch (error) {
+        console.error(error);
+        sendJson(res, 502, { error: "Instacart product request failed", detail: error.message });
+      }
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/stores") {
+      try {
+        await handleStoresRequest(requestUrl, res);
+      } catch (error) {
+        console.error(error);
+        sendJson(res, 502, { error: "Store provider request failed", detail: error.message });
       }
       return;
     }
@@ -183,6 +219,56 @@ async function handlePrepTipsRequest(req, res) {
   sendJson(res, 200, JSON.parse(text));
 }
 
+async function handleMealInstructionsRequest(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  if (!process.env.OPENAI_API_KEY) {
+    sendJson(res, 500, { error: "Missing OPENAI_API_KEY" });
+    return;
+  }
+
+  const body = await readJsonBody(req);
+  const meals = Array.isArray(body.meals) ? body.meals.slice(0, 3) : [];
+  const prefs = body.preferences || {};
+
+  const response = await openAiPost("/v1/responses", {
+    model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
+    input: [
+      {
+        role: "system",
+        content:
+          "Create concise, practical recipe instructions for bulk meal prep. Return only compact JSON with key mealInstructions. mealInstructions must be an array. Each item must include id, title, instructions, storage, and reheating. instructions must be 4 to 6 short ordered steps. storage and reheating must be one short sentence each. Keep steps realistic for home cooks and under the meal's stated prep time."
+      },
+      {
+        role: "user",
+        content: JSON.stringify({
+          preferences: prefs,
+          meals: meals.map((meal) => ({
+            id: meal.id,
+            meal: meal.meal,
+            title: meal.title,
+            summary: meal.summary,
+            minutes: meal.minutes,
+            servings: meal.servings,
+            ingredients: meal.ingredients
+          }))
+        })
+      }
+    ],
+    text: {
+      format: {
+        type: "json_object"
+      }
+    }
+  });
+
+  const text = extractOpenAiText(response);
+  sendJson(res, 200, JSON.parse(text));
+}
+
 async function handleInstacartProductsRequest(requestUrl, res) {
   if (!process.env.RAPIDAPI_KEY) {
     sendJson(res, 500, { error: "Missing RAPIDAPI_KEY" });
@@ -213,6 +299,104 @@ async function handleInstacartProductsRequest(requestUrl, res) {
 
   instacartCache.set(url, products);
   sendJson(res, 200, products);
+}
+
+async function handleInstacartProductRequest(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  if (!process.env.RAPIDAPI_KEY) {
+    sendJson(res, 500, { error: "Missing RAPIDAPI_KEY" });
+    return;
+  }
+
+  const body = await readJsonBody(req);
+  const url = String(body.url || "").trim();
+
+  if (!url.startsWith("https://www.instacart.com/products/")) {
+    sendJson(res, 400, { error: "Instacart product URL must start with https://www.instacart.com/products/" });
+    return;
+  }
+
+  if (instacartProductCache.has(url)) {
+    sendJson(res, 200, instacartProductCache.get(url));
+    return;
+  }
+
+  const response = await rapidApiPostToHost(
+    INSTACART_RAPIDAPI_HOST,
+    "/scrapers/api/instacart/product/get-by-url",
+    { url },
+    125000
+  );
+  const product = normalizeInstacartProductDetail(unwrapInstacartProduct(response), url);
+
+  instacartProductCache.set(url, product);
+  sendJson(res, 200, product);
+}
+
+async function handleStoresRequest(requestUrl, res) {
+  if (!process.env.RAPIDAPI_KEY) {
+    sendJson(res, 500, { error: "Missing RAPIDAPI_KEY" });
+    return;
+  }
+
+  const zip = String(requestUrl.searchParams.get("zip") || "").trim();
+  if (!/^\d{5}$/.test(zip)) {
+    sendJson(res, 400, { error: "ZIP must be a 5-digit US ZIP code" });
+    return;
+  }
+
+  if (storeCache.has(zip)) {
+    sendJson(res, 200, storeCache.get(zip));
+    return;
+  }
+
+  const geocode = await rapidApiGetFromHost(
+    GOOGLE_PLACES_RAPIDAPI_HOST,
+    `/maps/api/geocode/json?${new URLSearchParams({ address: zip, language: "en" })}`
+  );
+  const location = geocode.results?.[0]?.geometry?.location;
+
+  if (geocode.status !== "OK" || !location) {
+    sendJson(res, 404, { error: "ZIP code could not be geocoded" });
+    return;
+  }
+
+  const nearby = await rapidApiGetFromHost(
+    GOOGLE_PLACES_RAPIDAPI_HOST,
+    `/maps/api/place/nearbysearch/json?${new URLSearchParams({
+      location: `${location.lat},${location.lng}`,
+      radius: "8000",
+      type: "grocery_or_supermarket",
+      keyword: "supermarket grocery store",
+      language: "en",
+      rankby: "prominence"
+    })}`
+  );
+
+  if (nearby.status !== "OK" && nearby.status !== "ZERO_RESULTS") {
+    throw new Error(`Google Places returned ${nearby.status}`);
+  }
+
+  const stores = (nearby.results || [])
+    .filter(isGroceryStore)
+    .slice(0, 8)
+    .map((place, index) => normalizeStore(place, location, index));
+  const payload = {
+    zip,
+    location: {
+      lat: location.lat,
+      lng: location.lng,
+      label: geocode.results?.[0]?.formatted_address || zip
+    },
+    stores
+  };
+
+  storeCache.set(zip, payload);
+  sendJson(res, 200, payload);
 }
 
 async function normalizeIngredient(ingredient) {
@@ -256,45 +440,98 @@ async function normalizeIngredient(ingredient) {
 
 async function fetchMealPrepRecipes(preference) {
   const mealRequests = [
-    ["Breakfast", ["breakfast"]],
-    ["Lunch", ["main course"]],
-    ["Dinner", ["main course"]]
+    ["Breakfast", "breakfast"],
+    ["Lunch", "main course"],
+    ["Dinner", "main course"]
   ];
 
-  const recipes = [];
+  const recipesById = new Map();
 
-  for (const [meal, baseTags] of mealRequests) {
-    const tags = [...baseTags, ...preferenceTags(preference)];
+  for (const [meal, type] of mealRequests) {
     const response = await rapidApiGet(
-      `/recipes/random?${new URLSearchParams({
-        tags: tags.join(","),
-        number: "3",
+      `/recipes/complexSearch?${new URLSearchParams({
+        type,
+        number: "12",
         maxReadyTime: "30",
-        includeNutrition: "true"
+        sort: "random",
+        instructionsRequired: "false",
+        addRecipeInformation: "true",
+        addRecipeNutrition: "true",
+        ...preferenceSearchParams(preference)
       })}`
     );
 
-    recipes.push(
-      ...(response.recipes || [])
-        .map((recipe) => normalizeRecipe(recipe, meal, preference))
-        .filter((recipe) => recipe.minutes <= 30)
+    (response.results || [])
+      .map((recipe) => normalizeRecipe(recipe, meal, preference))
+      .filter((recipe) => recipe.minutes <= 30 && recipe.ingredients.length >= 3)
+      .forEach((recipe) => recipesById.set(recipe.id, recipe));
+
+    await wait(850);
+  }
+
+  const tastyRecipes = await fetchTastyMealPrepRecipes(preference);
+  tastyRecipes.forEach((recipe) => recipesById.set(recipe.id, recipe));
+
+  return shuffle([...recipesById.values()]);
+}
+
+async function fetchTastyMealPrepRecipes(preference) {
+  const mealRequests = [
+    ["Breakfast", "breakfast"],
+    ["Lunch", "lunch"],
+    ["Dinner", "dinner"]
+  ];
+  const recipes = [];
+
+  for (const [meal, tag] of mealRequests) {
+    const tags = ["under_30_minutes", tag, ...tastyPreferenceTags(preference)];
+    const response = await rapidApiGetFromHost(
+      TASTY_RAPIDAPI_HOST,
+      `/recipes/list?${new URLSearchParams({
+        from: "0",
+        size: "8",
+        tags: tags.join(",")
+      })}`
     );
-    await wait(1250);
+
+    (response.results || [])
+      .filter((recipe) => recipe.sections && recipe.name)
+      .map((recipe) => normalizeTastyRecipe(recipe, meal, preference))
+      .filter((recipe) => recipe.minutes <= 30 && recipe.ingredients.length >= 3)
+      .forEach((recipe) => recipes.push(recipe));
+
+    await wait(650);
   }
 
   return recipes;
 }
 
-function preferenceTags(preference) {
+function preferenceSearchParams(preference) {
+  const params = {
+    balanced: {},
+    "high-protein": { minProtein: "25" },
+    vegetarian: { diet: "vegetarian" },
+    vegan: { diet: "vegan" },
+    "gluten-free": { intolerances: "gluten" }
+  };
+
+  return params[preference] || {};
+}
+
+function tastyPreferenceTags(preference) {
   const tags = {
     balanced: [],
-    "high-protein": ["high protein"],
+    "high-protein": ["high_protein"],
     vegetarian: ["vegetarian"],
     vegan: ["vegan"],
-    "gluten-free": ["gluten free"]
+    "gluten-free": ["gluten_free"]
   };
 
   return tags[preference] || [];
+}
+
+function shuffle(items) {
+  return [...items].sort(() => Math.random() - 0.5);
 }
 
 function rapidApiGet(apiPath, retryCount = 0) {
@@ -329,7 +566,7 @@ function rapidApiGetFromHost(hostname, apiPath, retryCount = 0) {
         }
 
         if (apiRes.statusCode < 200 || apiRes.statusCode >= 300) {
-          reject(new Error(`Spoonacular returned ${apiRes.statusCode}: ${body}`));
+          reject(new Error(`${hostname} returned ${apiRes.statusCode}: ${body}`));
           return;
         }
 
@@ -429,15 +666,153 @@ function rapidApiPostToHost(hostname, apiPath, payload, timeoutMs = 30000) {
 }
 
 function normalizeInstacartProduct(product) {
-  const templateUrl = product.image?.view_section?.product_image?.template_url || "";
-
   return {
     id: product.id,
     name: product.name,
     size: product.size,
     url: product.url,
-    image: templateUrl.replace("{width=}x{height=}", "240x240")
+    image: instacartImageUrl(product),
+    price: instacartPrice(product)
   };
+}
+
+function normalizeInstacartProductDetail(product, url) {
+  return {
+    brand: product.brand_name || "",
+    name: product.name || "Instacart product",
+    size: product.size || "",
+    url,
+    image: instacartImageUrl(product),
+    price: instacartPrice(product),
+    category: product.product_category_name || "",
+    productInfo: product.product_info || "",
+    nutrition: product.nutrition_info || null
+  };
+}
+
+function unwrapInstacartProduct(response) {
+  let product = response?.data || response;
+
+  if (Array.isArray(product)) {
+    product = product[0] || {};
+  }
+
+  if (product?.data) {
+    product = Array.isArray(product.data) ? product.data[0] : product.data;
+  }
+
+  if (product?.product) {
+    product = product.product;
+  }
+
+  return product || {};
+}
+
+function instacartImageUrl(product) {
+  const templateUrl =
+    product.image?.view_section?.product_image?.template_url ||
+    product.image?.view_section?.retailer_product_image?.template_url ||
+    product.image?.template_url ||
+    "";
+  if (templateUrl) {
+    return templateUrl.replace("{width=}x{height=}", "240x240");
+  }
+
+  const imageUrl =
+    product.image?.view_section?.product_image?.url ||
+    product.image?.view_section?.retailer_product_image?.url ||
+    "";
+  if (imageUrl) {
+    return imageUrl;
+  }
+
+  if (typeof product.image === "string") {
+    return product.image;
+  }
+
+  const images = Array.isArray(product.images) ? product.images : product.images?.images || [];
+  const image = images[0];
+  const nestedTemplate = image?.view_section?.retailer_product_image?.template_url || image?.template_url || "";
+  if (nestedTemplate) {
+    return nestedTemplate.replace("{width=}x{height=}", "240x240");
+  }
+
+  return image?.url || image?.view_section?.retailer_product_image?.url || "";
+}
+
+function instacartPrice(product) {
+  const priceInfo = product.price_info || product.pricing || {};
+  const candidates = [
+    priceInfo.price,
+    priceInfo.item_price,
+    priceInfo.current_price,
+    priceInfo.price_string,
+    priceInfo.display_price,
+    product.price
+  ];
+  const value = candidates.find((candidate) => candidate !== undefined && candidate !== null && candidate !== "");
+
+  return value === undefined ? "" : String(value);
+}
+
+function normalizeStore(place, origin, index) {
+  const location = place.geometry?.location || {};
+  const miles = distanceMiles(origin.lat, origin.lng, location.lat, location.lng);
+
+  return {
+    id: place.place_id || `store-${index}`,
+    name: place.name || "Nearby grocery store",
+    address: place.vicinity || place.formatted_address || "",
+    distance: miles === null ? "" : `${miles.toFixed(1)} mi`,
+    rating: typeof place.rating === "number" ? place.rating : null,
+    ratingsTotal: place.user_ratings_total || 0,
+    openNow: place.opening_hours?.open_now ?? null,
+    multiplier: estimateStoreMultiplier(place.name || "", index),
+    coverage: "Google Places nearby result"
+  };
+}
+
+function isGroceryStore(place) {
+  const types = Array.isArray(place.types) ? place.types : [];
+  const typeSet = new Set(types);
+  const name = String(place.name || "").toLowerCase();
+  const excludedNamePattern =
+    /\b(7-eleven|bp|casey's|chevron|circle k|citgo|conoco|exxon|flying j|kum\s*&?\s*go|love's|marathon|mobil|pilot|quiktrip|shell|sheetz|speedway|sunoco|texaco|thorntons|valero|wawa)\b/;
+
+  if (typeSet.has("gas_station") || excludedNamePattern.test(name)) {
+    return false;
+  }
+
+  if (typeSet.has("convenience_store") && !typeSet.has("supermarket")) {
+    return false;
+  }
+
+  return typeSet.has("supermarket") || typeSet.has("grocery_or_supermarket");
+}
+
+function estimateStoreMultiplier(name, index) {
+  const lower = name.toLowerCase();
+  if (lower.includes("aldi")) return 0.9;
+  if (lower.includes("trader joe")) return 0.96;
+  if (lower.includes("walmart")) return 0.94;
+  if (lower.includes("target")) return 1.05;
+  if (lower.includes("whole foods")) return 1.22;
+  if (lower.includes("jewel") || lower.includes("kroger") || lower.includes("mariano")) return 0.99;
+  return 1 + Math.min(index, 5) * 0.03;
+}
+
+function distanceMiles(lat1, lng1, lat2, lng2) {
+  if (![lat1, lng1, lat2, lng2].every((value) => typeof value === "number")) return null;
+
+  const toRadians = (degrees) => degrees * Math.PI / 180;
+  const earthRadiusMiles = 3958.8;
+  const dLat = toRadians(lat2 - lat1);
+  const dLng = toRadians(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) ** 2;
+
+  return earthRadiusMiles * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 function extractOpenAiText(response) {
@@ -481,7 +856,8 @@ function normalizeRecipe(recipe, meal, preference) {
   const protein = Math.round(findNutrient(nutrients, "Protein") || 20);
   const cost = Math.max(1.5, Math.round((recipe.pricePerServing || 350) / 100));
   const tags = buildTags(recipe, preference);
-  const ingredients = (recipe.extendedIngredients || []).slice(0, 6).map((ingredient) => [
+  const ingredientSource = recipe.extendedIngredients || recipe.nutrition?.ingredients || [];
+  const ingredients = ingredientSource.slice(0, 6).map((ingredient) => [
     ingredient.nameClean || ingredient.name,
     Number(ingredient.amount || 1),
     ingredient.unit || "each",
@@ -503,6 +879,35 @@ function normalizeRecipe(recipe, meal, preference) {
   };
 }
 
+function normalizeTastyRecipe(recipe, meal, preference) {
+  const ingredients = (recipe.sections || [])
+    .flatMap((section) => section.components || [])
+    .slice(0, 6)
+    .map((component) => [
+      component.ingredient?.name || component.raw_text || "ingredient",
+      1,
+      "item",
+      inferCategory(component.ingredient?.name || component.raw_text || "")
+    ]);
+  const tagNames = (recipe.tags || []).map((tag) => tag.name);
+  const minutes = recipe.total_time_minutes || recipe.cook_time_minutes || recipe.prep_time_minutes || 30;
+  const protein = tagNames.includes("high_protein") ? 32 : 22;
+
+  return {
+    id: `tasty-${meal.toLowerCase()}-${recipe.id}`,
+    meal,
+    title: recipe.name,
+    summary: (recipe.description || `Recipe from Tasty`).slice(0, 150),
+    cost: estimateTastyCost(tagNames, ingredients.length),
+    minutes,
+    protein,
+    tags: buildTastyTags(tagNames, preference, minutes),
+    source: "Tasty",
+    image: recipe.thumbnail_url,
+    ingredients
+  };
+}
+
 function buildTags(recipe, preference) {
   const tags = ["balanced", "leftovers"];
 
@@ -513,6 +918,31 @@ function buildTags(recipe, preference) {
   if (recipe.readyInMinutes && recipe.readyInMinutes <= 20) tags.push("quick");
 
   return [...new Set(tags)];
+}
+
+function buildTastyTags(tagNames, preference, minutes) {
+  const tagSet = new Set(["balanced", "leftovers"]);
+
+  if (minutes <= 20) tagSet.add("quick");
+  if (tagNames.includes("high_protein") || preference === "high-protein") tagSet.add("high-protein");
+  if (tagNames.includes("vegetarian")) tagSet.add("vegetarian");
+  if (tagNames.includes("vegan")) {
+    tagSet.add("vegan");
+    tagSet.add("vegetarian");
+  }
+  if (tagNames.includes("gluten_free")) tagSet.add("gluten-free");
+
+  return [...tagSet];
+}
+
+function estimateTastyCost(tagNames, ingredientCount) {
+  let cost = Math.max(2, ingredientCount * 0.75);
+
+  if (tagNames.includes("budget")) cost -= 0.5;
+  if (tagNames.includes("seafood") || tagNames.includes("steak")) cost += 1.5;
+  if (tagNames.includes("vegan") || tagNames.includes("vegetarian")) cost -= 0.4;
+
+  return Math.round(Math.max(1.75, cost) * 100) / 100;
 }
 
 function findNutrient(nutrients, name) {
@@ -526,6 +956,16 @@ function normalizeAisle(aisle = "") {
   if (value.includes("milk") || value.includes("cheese") || value.includes("dairy")) return "dairy";
   if (value.includes("frozen")) return "frozen";
   if (value.includes("bakery") || value.includes("bread")) return "bakery";
+  return "pantry";
+}
+
+function inferCategory(name = "") {
+  const value = name.toLowerCase();
+  if (/(apple|avocado|banana|berry|broccoli|carrot|celery|cilantro|cucumber|garlic|greens|lettuce|lime|onion|pepper|potato|spinach|tomato)/.test(value)) return "produce";
+  if (/(beef|chicken|fish|pork|salmon|shrimp|steak|turkey)/.test(value)) return "meat";
+  if (/(butter|cheese|cream|egg|milk|yogurt)/.test(value)) return "dairy";
+  if (/(bread|bun|tortilla|wrap)/.test(value)) return "bakery";
+  if (/(frozen)/.test(value)) return "frozen";
   return "pantry";
 }
 

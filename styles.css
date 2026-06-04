@@ -465,6 +465,36 @@ fieldset {
   color: var(--leaf);
 }
 
+.meal-instructions {
+  margin-bottom: 14px;
+}
+
+.meal-instructions ol {
+  display: grid;
+  gap: 7px;
+  margin: 0 0 10px;
+  padding-left: 19px;
+  color: var(--ink);
+  line-height: 1.38;
+}
+
+.meal-instructions li::marker {
+  color: var(--tomato);
+  font-weight: 700;
+}
+
+.instruction-status,
+.instruction-note {
+  margin: 0 0 7px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.instruction-note strong {
+  color: var(--ink);
+}
+
 .chip-row {
   display: flex;
   flex-wrap: wrap;
@@ -610,8 +640,6 @@ fieldset {
   gap: 10px;
   min-width: 0;
   padding: 12px;
-  color: var(--ink);
-  text-decoration: none;
   background: white;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -620,6 +648,14 @@ fieldset {
 .instacart-product:hover {
   border-color: #cbdad0;
   box-shadow: 0 8px 20px rgba(28, 45, 38, 0.06);
+}
+
+.instacart-product a {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
 }
 
 .instacart-product img {
@@ -642,6 +678,47 @@ fieldset {
 .instacart-product small {
   color: var(--muted);
   font-weight: 750;
+}
+
+.instacart-detail-action {
+  width: 100%;
+  padding: 9px 10px;
+  color: var(--leaf-dark);
+  font-weight: 800;
+  background: #eef5f1;
+  border: 1px solid #cbdad0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.instacart-detail-action:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.instacart-detail dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.instacart-detail div {
+  display: grid;
+  gap: 2px;
+}
+
+.instacart-detail dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.instacart-detail dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.86rem;
+  line-height: 1.32;
 }
 
 .page-footer {

@@ -264,7 +264,7 @@ const starterRecipeBank = [
 
 let recipeBank = [...starterRecipeBank];
 
-const stores = [
+const fallbackStores = [
   { name: "Kroger", distance: "1.4 mi", multiplier: 0.98, coverage: "retailer API candidate" },
   { name: "ALDI", distance: "2.1 mi", multiplier: 0.9, coverage: "estimated basket" },
   { name: "Target Grocery", distance: "2.6 mi", multiplier: 1.05, coverage: "retailer feed candidate" },
@@ -294,6 +294,8 @@ let activeRenderId = 0;
 let hasBuiltPlan = false;
 let ingredientNutrition = new Map();
 let activeTipsId = 0;
+let activeStoresId = 0;
+let activeInstructionsId = 0;
 
 function dollars(value) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
@@ -445,21 +447,34 @@ function isQuickPrep(recipe) {
   return Number(recipe.minutes || 0) <= 30;
 }
 
+function chooseFromTop(candidates, limit = 4) {
+  const pool = candidates.slice(0, Math.min(limit, candidates.length));
+  return pool[Math.floor(Math.random() * pool.length)];
+}
+
 function buildPlan(prefs) {
-  const selected = meals.map((meal, mealIndex) => {
+  const selected = [];
+  const usedTitles = new Set();
+
+  meals.forEach((meal, mealIndex) => {
     const quickRecipes = recipeBank.filter((recipe) => recipe.meal === meal && isQuickPrep(recipe));
     const mealRecipes = quickRecipes.length > 0
       ? quickRecipes
       : starterRecipeBank.filter((recipe) => recipe.meal === meal && isQuickPrep(recipe));
     const preferredRecipes = mealRecipes.filter((recipe) => matchesPreference(recipe, prefs.preference));
-    const candidates = (preferredRecipes.length > 0 ? preferredRecipes : mealRecipes)
+    const uniqueRecipes = (preferredRecipes.length > 0 ? preferredRecipes : mealRecipes)
+      .filter((recipe) => !usedTitles.has(recipe.title.toLowerCase()));
+    const candidateRecipes = uniqueRecipes.length > 0 ? uniqueRecipes : (preferredRecipes.length > 0 ? preferredRecipes : mealRecipes);
+    const candidates = candidateRecipes
       .map((recipe) => ({
         recipe,
         score: scoreRecipe(recipe, prefs, mealIndex)
       }))
       .sort((a, b) => b.score - a.score);
 
-    return { ...candidates[0].recipe, servings: prefs.people * prepDays };
+    const selectedMeal = { ...chooseFromTop(candidates).recipe, servings: prefs.people * prepDays };
+    usedTitles.add(selectedMeal.title.toLowerCase());
+    selected.push(selectedMeal);
   });
 
   const estimated = selected.reduce((sum, item) => sum + item.cost * prefs.people * prepDays, 0);
@@ -521,6 +536,7 @@ function refreshDependentViews(prefs) {
   renderGroceries(currentGroceries);
   renderStores(currentPlan, prefs);
   enrichGroceries();
+  generateMealInstructions(prefs);
   generatePrepTips(prefs);
 }
 
@@ -562,7 +578,7 @@ async function swapMeal(item, button) {
 
     const currentIndex = currentPlan.findIndex((meal) => meal.id === item.id);
     if (currentIndex !== -1) {
-      currentPlan[currentIndex] = candidates[0];
+      currentPlan[currentIndex] = chooseFromTop(candidates, 6);
       refreshDependentViews(prefs);
       renderPlan(currentPlan, prefs);
     }
@@ -642,6 +658,98 @@ async function generatePrepTips(prefs) {
   }
 }
 
+function renderMealInstructions(node, item) {
+  const container = node.querySelector(".meal-instructions");
+  if (!container) return;
+
+  const instructions = Array.isArray(item.instructions) ? item.instructions : [];
+  const storage = item.storage || "";
+  const reheating = item.reheating || "";
+
+  if (item.instructionsLoading) {
+    container.innerHTML = `
+      <h4>Instructions</h4>
+      <p class="instruction-status">Building recipe steps...</p>
+    `;
+    return;
+  }
+
+  if (instructions.length === 0) {
+    container.innerHTML = "";
+    return;
+  }
+
+  container.innerHTML = `
+    <h4>Instructions</h4>
+    <ol>
+      ${instructions.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}
+    </ol>
+    <p class="instruction-note"><strong>Store:</strong> ${escapeHtml(storage)}</p>
+    <p class="instruction-note"><strong>Reheat:</strong> ${escapeHtml(reheating)}</p>
+  `;
+}
+
+async function generateMealInstructions(prefs) {
+  if (location.protocol === "file:" || currentPlan.length === 0) return;
+
+  const instructionsId = ++activeInstructionsId;
+  currentPlan = currentPlan.map((meal) => ({
+    ...meal,
+    instructionsLoading: true,
+    instructions: [],
+    storage: "",
+    reheating: ""
+  }));
+  renderPlan(currentPlan, prefs);
+
+  try {
+    const response = await fetch("/api/ai/meal-instructions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        preferences: prefs,
+        meals: currentPlan
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Meal instructions API returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    const byId = new Map(
+      (Array.isArray(data.mealInstructions) ? data.mealInstructions : [])
+        .map((item) => [item.id, item])
+    );
+
+    if (instructionsId !== activeInstructionsId) {
+      return;
+    }
+
+    currentPlan = currentPlan.map((meal) => {
+      const generated = byId.get(meal.id);
+      return {
+        ...meal,
+        instructionsLoading: false,
+        instructions: Array.isArray(generated?.instructions) ? generated.instructions : [],
+        storage: generated?.storage || "",
+        reheating: generated?.reheating || ""
+      };
+    });
+    renderPlan(currentPlan, prefs);
+  } catch (error) {
+    console.error(error);
+    if (instructionsId !== activeInstructionsId) {
+      return;
+    }
+
+    currentPlan = currentPlan.map((meal) => ({ ...meal, instructionsLoading: false }));
+    renderPlan(currentPlan, prefs);
+  }
+}
+
 function renderPlan(plan, prefs) {
   const template = document.querySelector("#meal-card-template");
   mealGrid.innerHTML = "";
@@ -666,6 +774,7 @@ function renderPlan(plan, prefs) {
     node.querySelector(".meal-ingredients").innerHTML = item.ingredients
       .map(([name, amount, unit]) => `<li>${name} ${formatAmount(amount * prefs.people * prepDays)} ${unit}</li>`)
       .join("");
+    renderMealInstructions(node, item);
     node.querySelector(".chip-row").innerHTML = [
       `${item.servings} servings`,
       `${item.minutes} min prep`,
@@ -712,6 +821,14 @@ function renderGroceries(groceries) {
     .join("");
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 async function enrichGroceries() {
   if (location.protocol === "file:" || currentGroceries.size === 0) return;
 
@@ -746,24 +863,72 @@ async function enrichGroceries() {
   }
 }
 
-function renderStores(plan, prefs) {
+async function loadNearbyStores(zip) {
+  if (location.protocol === "file:") {
+    return null;
+  }
+
+  const response = await fetch(`/api/stores?zip=${encodeURIComponent(zip)}`);
+  if (!response.ok) {
+    throw new Error(`Store API returned ${response.status}`);
+  }
+
+  return response.json();
+}
+
+async function renderStores(plan, prefs) {
+  const storesId = ++activeStoresId;
   const baseCost = plan.reduce((sum, meal) => sum + meal.cost * prefs.people * prepDays, 0);
-  const ranked = stores
+  let storeSource = {
+    context: `ZIP ${prefs.zip} - showing starter estimates until nearby stores load.`,
+    stores: fallbackStores
+  };
+
+  storeContext.textContent = storeSource.context;
+  storeList.innerHTML = `<p class="empty-state">Finding nearby grocery stores...</p>`;
+
+  try {
+    const nearby = await loadNearbyStores(prefs.zip);
+    if (storesId !== activeStoresId) return;
+
+    if (nearby?.stores?.length) {
+      storeSource = {
+        context: `${nearby.location?.label || `ZIP ${prefs.zip}`} - nearby stores from Google Places. Basket totals are estimates until retailer pricing is connected.`,
+        stores: nearby.stores
+      };
+    } else {
+      storeSource.context = `ZIP ${prefs.zip} - no nearby grocery stores returned, showing starter estimates.`;
+    }
+  } catch (error) {
+    console.error(error);
+    if (storesId !== activeStoresId) return;
+    storeSource.context = `ZIP ${prefs.zip} - nearby stores could not be loaded, showing starter estimates.`;
+  }
+
+  const ranked = storeSource.stores
     .map((store) => ({
       ...store,
       total: baseCost * store.multiplier
     }))
     .sort((a, b) => a.total - b.total);
 
-  storeContext.textContent = `ZIP ${prefs.zip} - prices are estimates until retailer APIs are connected.`;
+  storeContext.textContent = storeSource.context;
   storeList.innerHTML = ranked
     .map((store, index) => {
       const savings = ranked[ranked.length - 1].total - store.total;
+      const details = [
+        store.distance,
+        store.address,
+        store.rating ? `${store.rating} stars` : "",
+        store.openNow === true ? "open now" : store.openNow === false ? "closed now" : "",
+        store.coverage
+      ].filter(Boolean).map(escapeHtml).join(" - ");
+
       return `
         <article class="store-card">
           <div>
-            <h3>${store.name}</h3>
-            <p>${store.distance} - ${store.coverage}</p>
+            <h3>${escapeHtml(store.name)}</h3>
+            <p>${details}</p>
             <span class="badge ${index === 0 ? "best" : ""}">${index === 0 ? "Best basket" : `${dollars(savings)} vs highest`}</span>
           </div>
           <div class="store-price">
@@ -785,16 +950,70 @@ function renderInstacartProducts(products) {
   }
 
   instacartProducts.innerHTML = products
-    .map((product) => `
-      <a class="instacart-product" href="${product.url}" target="_blank" rel="noreferrer">
-        ${product.image ? `<img src="${product.image}" alt="${product.name}" />` : ""}
-        <span>
-          <strong>${product.name}</strong>
-          <small>${product.size || "View on Instacart"}</small>
-        </span>
-      </a>
+    .map((product, index) => `
+      <article class="instacart-product">
+        <a href="${escapeHtml(product.url)}" target="_blank" rel="noreferrer">
+          ${product.image ? `<img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" />` : ""}
+          <span>
+            <strong>${escapeHtml(product.name)}</strong>
+            <small>${escapeHtml([product.size, product.price].filter(Boolean).join(" - ") || "View on Instacart")}</small>
+          </span>
+        </a>
+        <button class="instacart-detail-action" type="button" data-product-index="${index}">Load details</button>
+        <div class="instacart-detail" data-product-detail="${index}"></div>
+      </article>
     `)
     .join("");
+
+  instacartProducts.querySelectorAll(".instacart-detail-action").forEach((button) => {
+    button.addEventListener("click", () => loadInstacartProductDetail(products[Number(button.dataset.productIndex)], button));
+  });
+}
+
+async function loadInstacartProductDetail(product, button) {
+  if (!product?.url || !instacartProducts) return;
+
+  const detail = instacartProducts.querySelector(`[data-product-detail="${button.dataset.productIndex}"]`);
+  button.disabled = true;
+  button.textContent = "Loading details...";
+  if (detail) {
+    detail.innerHTML = `<p class="empty-state">Instacart is fetching this product. This can take a minute.</p>`;
+  }
+
+  try {
+    const response = await fetch("/api/instacart/product", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ url: product.url })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Instacart product API returned ${response.status}`);
+    }
+
+    const data = await response.json();
+    if (detail) {
+      detail.innerHTML = `
+        <dl>
+          ${data.brand ? `<div><dt>Brand</dt><dd>${escapeHtml(data.brand)}</dd></div>` : ""}
+          ${data.price ? `<div><dt>Price</dt><dd>${escapeHtml(data.price)}</dd></div>` : ""}
+          ${data.category ? `<div><dt>Category</dt><dd>${escapeHtml(data.category)}</dd></div>` : ""}
+          ${data.productInfo ? `<div><dt>Info</dt><dd>${escapeHtml(data.productInfo)}</dd></div>` : ""}
+        </dl>
+      `;
+    }
+    button.textContent = "Refresh details";
+  } catch (error) {
+    console.error(error);
+    if (detail) {
+      detail.innerHTML = `<p class="empty-state">Product details could not be loaded.</p>`;
+    }
+    button.textContent = "Try details again";
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function loadInstacartProducts() {
@@ -851,6 +1070,7 @@ async function rerender(options = {}) {
   renderGroceries(currentGroceries);
   renderStores(currentPlan, prefs);
   enrichGroceries();
+  generateMealInstructions(prefs);
   generatePrepTips(prefs);
   hasBuiltPlan = true;
 }
