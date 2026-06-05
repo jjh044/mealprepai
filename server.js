@@ -45,7 +45,7 @@ async function handleRequest(req, res) {
         await handleRecipeRequest(requestUrl, res);
       } catch (error) {
         console.error(error);
-        sendJson(res, 502, { error: "Recipe provider request failed", detail: error.message });
+        sendJson(res, 200, []);
       }
       return;
     }
@@ -105,7 +105,7 @@ async function handleRequest(req, res) {
         await handleStoresRequest(requestUrl, res);
       } catch (error) {
         console.error(error);
-        sendJson(res, 502, { error: "Store provider request failed", detail: error.message });
+        sendJson(res, 200, fallbackStorePayload(requestUrl));
       }
       return;
     }
@@ -148,7 +148,7 @@ function loadLocalEnv() {
 
 async function handleRecipeRequest(requestUrl, res) {
   if (!process.env.RAPIDAPI_KEY) {
-    sendJson(res, 500, { error: "Missing RAPIDAPI_KEY" });
+    sendJson(res, 200, []);
     return;
   }
 
@@ -163,13 +163,14 @@ async function handleIngredientRequest(req, res) {
     return;
   }
 
+  const body = await readJsonBody(req);
+  const ingredients = Array.isArray(body.ingredients) ? body.ingredients.slice(0, 12) : [];
+
   if (!process.env.RAPIDAPI_KEY) {
-    sendJson(res, 500, { error: "Missing RAPIDAPI_KEY" });
+    sendJson(res, 200, fallbackIngredients(ingredients));
     return;
   }
 
-  const body = await readJsonBody(req);
-  const ingredients = Array.isArray(body.ingredients) ? body.ingredients.slice(0, 12) : [];
   const normalized = [];
 
   for (const ingredient of ingredients) {
@@ -186,45 +187,50 @@ async function handlePrepTipsRequest(req, res) {
     return;
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    sendJson(res, 500, { error: "Missing OPENAI_API_KEY" });
-    return;
-  }
-
   const body = await readJsonBody(req);
   const meals = Array.isArray(body.meals) ? body.meals.slice(0, 3) : [];
   const prefs = body.preferences || {};
 
-  const response = await openAiPost("/v1/responses", {
-    model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
-    input: [
-      {
-        role: "system",
-        content:
-          "You help busy people meal prep. Return only compact JSON with keys prepOrder, timeSavers, substitutions. Each value must be an array of concise strings. Keep advice practical and under 30-minute prep constraints."
-      },
-      {
-        role: "user",
-        content: JSON.stringify({
-          preferences: prefs,
-          meals: meals.map((meal) => ({
-            meal: meal.meal,
-            title: meal.title,
-            minutes: meal.minutes,
-            ingredients: meal.ingredients
-          }))
-        })
-      }
-    ],
-    text: {
-      format: {
-        type: "json_object"
-      }
-    }
-  });
+  if (!process.env.OPENAI_API_KEY) {
+    sendJson(res, 200, fallbackPrepTips(meals, prefs));
+    return;
+  }
 
-  const text = extractOpenAiText(response);
-  sendJson(res, 200, JSON.parse(text));
+  try {
+    const response = await openAiPost("/v1/responses", {
+      model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
+      input: [
+        {
+          role: "system",
+          content:
+            "You help busy people meal prep. Return only compact JSON with keys prepOrder, timeSavers, substitutions. Each value must be an array of concise strings. Keep advice practical and under 30-minute prep constraints."
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            preferences: prefs,
+            meals: meals.map((meal) => ({
+              meal: meal.meal,
+              title: meal.title,
+              minutes: meal.minutes,
+              ingredients: meal.ingredients
+            }))
+          })
+        }
+      ],
+      text: {
+        format: {
+          type: "json_object"
+        }
+      }
+    });
+
+    const text = extractOpenAiText(response);
+    sendJson(res, 200, JSON.parse(text));
+  } catch (error) {
+    console.error(error);
+    sendJson(res, 200, fallbackPrepTips(meals, prefs));
+  }
 }
 
 async function handleMealInstructionsRequest(req, res) {
@@ -233,53 +239,58 @@ async function handleMealInstructionsRequest(req, res) {
     return;
   }
 
-  if (!process.env.OPENAI_API_KEY) {
-    sendJson(res, 500, { error: "Missing OPENAI_API_KEY" });
-    return;
-  }
-
   const body = await readJsonBody(req);
   const meals = Array.isArray(body.meals) ? body.meals.slice(0, 3) : [];
   const prefs = body.preferences || {};
 
-  const response = await openAiPost("/v1/responses", {
-    model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
-    input: [
-      {
-        role: "system",
-        content:
-          "Create concise, practical recipe instructions for bulk meal prep. Return only compact JSON with key mealInstructions. mealInstructions must be an array. Each item must include id, title, instructions, storage, and reheating. instructions must be 4 to 6 short ordered steps. storage and reheating must be one short sentence each. Keep steps realistic for home cooks and under the meal's stated prep time."
-      },
-      {
-        role: "user",
-        content: JSON.stringify({
-          preferences: prefs,
-          meals: meals.map((meal) => ({
-            id: meal.id,
-            meal: meal.meal,
-            title: meal.title,
-            summary: meal.summary,
-            minutes: meal.minutes,
-            servings: meal.servings,
-            ingredients: meal.ingredients
-          }))
-        })
-      }
-    ],
-    text: {
-      format: {
-        type: "json_object"
-      }
-    }
-  });
+  if (!process.env.OPENAI_API_KEY) {
+    sendJson(res, 200, fallbackMealInstructions(meals, prefs));
+    return;
+  }
 
-  const text = extractOpenAiText(response);
-  sendJson(res, 200, JSON.parse(text));
+  try {
+    const response = await openAiPost("/v1/responses", {
+      model: process.env.OPENAI_MODEL || "gpt-5.4-mini",
+      input: [
+        {
+          role: "system",
+          content:
+            "Create concise, practical recipe instructions for bulk meal prep. Return only compact JSON with key mealInstructions. mealInstructions must be an array. Each item must include id, title, instructions, storage, and reheating. instructions must be 4 to 6 short ordered steps. storage and reheating must be one short sentence each. Keep steps realistic for home cooks and under the meal's stated prep time."
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            preferences: prefs,
+            meals: meals.map((meal) => ({
+              id: meal.id,
+              meal: meal.meal,
+              title: meal.title,
+              summary: meal.summary,
+              minutes: meal.minutes,
+              servings: meal.servings,
+              ingredients: meal.ingredients
+            }))
+          })
+        }
+      ],
+      text: {
+        format: {
+          type: "json_object"
+        }
+      }
+    });
+
+    const text = extractOpenAiText(response);
+    sendJson(res, 200, JSON.parse(text));
+  } catch (error) {
+    console.error(error);
+    sendJson(res, 200, fallbackMealInstructions(meals, prefs));
+  }
 }
 
 async function handleInstacartProductsRequest(requestUrl, res) {
   if (!process.env.RAPIDAPI_KEY) {
-    sendJson(res, 500, { error: "Missing RAPIDAPI_KEY" });
+    sendJson(res, 200, []);
     return;
   }
 
@@ -346,14 +357,14 @@ async function handleInstacartProductRequest(req, res) {
 }
 
 async function handleStoresRequest(requestUrl, res) {
-  if (!process.env.RAPIDAPI_KEY) {
-    sendJson(res, 500, { error: "Missing RAPIDAPI_KEY" });
-    return;
-  }
-
   const zip = String(requestUrl.searchParams.get("zip") || "").trim();
   if (!/^\d{5}$/.test(zip)) {
     sendJson(res, 400, { error: "ZIP must be a 5-digit US ZIP code" });
+    return;
+  }
+
+  if (!process.env.RAPIDAPI_KEY) {
+    sendJson(res, 200, fallbackStorePayload(requestUrl));
     return;
   }
 
@@ -414,6 +425,64 @@ async function handleStoresRequest(requestUrl, res) {
 
   storeCache.set(zip, payload);
   sendJson(res, 200, payload);
+}
+
+function fallbackIngredients(ingredients) {
+  return ingredients.map((ingredient) => ({
+    name: String(ingredient?.name || "").trim(),
+    match: null
+  }));
+}
+
+function fallbackPrepTips(meals) {
+  const mealNames = meals.map((meal) => meal.title).filter(Boolean).slice(0, 3);
+  const mealText = mealNames.length ? mealNames.join(", ") : "your selected meals";
+
+  return {
+    prepOrder: [
+      "Cook grains and proteins first so they can cool before packing.",
+      "Chop produce while pans or sheet trays are cooking.",
+      "Portion sauces separately to keep meals fresh."
+    ],
+    timeSavers: [
+      `Batch shared ingredients across ${mealText}.`,
+      "Use frozen vegetables when prep time is tight.",
+      "Pack lunches and dinners in labeled containers before cleanup."
+    ],
+    substitutions: [
+      "Swap canned beans for cooked meat to lower cost.",
+      "Use Greek yogurt in place of creamy dressings.",
+      "Choose microwave rice or prewashed greens for faster assembly."
+    ]
+  };
+}
+
+function fallbackMealInstructions(meals) {
+  return {
+    mealInstructions: meals.map((meal) => ({
+      id: meal.id,
+      title: meal.title,
+      instructions: [
+        "Gather ingredients and storage containers before cooking.",
+        "Cook the longest-running ingredient first.",
+        "Prepare vegetables and sauce while the main ingredient cooks.",
+        "Combine portions for each serving and let hot food cool briefly.",
+        "Refrigerate sealed containers for the week."
+      ],
+      storage: "Store in airtight containers in the refrigerator.",
+      reheating: "Reheat until hot, adding a splash of water or sauce if needed."
+    }))
+  };
+}
+
+function fallbackStorePayload(requestUrl) {
+  const zip = String(requestUrl.searchParams.get("zip") || "").trim();
+
+  return {
+    zip,
+    location: null,
+    stores: []
+  };
 }
 
 async function normalizeIngredient(ingredient) {
