@@ -1,14 +1,42 @@
 {
-  "cleanUrls": true,
-  "rewrites": [
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "builds": [
     {
-      "source": "/",
-      "destination": "/index.html"
+      "src": "index.html",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "styles.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "client.js",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "api/[...path].js",
+      "use": "@vercel/node",
+      "config": {
+        "maxDuration": 60
+      }
     }
   ],
-  "functions": {
-    "api/[...path].js": {
-      "maxDuration": 60
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/[...path].js"
+    },
+    {
+      "src": "/styles.css",
+      "dest": "/styles.css"
+    },
+    {
+      "src": "/client.js",
+      "dest": "/client.js"
+    },
+    {
+      "src": "/.*",
+      "dest": "/index.html"
     }
-  }
+  ]
 }
