@@ -53,7 +53,7 @@ Selected integrations:
 - Grocery shopping and pricing: Instacart Developer Platform API. Not implemented yet.
 
 Required environment variables for the backend layer are listed in `.env.example`.
-Do not place API keys in `app.js`, `index.html`, or any other browser-delivered file.
+Do not place API keys in `client.js`, `index.html`, or any other browser-delivered file.
 Run `node server.js` so API keys stay server-side.
 
 ## API Replacement Status
@@ -89,7 +89,7 @@ Run `node server.js` so API keys stay server-side.
 
 ## Next Build Step
 
-Move the mock data in `app.js` behind provider modules:
+Move the mock data in `client.js` behind provider modules:
 
 - `providers/recipes.edamam.ts`
 - `providers/recipes.spoonacular.ts`
