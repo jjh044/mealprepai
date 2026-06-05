@@ -265,10 +265,10 @@ const starterRecipeBank = [
 let recipeBank = [...starterRecipeBank];
 
 const fallbackStores = [
-  { name: "Kroger", distance: "1.4 mi", multiplier: 0.98, coverage: "price estimate, no live retailer pricing" },
-  { name: "ALDI", distance: "2.1 mi", multiplier: 0.9, coverage: "price estimate, no live retailer pricing" },
-  { name: "Target Grocery", distance: "2.6 mi", multiplier: 1.05, coverage: "price estimate, no live retailer pricing" },
-  { name: "Whole Foods", distance: "3.0 mi", multiplier: 1.24, coverage: "price estimate, no live retailer pricing" }
+  { name: "Kroger", address: "Address unavailable until nearby stores load", distance: "1.4 mi", multiplier: 0.98, coverage: "price estimate, no live retailer pricing" },
+  { name: "ALDI", address: "Address unavailable until nearby stores load", distance: "2.1 mi", multiplier: 0.9, coverage: "price estimate, no live retailer pricing" },
+  { name: "Target Grocery", address: "Address unavailable until nearby stores load", distance: "2.6 mi", multiplier: 1.05, coverage: "price estimate, no live retailer pricing" },
+  { name: "Whole Foods", address: "Address unavailable until nearby stores load", distance: "3.0 mi", multiplier: 1.24, coverage: "price estimate, no live retailer pricing" }
 ];
 
 const meals = ["Breakfast", "Lunch", "Dinner"];
@@ -940,6 +940,7 @@ async function renderStores(plan, prefs) {
         <article class="store-card">
           <div>
             <h3>${escapeHtml(store.name)}</h3>
+            <p class="store-address">${escapeHtml(store.address || "Address unavailable")}</p>
             <p>${details}</p>
             <span class="badge ${index === 0 ? "best" : ""}">${index === 0 ? "Best basket" : `${dollars(savings)} vs highest`}</span>
           </div>

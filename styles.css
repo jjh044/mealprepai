@@ -599,6 +599,12 @@ fieldset {
   color: var(--muted);
 }
 
+.store-card .store-address {
+  margin-bottom: 4px;
+  color: var(--ink);
+  font-weight: 650;
+}
+
 .store-price {
   text-align: right;
 }

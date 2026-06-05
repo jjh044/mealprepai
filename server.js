@@ -879,11 +879,21 @@ function normalizeStore(place, origin, index) {
   const latitude = location.lat ?? location.latitude;
   const longitude = location.lng ?? location.longitude;
   const miles = distanceMiles(origin.lat, origin.lng, latitude, longitude);
+  const address = [
+    place.formattedAddress,
+    place.formatted_address,
+    place.vicinity,
+    place.shortFormattedAddress,
+    place.address,
+    Array.isArray(place.addressComponents)
+      ? place.addressComponents.map((component) => component.longText || component.long_name).filter(Boolean).join(", ")
+      : ""
+  ].find(Boolean) || "";
 
   return {
     id: place.place_id || place.id || `store-${index}`,
     name,
-    address: place.vicinity || place.formatted_address || place.formattedAddress || "",
+    address,
     distance: miles === null ? "" : `${miles.toFixed(1)} mi`,
     distanceMiles: miles,
     rating: typeof place.rating === "number" ? place.rating : null,
