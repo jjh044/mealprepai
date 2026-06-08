@@ -27,6 +27,138 @@ const instacartCache = new Map();
 const instacartProductCache = new Map();
 const storeCache = new Map();
 const youtubeRecipeCache = new Map();
+const curatedYoutubeRecipes = [
+  {
+    id: "youtube-breakfast-mI--h_Ey6Ck",
+    meal: "Breakfast",
+    title: "Overnight Oats",
+    summary: "Creamy overnight oats with milk, yogurt, chia seeds, and berries.",
+    cost: 2.25,
+    minutes: 10,
+    protein: 18,
+    tags: ["balanced", "vegetarian", "gluten-free", "quick", "batch", "leftovers"],
+    provider: "YouTube + AI",
+    source: "YouTube",
+    sourceUrl: "https://www.youtube.com/watch?v=mI--h_Ey6Ck",
+    image: "https://i.ytimg.com/vi/mI--h_Ey6Ck/hqdefault.jpg",
+    ingredients: [
+      ["rolled oats", 0.5, "cup", "pantry"],
+      ["milk", 0.5, "cup", "dairy"],
+      ["Greek yogurt", 0.25, "cup", "dairy"],
+      ["chia seeds", 1, "tbsp", "pantry"],
+      ["berries", 0.5, "cup", "produce"]
+    ]
+  },
+  {
+    id: "youtube-breakfast-5s0eRgZjlwU",
+    meal: "Breakfast",
+    title: "Cheesy Baked Eggs",
+    summary: "Baked eggs with cheddar and Parmesan cooked until just set.",
+    cost: 2.5,
+    minutes: 20,
+    protein: 22,
+    tags: ["balanced", "high-protein", "vegetarian", "gluten-free", "quick", "batch"],
+    provider: "YouTube + AI",
+    source: "YouTube",
+    sourceUrl: "https://www.youtube.com/watch?v=5s0eRgZjlwU",
+    image: "https://i.ytimg.com/vi/5s0eRgZjlwU/hqdefault.jpg",
+    ingredients: [
+      ["eggs", 2, "each", "dairy"],
+      ["cheddar cheese", 0.25, "cup", "dairy"],
+      ["Parmesan cheese", 1, "tbsp", "dairy"],
+      ["butter", 1, "tsp", "dairy"],
+      ["black pepper", 0.25, "tsp", "pantry"]
+    ]
+  },
+  {
+    id: "youtube-lunch-AYNvbkN1gvA",
+    meal: "Lunch",
+    title: "Chicken Crunch Wraps",
+    summary: "Seasoned chicken crunch wraps with yogurt sauce, lettuce, tomato, and mozzarella.",
+    cost: 4.75,
+    minutes: 30,
+    protein: 42,
+    tags: ["balanced", "high-protein", "batch", "family", "leftovers"],
+    provider: "YouTube + AI",
+    source: "Chef Jack Ovens",
+    sourceUrl: "https://www.youtube.com/watch?v=AYNvbkN1gvA",
+    image: "https://i.ytimg.com/vi/AYNvbkN1gvA/hqdefault.jpg",
+    ingredients: [
+      ["chicken breast", 5, "oz", "meat"],
+      ["large tortilla", 1, "each", "bakery"],
+      ["Greek yogurt", 0.25, "cup", "dairy"],
+      ["mozzarella cheese", 0.25, "cup", "dairy"],
+      ["tomato", 0.5, "each", "produce"],
+      ["romaine lettuce", 1, "cup", "produce"]
+    ]
+  },
+  {
+    id: "youtube-lunch-uGMEn_8T__M",
+    meal: "Lunch",
+    title: "Chicken Quinoa Buddha Bowl",
+    summary: "Chicken and quinoa bowls topped with carrots, tomatoes, red onion, and greens.",
+    cost: 4.5,
+    minutes: 25,
+    protein: 41,
+    tags: ["balanced", "high-protein", "gluten-free", "batch", "leftovers"],
+    provider: "YouTube + AI",
+    source: "Food and Health Communications",
+    sourceUrl: "https://www.youtube.com/watch?v=uGMEn_8T__M",
+    image: "https://i.ytimg.com/vi/uGMEn_8T__M/hqdefault.jpg",
+    ingredients: [
+      ["chicken breast", 5, "oz", "meat"],
+      ["cooked quinoa", 0.75, "cup", "pantry"],
+      ["carrot", 0.5, "each", "produce"],
+      ["tomatoes", 0.5, "cup", "produce"],
+      ["red onion", 0.25, "each", "produce"],
+      ["mixed greens", 1, "cup", "produce"]
+    ]
+  },
+  {
+    id: "youtube-dinner-JE5pGflwcLg",
+    meal: "Dinner",
+    title: "Shipwreck Ground Beef Skillet",
+    summary: "A one-pan ground beef skillet with pasta, peas, corn, and melted cheese.",
+    cost: 4.25,
+    minutes: 30,
+    protein: 34,
+    tags: ["balanced", "high-protein", "batch", "family", "leftovers"],
+    provider: "YouTube + AI",
+    source: "YouTube",
+    sourceUrl: "https://www.youtube.com/watch?v=JE5pGflwcLg",
+    image: "https://i.ytimg.com/vi/JE5pGflwcLg/hqdefault.jpg",
+    ingredients: [
+      ["lean ground beef", 5, "oz", "meat"],
+      ["pasta", 2, "oz", "pantry"],
+      ["peas", 0.25, "cup", "frozen"],
+      ["corn", 0.25, "cup", "frozen"],
+      ["cheddar cheese", 0.25, "cup", "dairy"],
+      ["tomato sauce", 0.5, "cup", "pantry"]
+    ]
+  },
+  {
+    id: "youtube-dinner-pjWjLkQmCTw",
+    meal: "Dinner",
+    title: "Stuffed Pepper Skillet",
+    summary: "An unstuffed pepper skillet with ground beef, cauliflower rice, vegetables, and cheese.",
+    cost: 4.5,
+    minutes: 30,
+    protein: 36,
+    tags: ["balanced", "high-protein", "gluten-free", "batch", "family", "leftovers"],
+    provider: "YouTube + AI",
+    source: "YouTube",
+    sourceUrl: "https://www.youtube.com/watch?v=pjWjLkQmCTw",
+    image: "https://i.ytimg.com/vi/pjWjLkQmCTw/hqdefault.jpg",
+    ingredients: [
+      ["lean ground beef", 5, "oz", "meat"],
+      ["bell pepper", 1, "each", "produce"],
+      ["cauliflower rice", 1, "cup", "frozen"],
+      ["diced tomatoes", 0.5, "cup", "pantry"],
+      ["onion", 0.25, "each", "produce"],
+      ["cheddar cheese", 0.25, "cup", "dairy"]
+    ]
+  }
+];
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -558,7 +690,7 @@ async function fetchMealPrepRecipes(preference) {
     throw errors[0];
   }
 
-  return shuffle([...recipesByKey.values()]);
+  return shuffle(removeAmbiguousRecipeImages([...recipesByKey.values()]));
 }
 
 async function fetchSpoonacularMealPrepRecipes(preference) {
@@ -633,6 +765,22 @@ async function fetchYoutubeMealPrepRecipes(preference) {
     return cached.recipes;
   }
 
+  try {
+    const liveRecipes = await fetchLiveYoutubeMealPrepRecipes(preference);
+    const recipes = ensureYoutubeRecipeInventory(liveRecipes);
+    youtubeRecipeCache.set(cacheKey, { createdAt: Date.now(), recipes });
+    return recipes;
+  } catch (error) {
+    console.error(error);
+    const recipes = cached?.recipes?.length
+      ? cached.recipes
+      : ensureYoutubeRecipeInventory([]);
+    youtubeRecipeCache.set(cacheKey, { createdAt: Date.now(), recipes });
+    return recipes;
+  }
+}
+
+async function fetchLiveYoutubeMealPrepRecipes(preference) {
   const mealSearches = [
     ["Breakfast", ["breakfast burrito recipe under 30 minutes", "oatmeal breakfast recipe under 30 minutes"]],
     ["Lunch", ["lunch bowl recipe under 30 minutes", "lunch wrap recipe under 30 minutes"]],
@@ -718,9 +866,7 @@ async function fetchYoutubeMealPrepRecipes(preference) {
   }
 
   const extractedRecipes = await extractYoutubeRecipes(detailedVideos, preference);
-  const recipes = mealsWithRecipeLimit(extractedRecipes, 2);
-  youtubeRecipeCache.set(cacheKey, { createdAt: Date.now(), recipes });
-  return recipes;
+  return extractedRecipes;
 }
 
 async function extractYoutubeRecipes(videos, preference) {
@@ -942,6 +1088,18 @@ function mealsWithRecipeLimit(recipes, limit) {
   });
 }
 
+function ensureYoutubeRecipeInventory(recipes) {
+  const seenIds = new Set();
+  const combined = [...recipes, ...curatedYoutubeRecipes]
+    .filter((recipe) => {
+      if (seenIds.has(recipe.id)) return false;
+      seenIds.add(recipe.id);
+      return true;
+    });
+
+  return mealsWithRecipeLimit(combined, 2);
+}
+
 function bestThumbnail(thumbnails) {
   const items = Array.isArray(thumbnails) ? thumbnails : [];
   return items[items.length - 1]?.url || items[0]?.url || "";
@@ -952,6 +1110,70 @@ function recipeDedupeKey(recipe) {
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+}
+
+function removeAmbiguousRecipeImages(recipes) {
+  const recipesByImage = new Map();
+
+  recipes.forEach((recipe) => {
+    const imageKey = normalizeImageUrl(recipe.image);
+    if (!imageKey) return;
+    const matches = recipesByImage.get(imageKey) || [];
+    matches.push(recipe);
+    recipesByImage.set(imageKey, matches);
+  });
+
+  return recipes.map((recipe) => {
+    const imageKey = normalizeImageUrl(recipe.image);
+    const imageMatches = imageKey ? recipesByImage.get(imageKey) || [] : [];
+    const hasConflictingTitles = new Set(
+      imageMatches.map((match) => String(match.title || "").trim().toLowerCase())
+    ).size > 1;
+
+    if (!isVerifiedRecipeImage(recipe) || hasConflictingTitles) {
+      return { ...recipe, image: "" };
+    }
+
+    return recipe;
+  });
+}
+
+function normalizeImageUrl(image) {
+  try {
+    const url = new URL(String(image || ""));
+    url.search = "";
+    url.hash = "";
+
+    if (/buzzfeed\.com$/i.test(url.hostname)) {
+      const fileName = url.pathname.split("/").filter(Boolean).pop();
+      return `${url.hostname}/${fileName || ""}`.toLowerCase();
+    }
+
+    return url.toString().toLowerCase();
+  } catch {
+    return "";
+  }
+}
+
+function isVerifiedRecipeImage(recipe) {
+  const image = String(recipe.image || "");
+  if (!/^https:\/\//i.test(image)) return false;
+
+  if (recipe.provider === "Spoonacular") {
+    const recipeId = String(recipe.id || "").split("-").pop();
+    return new RegExp(`/recipes/${recipeId}(?:-|\\.)`, "i").test(image);
+  }
+
+  if (recipe.provider === "Tasty") {
+    return /(?:buzzfeed\.com|tasty\.co)/i.test(image) &&
+      !/\b(?:breakfasts|lunches|dinners|recipes|meals|ways)\b/i.test(
+        decodeURIComponent(image)
+          .replace(/([a-z])([A-Z])/g, "$1 $2")
+          .replace(/[^a-z]+/gi, " ")
+      );
+  }
+
+  return true;
 }
 
 function preferenceSearchParams(preference) {

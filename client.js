@@ -300,6 +300,7 @@ let activeTipsId = 0;
 let activeStoresId = 0;
 let activeInstructionsId = 0;
 let recentRecipeIds = [];
+let previousPlanRecipeIds = new Set();
 
 function dollars(value) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
@@ -479,6 +480,14 @@ function preferProvider(recipes, useYoutube, allowFallback = true) {
   return providerMatches.length > 0 || !allowFallback ? providerMatches : recipes;
 }
 
+function avoidRecentRecipes(recipes) {
+  const notRecentlyUsed = recipes.filter((recipe) => !recentRecipeIds.includes(recipe.id));
+  if (notRecentlyUsed.length > 0) return notRecentlyUsed;
+
+  const notInPreviousPlan = recipes.filter((recipe) => !previousPlanRecipeIds.has(recipe.id));
+  return notInPreviousPlan.length > 0 ? notInPreviousPlan : recipes;
+}
+
 function buildPlan(prefs) {
   const selected = [];
   const usedTitles = new Set();
@@ -500,8 +509,7 @@ function buildPlan(prefs) {
     const matchedRecipes = preferredProviderRecipes.length > 0
       ? preferredProviderRecipes
       : providerRecipes;
-    const freshProviderRecipes = matchedRecipes.filter((recipe) => !recentRecipeIds.includes(recipe.id));
-    const candidateRecipes = freshProviderRecipes.length > 0 ? freshProviderRecipes : matchedRecipes;
+    const candidateRecipes = avoidRecentRecipes(matchedRecipes);
     const candidates = candidateRecipes
       .map((recipe) => ({
         recipe,
@@ -520,11 +528,17 @@ function buildPlan(prefs) {
     return selected
       .map((item) => {
         if (item.cost <= 4.2) return item;
+        const otherMeals = selected.filter((selectedItem) => selectedItem.id !== item.id);
+        const usedIds = new Set(otherMeals.map((selectedItem) => selectedItem.id));
+        const usedTitles = new Set(otherMeals.map((selectedItem) => selectedItem.title.toLowerCase()));
         const cheaperRecipes = recipeBank
           .filter((recipe) => recipe.meal === item.meal && recipe.cost < item.cost && isQuickPrep(recipe))
-          .filter((recipe) => matchesPreference(recipe, prefs.preference));
-        const cheaper = preferProvider(cheaperRecipes, isYoutubeRecipe(item), false)
-          .sort((a, b) => a.cost - b.cost)[0];
+          .filter((recipe) => matchesPreference(recipe, prefs.preference))
+          .filter((recipe) => !usedIds.has(recipe.id) && !usedTitles.has(recipe.title.toLowerCase()));
+        const providerRecipes = preferProvider(cheaperRecipes, isYoutubeRecipe(item), false);
+        const cheaperCandidates = avoidRecentRecipes(providerRecipes)
+          .sort((a, b) => a.cost - b.cost);
+        const cheaper = chooseFromTop(cheaperCandidates, 3);
         return cheaper ? { ...item, ...cheaper, servings: prefs.people * prepDays } : item;
       });
   }
@@ -534,6 +548,7 @@ function buildPlan(prefs) {
 
 function rememberRecentRecipes(plan) {
   const ids = plan.map((item) => item.id).filter(Boolean);
+  previousPlanRecipeIds = new Set(ids);
   recentRecipeIds = [...ids, ...recentRecipeIds.filter((id) => !ids.includes(id))].slice(0, 12);
 }
 
@@ -559,15 +574,23 @@ function mergeRecipes(recipes) {
 }
 
 function replacementCandidates(meal, currentId, prefs, useYoutube) {
+  const currentIds = new Set(currentPlan.map((recipe) => recipe.id));
+  const currentTitles = new Set(currentPlan.map((recipe) => recipe.title.toLowerCase()));
   const quickRecipes = recipeBank
-    .filter((recipe) => recipe.meal === meal && recipe.id !== currentId && isQuickPrep(recipe));
+    .filter((recipe) =>
+      recipe.meal === meal &&
+      recipe.id !== currentId &&
+      !currentIds.has(recipe.id) &&
+      !currentTitles.has(recipe.title.toLowerCase()) &&
+      isQuickPrep(recipe)
+    );
   const providerRecipes = preferProvider(quickRecipes, useYoutube, false);
   const preferredRecipes = providerRecipes
     .filter((recipe) => matchesPreference(recipe, prefs.preference));
   const candidates = preferredRecipes.length > 0 ? preferredRecipes : providerRecipes;
   const mealIndex = meals.indexOf(meal);
 
-  return candidates
+  return avoidRecentRecipes(candidates)
     .map((recipe) => ({
       recipe,
       score: scoreRecipe(recipe, prefs, mealIndex)
@@ -625,6 +648,7 @@ async function swapMeal(item, button) {
     const currentIndex = currentPlan.findIndex((meal) => meal.id === item.id);
     if (currentIndex !== -1) {
       currentPlan[currentIndex] = chooseFromTop(candidates, 6);
+      rememberRecentRecipes(currentPlan);
       refreshDependentViews(prefs);
       renderPlan(currentPlan, prefs);
     }
@@ -803,7 +827,7 @@ function renderPlan(plan, prefs) {
   plan.forEach((item) => {
     const node = template.content.firstElementChild.cloneNode(true);
     const image = node.querySelector("img");
-    image.src = item.image;
+    image.src = item.image || fallbackImage(item.title);
     image.alt = item.title;
     image.onerror = () => {
       image.onerror = null;
