@@ -394,7 +394,7 @@ async function loadRealRecipes(prefs, renderId) {
     return;
   }
 
-  setRecipeStatus("Loading real recipes from Spoonacular and Tasty...");
+  setRecipeStatus("Loading quick recipes from Spoonacular, Tasty, and YouTube...");
 
   try {
     const response = await fetch(`/api/recipes?preference=${encodeURIComponent(prefs.preference)}`);
@@ -793,8 +793,14 @@ function renderPlan(plan, prefs) {
       `${item.protein}g protein`,
       item.source
     ]
-      .map((chip) => `<span class="chip">${chip}</span>`)
+      .map((chip) => `<span class="chip">${escapeHtml(String(chip))}</span>`)
       .join("");
+    const sourceLink = node.querySelector(".source-link");
+    if (item.sourceUrl) {
+      sourceLink.href = item.sourceUrl;
+      sourceLink.textContent = "Watch the source video";
+      sourceLink.hidden = false;
+    }
     const swapButton = node.querySelector(".swap-meal-action");
     swapButton.textContent = `Pick a different ${item.meal.toLowerCase()}`;
     swapButton.addEventListener("click", () => swapMeal(item, swapButton));
@@ -1138,5 +1144,5 @@ if (loadInstacartProductsButton) {
   loadInstacartProductsButton.addEventListener("click", loadInstacartProducts);
 }
 
-setRecipeStatus("Build a meal prep plan to load quick Spoonacular recipes.");
+setRecipeStatus("Build a meal prep plan to load quick recipes, including YouTube videos.");
 clearPlanViews("");

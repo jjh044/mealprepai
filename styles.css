@@ -432,6 +432,18 @@ fieldset {
   border-color: var(--tomato);
 }
 
+.source-link {
+  display: block;
+  margin-top: 14px;
+  color: var(--leaf-dark);
+  font-weight: 850;
+  text-align: center;
+}
+
+.source-link[hidden] {
+  display: none;
+}
+
 .swap-meal-action {
   width: 100%;
   min-height: 40px;

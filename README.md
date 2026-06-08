@@ -36,7 +36,7 @@ Google Places is used only for nearby store discovery. Basket prices are app est
 - Weekly budget, ZIP code, household size, and food preference
 - Food preference options: high protein, vegetarian, vegan, gluten free, and balanced
 - Bulk breakfast, lunch, and dinner selection for 5 days
-- Live Spoonacular recipes through the local backend when `RAPIDAPI_KEY` is configured
+- Live Spoonacular, Tasty, and YouTube recipes through the local backend when provider keys are configured
 - Cost, protein, and cook-time summary
 - Aggregated grocery list grouped by store section with Edamam nutrition matches
 - Nearby grocery comparison with estimate labels until store and pricing APIs are connected
@@ -49,6 +49,7 @@ Selected integrations:
 - Recipe discovery: Spoonacular Recipe Food Nutrition API via RapidAPI. Implemented in `server.js` through `/api/recipes`.
 - Nutrition and ingredient normalization: Edamam Food and Grocery Database via RapidAPI. Implemented in `server.js` through `/api/ingredients/normalize`.
 - AI layer: OpenAI Responses API. Implemented in `server.js` through `/api/ai/prep-tips`.
+- YouTube recipe discovery: YouTube138 search and video details via RapidAPI. Video descriptions are converted into normalized recipes and grocery ingredients with OpenAI.
 - Store discovery: Google Maps Geocoding API plus Places API Nearby Search (New). Not implemented yet.
 - Grocery shopping and pricing: Instacart Developer Platform API. Not implemented yet.
 
