@@ -262,6 +262,9 @@ const starterRecipeBank = [
   }
 ];
 
+const YOUTUBE_PROVIDER = "YouTube + AI";
+const YOUTUBE_RECIPE_SHARE = 0.75;
+
 let recipeBank = [...starterRecipeBank];
 
 const fallbackStores = [
@@ -454,24 +457,51 @@ function chooseFromTop(candidates, limit = 4) {
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
+function isYoutubeRecipe(recipe) {
+  return recipe.provider === YOUTUBE_PROVIDER;
+}
+
+function youtubeMealSlots(totalMeals) {
+  const exactTarget = totalMeals * YOUTUBE_RECIPE_SHARE;
+  const minimumTarget = Math.floor(exactTarget);
+  const target = minimumTarget + (Math.random() < exactTarget - minimumTarget ? 1 : 0);
+
+  return new Set(
+    meals
+      .map((_, index) => index)
+      .sort(() => Math.random() - 0.5)
+      .slice(0, target)
+  );
+}
+
+function preferProvider(recipes, useYoutube, allowFallback = true) {
+  const providerMatches = recipes.filter((recipe) => isYoutubeRecipe(recipe) === useYoutube);
+  return providerMatches.length > 0 || !allowFallback ? providerMatches : recipes;
+}
+
 function buildPlan(prefs) {
   const selected = [];
   const usedTitles = new Set();
+  const youtubeSlots = youtubeMealSlots(meals.length);
 
   meals.forEach((meal, mealIndex) => {
     const quickRecipes = recipeBank.filter((recipe) => recipe.meal === meal && isQuickPrep(recipe));
     const mealRecipes = quickRecipes.length > 0
       ? quickRecipes
       : starterRecipeBank.filter((recipe) => recipe.meal === meal && isQuickPrep(recipe));
-    const preferredRecipes = mealRecipes.filter((recipe) => matchesPreference(recipe, prefs.preference));
-    const uniqueRecipes = (preferredRecipes.length > 0 ? preferredRecipes : mealRecipes)
+    const uniqueRecipes = mealRecipes
       .filter((recipe) => !usedTitles.has(recipe.title.toLowerCase()));
-    const freshRecipes = uniqueRecipes.filter((recipe) => !recentRecipeIds.includes(recipe.id));
-    const candidateRecipes = freshRecipes.length > 0
-      ? freshRecipes
-      : uniqueRecipes.length > 0
-        ? uniqueRecipes
-        : (preferredRecipes.length > 0 ? preferredRecipes : mealRecipes);
+    const providerRecipes = preferProvider(
+      uniqueRecipes.length > 0 ? uniqueRecipes : mealRecipes,
+      youtubeSlots.has(mealIndex)
+    );
+    const preferredProviderRecipes = providerRecipes
+      .filter((recipe) => matchesPreference(recipe, prefs.preference));
+    const matchedRecipes = preferredProviderRecipes.length > 0
+      ? preferredProviderRecipes
+      : providerRecipes;
+    const freshProviderRecipes = matchedRecipes.filter((recipe) => !recentRecipeIds.includes(recipe.id));
+    const candidateRecipes = freshProviderRecipes.length > 0 ? freshProviderRecipes : matchedRecipes;
     const candidates = candidateRecipes
       .map((recipe) => ({
         recipe,
@@ -490,9 +520,10 @@ function buildPlan(prefs) {
     return selected
       .map((item) => {
         if (item.cost <= 4.2) return item;
-        const cheaper = recipeBank
+        const cheaperRecipes = recipeBank
           .filter((recipe) => recipe.meal === item.meal && recipe.cost < item.cost && isQuickPrep(recipe))
-          .filter((recipe) => matchesPreference(recipe, prefs.preference))
+          .filter((recipe) => matchesPreference(recipe, prefs.preference));
+        const cheaper = preferProvider(cheaperRecipes, isYoutubeRecipe(item), false)
           .sort((a, b) => a.cost - b.cost)[0];
         return cheaper ? { ...item, ...cheaper, servings: prefs.people * prepDays } : item;
       });
@@ -527,11 +558,13 @@ function mergeRecipes(recipes) {
   recipeBank = [...recipeBank, ...additions];
 }
 
-function replacementCandidates(meal, currentId, prefs) {
+function replacementCandidates(meal, currentId, prefs, useYoutube) {
   const quickRecipes = recipeBank
     .filter((recipe) => recipe.meal === meal && recipe.id !== currentId && isQuickPrep(recipe));
-  const preferredRecipes = quickRecipes.filter((recipe) => matchesPreference(recipe, prefs.preference));
-  const candidates = preferredRecipes.length > 0 ? preferredRecipes : quickRecipes;
+  const providerRecipes = preferProvider(quickRecipes, useYoutube, false);
+  const preferredRecipes = providerRecipes
+    .filter((recipe) => matchesPreference(recipe, prefs.preference));
+  const candidates = preferredRecipes.length > 0 ? preferredRecipes : providerRecipes;
   const mealIndex = meals.indexOf(meal);
 
   return candidates
@@ -572,11 +605,12 @@ async function swapMeal(item, button) {
   button.textContent = "Finding another...";
 
   try {
-    let candidates = replacementCandidates(item.meal, item.id, prefs);
+    const useYoutube = isYoutubeRecipe(item);
+    let candidates = replacementCandidates(item.meal, item.id, prefs, useYoutube);
 
     if (candidates.length === 0) {
       await fetchMoreRecipes(prefs);
-      candidates = replacementCandidates(item.meal, item.id, prefs);
+      candidates = replacementCandidates(item.meal, item.id, prefs, useYoutube);
     }
 
     if (candidates.length === 0) {

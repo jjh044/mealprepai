@@ -634,31 +634,47 @@ async function fetchYoutubeMealPrepRecipes(preference) {
   }
 
   const mealSearches = [
-    ["Breakfast", "30 minute or less breakfast meal prep recipe"],
-    ["Lunch", "30 minute or less lunch meal prep recipe"],
-    ["Dinner", "30 minute or less dinner meal prep recipe"]
+    ["Breakfast", ["breakfast burrito recipe under 30 minutes", "oatmeal breakfast recipe under 30 minutes"]],
+    ["Lunch", ["lunch bowl recipe under 30 minutes", "lunch wrap recipe under 30 minutes"]],
+    ["Dinner", ["one pan dinner recipe under 30 minutes", "pasta dinner recipe under 30 minutes"]]
   ];
   const videos = [];
 
-  for (const [meal, query] of mealSearches) {
-    const response = await rapidApiGetFromHost(
-      YOUTUBE_RAPIDAPI_HOST,
-      `/search/?${new URLSearchParams({
-        q: `${query} ${youtubePreferenceQuery(preference)}`.trim(),
-        hl: "en",
-        gl: "US"
-      })}`
-    );
-    const video = (response.contents || [])
-      .map((item) => item.video)
-      .filter(Boolean)
-      .find((item) =>
-        Number(item.lengthSeconds) > 0 &&
-        Number(item.lengthSeconds) <= 30 * 60 &&
-        isYoutubeMealMatch(item, meal)
+  for (const [meal, queries] of mealSearches) {
+    const candidates = [];
+
+    for (const query of queries) {
+      const response = await rapidApiGetFromHost(
+        YOUTUBE_RAPIDAPI_HOST,
+        `/search/?${new URLSearchParams({
+          q: `${query} ${youtubePreferenceQuery(preference)}`.trim(),
+          hl: "en",
+          gl: "US"
+        })}`
       );
 
-    if (video) {
+      (response.contents || [])
+        .map((item) => item.video)
+        .filter(Boolean)
+        .filter((item) =>
+          Number(item.lengthSeconds) > 0 &&
+          Number(item.lengthSeconds) <= 30 * 60 &&
+          isSpecificYoutubeRecipeCandidate(item)
+        )
+        .forEach((item) => candidates.push(item));
+
+      await wait(350);
+    }
+
+    const exactMatches = candidates.filter((item) => isYoutubeMealMatch(item, meal));
+    const fallbackMatches = candidates.filter((item) => isLikelyYoutubeRecipeVideo(item));
+    const selectedVideos = [...exactMatches, ...fallbackMatches]
+      .filter((item, index, items) =>
+        items.findIndex((candidate) => candidate.videoId === item.videoId) === index
+      )
+      .slice(0, 5);
+
+    selectedVideos.forEach((video) => {
       videos.push({
         meal,
         videoId: video.videoId,
@@ -668,9 +684,7 @@ async function fetchYoutubeMealPrepRecipes(preference) {
         image: bestThumbnail(video.thumbnails),
         descriptionSnippet: video.descriptionSnippet || ""
       });
-    }
-
-    await wait(350);
+    });
   }
 
   const detailedVideos = [];
@@ -703,7 +717,8 @@ async function fetchYoutubeMealPrepRecipes(preference) {
     return [];
   }
 
-  const recipes = await extractYoutubeRecipes(detailedVideos, preference);
+  const extractedRecipes = await extractYoutubeRecipes(detailedVideos, preference);
+  const recipes = mealsWithRecipeLimit(extractedRecipes, 2);
   youtubeRecipeCache.set(cacheKey, { createdAt: Date.now(), recipes });
   return recipes;
 }
@@ -771,7 +786,7 @@ async function extractYoutubeRecipes(videos, preference) {
       {
         role: "system",
         content:
-          "Convert YouTube cooking video metadata and descriptions into practical meal-prep recipes. Return exactly one recipe for each supplied video and only compact JSON with key recipes. Never invent a recipe unrelated to the supplied source. Each recipe must include videoId, title, summary, minutes, protein, cost, tags, and ingredients. Ingredients must be an array of objects with name, amount, unit, and category. Amounts must be realistic amounts per person for one serving. category must be produce, meat, dairy, bakery, frozen, refrigerated, or pantry. minutes must be 30 or less. cost is estimated US dollars per serving. tags may include balanced, high-protein, vegetarian, vegan, gluten-free, quick, batch, family, and leftovers."
+          "Convert qualifying YouTube cooking videos into practical meal-prep recipes and return only compact JSON with key recipes. Include a video only when its title and description clearly identify one specific dish being cooked and provide enough evidence for its ingredients. Reject general meal-prep advice, meal plans, what-I-eat videos, compilations, roundups, samplers, multiple-recipe videos, and vague videos that do not identify one dish. It is valid to return fewer recipes than supplied videos or an empty recipes array. Never invent a dish or ingredients unrelated to the source. Each accepted recipe must include videoId, a specific dish title, summary, minutes, protein, cost, tags, and ingredients. Ingredients must be an array of objects with name, amount, unit, and category. Amounts must be realistic amounts per person for one serving. category must be produce, meat, dairy, bakery, frozen, refrigerated, or pantry. minutes must be 30 or less. cost is estimated US dollars per serving. tags may include balanced, high-protein, vegetarian, vegan, gluten-free, quick, batch, family, and leftovers."
       },
       {
         role: "user",
@@ -808,6 +823,11 @@ function normalizeYoutubeRecipe(recipe, video, preference) {
     return null;
   }
 
+  const recipeTitle = String(recipe.title || "").trim();
+  if (!isSpecificRecipeTitle(recipeTitle) || isGeneralYoutubeVideo(video)) {
+    return null;
+  }
+
   const minutes = Math.min(30, Math.max(1, Number(recipe.minutes) || video.durationMinutes));
   const ingredients = recipe.ingredients.slice(0, 10).map((ingredient) => {
     const name = String(ingredient.name || "ingredient").trim();
@@ -833,7 +853,7 @@ function normalizeYoutubeRecipe(recipe, video, preference) {
   return {
     id: `youtube-${video.meal.toLowerCase()}-${video.videoId}`,
     meal: video.meal,
-    title: String(recipe.title || video.title).slice(0, 100),
+    title: recipeTitle.slice(0, 100),
     summary: String(recipe.summary || `AI recipe based on ${video.channel}'s video.`).slice(0, 180),
     cost: Math.max(1.5, Math.min(15, Number(recipe.cost) || ingredients.length * 0.75)),
     minutes,
@@ -872,6 +892,54 @@ function isYoutubeMealMatch(video, meal) {
   };
 
   return !claimsLongRecipe && (patterns[meal]?.test(text) || false);
+}
+
+function isSpecificYoutubeRecipeCandidate(video) {
+  const text = `${video.title || ""} ${video.descriptionSnippet || ""}`.toLowerCase();
+  return !isGeneralYoutubeVideo(video) &&
+    /\b(recipe|oats?|oatmeal|eggs?|omelet|pancakes?|waffles?|smoothie|burrito|sandwich|wrap|salad|soup|chili|curry|chicken|turkey|beef|pork|salmon|shrimp|fish|pasta|noodles?|rice|quinoa|tacos?|pizza|casserole|stir[- ]?fry)\b/.test(text);
+}
+
+function isGeneralYoutubeVideo(video) {
+  const title = String(video.title || "").toLowerCase();
+  const titleNamesDish =
+    /\b(oats?|oatmeal|eggs?|omelet|pancakes?|waffles?|smoothie|burrito|sandwich|wrap|salad|soup|chili|curry|chicken|turkey|beef|pork|salmon|shrimp|fish|pasta|noodles?|rice|quinoa|tacos?|pizza|casserole|stir[- ]?fry)\b/.test(title);
+
+  return /\b(roundup|sampler|compilation|meal plan|meal ideas?|recipe ideas?|what i eat|full day of eating|week of meals?|weekly prep|cook with me|multiple recipes?|several recipes?|variety|variations?)\b/.test(title) ||
+    /\b(recipes|meals|dinners|lunches|breakfasts)\b/.test(title) ||
+    /\b(?:[2-9]|1\d+)\s+(?:easy |healthy |quick )?(?:meals?|recipes?|dinners?|lunches?|breakfasts?|ways)\b/.test(title) ||
+    /\b(?:meals?|recipes?)\s+(?:for|in)\s+(?:the )?(?:week|month)\b/.test(title) ||
+    (/\bmeal prep\b/.test(title) && !titleNamesDish);
+}
+
+function isSpecificRecipeTitle(title) {
+  const value = String(title || "").trim().toLowerCase();
+  if (value.length < 4 || isGeneralYoutubeVideo({ title: value })) {
+    return false;
+  }
+
+  return !/^(meal prep|breakfast|lunch|dinner|healthy meal|easy meal|quick meal|high protein meal)(?: recipe)?$/.test(value);
+}
+
+function isLikelyYoutubeRecipeVideo(video) {
+  const text = `${video.title || ""} ${video.descriptionSnippet || ""}`.toLowerCase();
+  const title = String(video.title || "").toLowerCase();
+  const claimsLongRecipe =
+    /\b(?:3[1-9]|[4-9]\d|[1-9]\d{2,})\s*[- ]?minutes?\b/.test(title) ||
+    /\b[1-9]\s*[- ]?hours?\b/.test(title);
+
+  return !claimsLongRecipe &&
+    /\b(recipe|meal prep|cook|breakfast|lunch|dinner|oats?|eggs?|chicken|beef|pasta|rice|salad|soup)\b/.test(text);
+}
+
+function mealsWithRecipeLimit(recipes, limit) {
+  const counts = new Map();
+  return recipes.filter((recipe) => {
+    const count = counts.get(recipe.meal) || 0;
+    if (count >= limit) return false;
+    counts.set(recipe.meal, count + 1);
+    return true;
+  });
 }
 
 function bestThumbnail(thumbnails) {

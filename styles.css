@@ -384,8 +384,9 @@ fieldset {
   display: block;
   width: 100%;
   aspect-ratio: 16 / 10;
-  object-fit: cover;
-  background: #dfe6e1;
+  object-fit: contain;
+  object-position: center;
+  background: #f1f4f2;
 }
 
 .meal-body {
