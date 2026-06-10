@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PrepWise App Store Screenshot</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { width: 1290px; height: 2796px; margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+      body { color: #18231f; background: linear-gradient(160deg, #e5f0e9, #fff9ef 58%, #f4dfd9); }
+      .frame { display: grid; grid-template-rows: 650px 1fr; width: 100%; height: 100%; padding: 130px 95px 90px; }
+      .copy { text-align: center; }
+      .eyebrow { margin: 0 0 28px; color: #c74e37; font-size: 38px; font-weight: 800; text-transform: uppercase; }
+      h1 { max-width: 1080px; margin: 0 auto; font-size: 105px; line-height: 1.02; letter-spacing: -4px; }
+      .sub { max-width: 980px; margin: 34px auto 0; color: #52615a; font-size: 38px; line-height: 1.35; }
+      .phone { width: 1020px; height: 1930px; margin: 0 auto; overflow: hidden; background: #f5f7f4; border: 22px solid #18231f; border-radius: 94px; box-shadow: 0 45px 90px rgba(24,35,31,.24); }
+      .status { display: flex; justify-content: space-between; padding: 35px 58px 18px; font-size: 30px; font-weight: 800; background: white; }
+      .app { padding: 32px; }
+      .bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; padding: 26px; background: white; border: 2px solid #dfe6e1; border-radius: 28px; }
+      .brand { display: flex; align-items: center; gap: 20px; font-size: 40px; font-weight: 850; }
+      .mark { display: grid; width: 76px; height: 76px; place-items: center; color: white; background: #2f7c57; border-radius: 20px; font-size: 28px; }
+      .pill { padding: 15px 22px; color: #205b41; background: #e7f0eb; border-radius: 999px; font-size: 24px; font-weight: 800; }
+      .panel { padding: 34px; background: white; border: 2px solid #dfe6e1; border-radius: 32px; box-shadow: 0 18px 45px rgba(28,45,38,.08); }
+      h2 { margin: 0 0 12px; font-size: 58px; line-height: 1.05; }
+      .muted { color: #65716c; font-size: 29px; line-height: 1.35; }
+      .fields, .cards, .list, .tips, .history { display: grid; gap: 20px; margin-top: 28px; }
+      .fields { grid-template-columns: 1fr 1fr; }
+      .field { padding: 24px; background: #f7faf8; border: 2px solid #dfe6e1; border-radius: 22px; }
+      .field span { display: block; color: #65716c; font-size: 24px; font-weight: 800; }
+      .field strong { display: block; margin-top: 10px; font-size: 38px; }
+      .choice { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; }
+      .choice b { padding: 15px 19px; color: #205b41; background: #e7f0eb; border-radius: 999px; font-size: 22px; }
+      .button { margin-top: 26px; padding: 24px; color: white; text-align: center; background: #2f7c57; border-radius: 22px; font-size: 30px; font-weight: 850; }
+      .cards { grid-template-columns: 1fr; }
+      .meal { display: grid; grid-template-columns: 210px 1fr; gap: 24px; padding: 24px; background: #f7faf8; border: 2px solid #dfe6e1; border-radius: 24px; }
+      .food { display: grid; place-items: center; min-height: 170px; background: #e7f0eb; border-radius: 20px; font-size: 76px; }
+      .meal h3 { margin: 6px 0 10px; font-size: 35px; }
+      .meal p { margin: 0; color: #65716c; font-size: 24px; line-height: 1.3; }
+      .tags { display: flex; gap: 8px; margin-top: 15px; }
+      .tags span { padding: 8px 11px; color: #205b41; background: #e7f0eb; border-radius: 999px; font-size: 19px; font-weight: 800; }
+      .group { padding: 24px; background: #f7faf8; border-radius: 22px; }
+      .group h3 { margin: 0 0 12px; color: #c74e37; font-size: 27px; text-transform: uppercase; }
+      .row { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #dfe6e1; font-size: 26px; }
+      .store { display: flex; justify-content: space-between; align-items: center; padding: 25px; background: #f7faf8; border-radius: 22px; }
+      .store strong { font-size: 32px; }
+      .store b { font-size: 38px; }
+      .best { color: white; background: #2f7c57; }
+      .best .muted { color: #dcebe3; }
+      .tip { padding: 24px; background: #f7faf8; border-radius: 22px; }
+      .tip h3 { margin: 0 0 10px; font-size: 30px; }
+      .tip p { margin: 0; color: #65716c; font-size: 25px; line-height: 1.4; }
+      .pro { display: inline-block; margin-bottom: 18px; padding: 12px 17px; color: white; background: #c74e37; border-radius: 999px; font-size: 22px; font-weight: 850; }
+      .history-card { padding: 24px; background: #f7faf8; border: 2px solid #dfe6e1; border-radius: 22px; }
+      .history-card strong { font-size: 29px; }
+      .history-card p { margin: 10px 0 0; color: #65716c; font-size: 24px; line-height: 1.35; }
+    </style>
+  </head>
+  <body>
+    <main id="root"></main>
+    <script>
+      const shot = Number(new URLSearchParams(location.search).get("shot") || 1);
+      const data = [
+        ["Plan five days of meals in minutes", "Set a budget, household size, and food preference.", "setup"],
+        ["Stay within your weekly grocery budget", "See estimated meal and store totals before you shop.", "stores"],
+        ["Get one organized grocery list", "Every ingredient, grouped and ready for the store.", "groceries"],
+        ["Swap meals to match your preferences", "Keep the plan practical without starting over.", "meals"],
+        ["Prep everything with AI-guided steps", "Prep order, time savers, storage, and reheating guidance.", "tips"],
+        ["Save plans and simplify every week", "PrepWise Pro keeps recent plans ready to restore.", "history"]
+      ][shot - 1];
+      const screens = {
+        setup: `<div class="panel"><h2>Build your week</h2><p class="muted">A focused plan built around real-life constraints.</p><div class="fields"><div class="field"><span>Weekly budget</span><strong>$125</strong></div><div class="field"><span>People</span><strong>2</strong></div><div class="field"><span>ZIP code</span><strong>60614</strong></div><div class="field"><span>Plan length</span><strong>5 days</strong></div><div class="choice"><b>Balanced</b><b>High protein</b><b>Vegetarian</b><b>Vegan</b></div></div><div class="button">Build meal prep</div></div>`,
+        stores: `<div class="panel"><h2>Compare estimated baskets</h2><p class="muted">Nearby store locations with clearly labeled estimated totals.</p><div class="list"><div class="store best"><div><strong>ALDI</strong><p class="muted">2.1 mi · Estimated basket</p></div><b>$92.40</b></div><div class="store"><div><strong>Kroger</strong><p class="muted">1.4 mi · Estimated basket</p></div><b>$101.15</b></div><div class="store"><div><strong>Target Grocery</strong><p class="muted">2.6 mi · Estimated basket</p></div><b>$108.30</b></div></div></div>`,
+        groceries: `<div class="panel"><h2>Your grocery list</h2><p class="muted">Combined quantities for five days and two people.</p><div class="list"><div class="group"><h3>Produce</h3><div class="row"><span>Broccoli</span><strong>6 cups</strong></div><div class="row"><span>Bell peppers</span><strong>5 each</strong></div><div class="row"><span>Baby spinach</span><strong>10 cups</strong></div></div><div class="group"><h3>Protein</h3><div class="row"><span>Chicken breast</span><strong>4 lb</strong></div><div class="row"><span>Greek yogurt</span><strong>5 cups</strong></div></div><div class="group"><h3>Pantry</h3><div class="row"><span>Brown rice</span><strong>5 cups</strong></div><div class="row"><span>Rolled oats</span><strong>5 cups</strong></div></div></div></div>`,
+        meals: `<div class="panel"><h2>Your five-day plan</h2><p class="muted">Swap individual meals while keeping the rest of the week intact.</p><div class="cards"><div class="meal"><div class="food">🥣</div><div><h3>Berry Peanut Butter Oats</h3><p>Quick breakfast jars with berries and Greek yogurt.</p><div class="tags"><span>8 min</span><span>24g protein</span></div></div></div><div class="meal"><div class="food">🥗</div><div><h3>Chicken Quinoa Bowls</h3><p>Batch-friendly lunch with crisp vegetables.</p><div class="tags"><span>25 min</span><span>41g protein</span></div></div></div><div class="meal"><div class="food">🍛</div><div><h3>Red Lentil Coconut Curry</h3><p>One-pot dinner designed for reheating.</p><div class="tags"><span>30 min</span><span>Vegan</span></div></div></div><div class="button">Pick a different dinner</div></div></div>`,
+        tips: `<div class="panel"><span class="pro">PREPWISE PRO</span><h2>AI prep helper</h2><p class="muted">Guidance generated for your selected meals.</p><div class="tips"><div class="tip"><h3>1. Start grains first</h3><p>Cook rice and quinoa while the oven preheats.</p></div><div class="tip"><h3>2. Batch the vegetables</h3><p>Chop shared produce once, then divide it by recipe.</p></div><div class="tip"><h3>3. Keep sauces separate</h3><p>Portion dressings after meals cool to protect texture.</p></div><div class="tip"><h3>Store and reheat</h3><p>Refrigerate sealed portions and verify safe food temperatures.</p></div></div></div>`,
+        history: `<div class="panel"><span class="pro">PREPWISE PRO</span><h2>Saved plan history</h2><p class="muted">Restore a recent week instead of planning again.</p><div class="history"><div class="history-card"><strong>June 8</strong><p>Overnight Oats · Chicken Quinoa Bowls · Lentil Curry</p></div><div class="history-card"><strong>June 1</strong><p>Egg Breakfast Wrap · Turkey Chili · Sheet Pan Sausage</p></div><div class="history-card"><strong>May 25</strong><p>Chia Protein Pudding · Chickpea Pita · Tofu Noodles</p></div></div><div class="button">Restore this plan</div></div>`
+      };
+      root.innerHTML = `<section class="frame"><header class="copy"><p class="eyebrow">PrepWise</p><h1>${data[0]}</h1><p class="sub">${data[1]}</p></header><div class="phone"><div class="status"><span>9:41</span><span>5G&nbsp;&nbsp;100%</span></div><div class="app"><div class="bar"><div class="brand"><div class="mark">PW</div>PrepWise</div><div class="pill">${shot >= 5 ? "Pro" : "Free"}</div></div>${screens[data[2]]}</div></div></section>`;
+    </script>
+  </body>
+</html>

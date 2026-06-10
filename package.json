@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js"
+    "check": "node --check server.js && node --check client.js && node --check subscription.js && node --check native-store.js && node --check app-store-notifications.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"

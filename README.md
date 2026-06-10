@@ -27,6 +27,9 @@ Set these Vercel environment variables before deploying:
 - `RAPIDAPI_GOOGLE_PLACES_HOST`
 - `RAPIDAPI_GOOGLE_PLACES_NEW_HOST`
 - `RAPIDAPI_TASTY_HOST`
+- `YOUTUBE_API_KEY`
+
+Recipe responses use a six-hour shared cache to protect provider quotas, especially the official YouTube Data API search quota.
 
 Google Places is used only for nearby store discovery. Basket prices are app estimates until a retailer pricing API is connected.
 
@@ -36,11 +39,48 @@ Google Places is used only for nearby store discovery. Basket prices are app est
 - Weekly budget, ZIP code, household size, and food preference
 - Food preference options: high protein, vegetarian, vegan, gluten free, and balanced
 - Bulk breakfast, lunch, and dinner selection for 5 days
-- Live Spoonacular, Tasty, and YouTube recipes through the local backend when provider keys are configured
+- Live Spoonacular, Tasty, and official YouTube Data API recipes through the local backend when provider keys are configured
 - Cost, protein, and cook-time summary
 - Aggregated grocery list grouped by store section with Edamam nutrition matches
 - Nearby grocery comparison with estimate labels until store and pricing APIs are connected
 - OpenAI prep tips for batch order, time savers, and substitutions
+- Automatic local restoration of the latest plan, preferences, and favorites
+- Client request timeouts with recoverable fallback states
+- API health reporting, request body limits, security headers, and basic rate limiting
+- Free-tier quotas and a testable PrepWise Pro entitlement layer
+
+## Subscription Model
+
+- Subscription group products: `prepwise_pro_monthly` and `prepwise_pro_yearly`
+- Free weekly limits: 2 meal plans, 3 meal swaps, and 1 AI-assist package
+- Pro entitlement: unlimited plans, swaps, and AI prep help
+- Pro users receive an eight-plan history stored locally on the current device
+- The browser build uses clearly labeled local demo activation. It does not process payments.
+- The iOS build must replace local demo activation with StoreKit 2 product loading, purchasing, transaction verification, restoration, and App Store Server Notifications.
+- Client-side quotas are product prototyping only. Production limits and Pro access must be enforced by an authenticated backend using verified Apple transaction state.
+
+## App Store Release Package
+
+The `app-store/` directory now contains:
+
+- Opaque 1024×1024 App Store icon
+- Six 1290×2796 large-iPhone screenshots
+- App Store metadata draft
+- App Review notes
+- App Privacy worksheet
+- StoreKit 2 native bridge contract
+- Release and StoreKit sandbox testing checklist
+
+The app includes Account, subscription status, restore/manage controls, privacy policy, terms, support, sign-out, and local account-deletion surfaces.
+
+The App Store notification endpoint intentionally returns HTTP 503 until Apple signed-payload verification is implemented. Do not configure it in App Store Connect before that verifier and persistent entitlement storage are deployed.
+
+## Production Readiness
+
+- Health check: `GET /api/health`
+- Saved plans currently use browser storage on one device. Cloud accounts and cross-device sync still require an identity provider and production database.
+- Store locations may be live, but basket totals remain estimates until a licensed retailer-pricing integration is connected.
+- Review the commercial display and attribution terms for every recipe, image, video, mapping, nutrition, and retailer provider before launch.
 
 ## Production API Framework
 

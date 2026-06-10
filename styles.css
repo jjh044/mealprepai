@@ -62,6 +62,68 @@ p {
   box-shadow: 0 8px 22px rgba(28, 45, 38, 0.05);
 }
 
+.subscription-button {
+  display: grid;
+  gap: 2px;
+  min-width: 116px;
+  min-height: 48px;
+  padding: 7px 12px;
+  color: var(--leaf-dark);
+  text-align: left;
+  background: #eef4ef;
+  border: 1px solid #cbdad0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.subscription-button span {
+  font-weight: 850;
+}
+
+.subscription-button small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.is-pro .subscription-button {
+  color: white;
+  background: var(--leaf-dark);
+  border-color: var(--leaf-dark);
+}
+
+.is-pro .subscription-button small {
+  color: #dcebe3;
+}
+
+.usage-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  margin: -14px 0 18px;
+  padding: 11px 14px;
+  color: var(--muted);
+  background: #eef4ef;
+  border: 1px solid #d8e4db;
+  border-radius: 8px;
+  font-size: 0.86rem;
+}
+
+.usage-banner strong {
+  color: var(--leaf-dark);
+}
+
+.usage-banner button {
+  margin-left: auto;
+  padding: 7px 11px;
+  color: white;
+  background: var(--leaf);
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
 .brand-row {
   display: flex;
   gap: 14px;
@@ -113,6 +175,149 @@ h1 {
   border-radius: 8px;
   cursor: pointer;
   font-weight: 800;
+}
+
+.paywall-dialog {
+  width: min(640px, calc(100% - 24px));
+  max-height: calc(100vh - 24px);
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+}
+
+.paywall-dialog::backdrop {
+  background: rgba(24, 35, 31, 0.62);
+  backdrop-filter: blur(3px);
+}
+
+.paywall-card {
+  position: relative;
+  overflow-y: auto;
+  max-height: calc(100vh - 24px);
+  padding: 28px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+}
+
+.paywall-card h2 {
+  max-width: 500px;
+  margin-bottom: 10px;
+  font-size: clamp(1.8rem, 5vw, 2.8rem);
+  line-height: 1.03;
+}
+
+.paywall-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  padding: 7px 9px;
+  color: var(--muted);
+  background: #f5f7f4;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.paywall-reason,
+.paywall-tagline,
+.demo-disclosure,
+.renewal-disclosure,
+.purchase-status {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.paywall-benefits {
+  display: grid;
+  gap: 8px;
+  margin: 18px 0;
+  padding-left: 22px;
+}
+
+.paywall-benefits li::marker {
+  color: var(--leaf);
+}
+
+.subscription-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.subscription-option {
+  display: grid;
+  gap: 5px;
+  padding: 16px;
+  color: var(--ink);
+  text-align: left;
+  background: #f7faf8;
+  border: 2px solid #d8e4db;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.subscription-option:hover {
+  border-color: var(--leaf);
+}
+
+.subscription-option strong {
+  font-size: 1.1rem;
+}
+
+.subscription-option span {
+  color: var(--leaf-dark);
+  font-weight: 800;
+}
+
+.subscription-option small {
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.demo-disclosure {
+  margin: 14px 0;
+  padding: 10px 12px;
+  background: #fff7e8;
+  border: 1px solid #efd8a6;
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+
+.storekit-native .demo-disclosure {
+  display: none;
+}
+
+.renewal-disclosure {
+  font-size: 0.78rem;
+}
+
+.paywall-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.paywall-legal {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+.paywall-legal a {
+  color: var(--leaf-dark);
+  font-size: 0.84rem;
+  font-weight: 800;
+}
+
+.purchase-status {
+  min-height: 20px;
+  margin: 12px 0 0;
+  font-size: 0.86rem;
+  font-weight: 700;
 }
 
 .step {
@@ -177,6 +382,65 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow);
+}
+
+.plan-history-panel {
+  display: grid;
+  gap: 14px;
+  max-width: 760px;
+  margin: 22px auto 0;
+  padding: 20px;
+  background: #f7faf8;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.plan-history-panel[hidden] {
+  display: none;
+}
+
+.plan-history-panel h2 {
+  margin-bottom: 5px;
+  font-size: 1.35rem;
+}
+
+.plan-history-panel p {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.plan-history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.plan-history-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.plan-history-card p {
+  margin-top: 4px;
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.plan-history-card button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 7px 10px;
+  color: var(--leaf-dark);
+  background: #eef4ef;
+  border: 1px solid #cbdad0;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 800;
 }
 
 label,
@@ -309,10 +573,126 @@ fieldset {
 
 .meal-card,
 .grocery-group,
-.store-card {
+.store-card,
+.account-card {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 8px;
+}
+
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.account-card {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  padding: 18px;
+}
+
+.account-card h3 {
+  margin-bottom: 2px;
+}
+
+.account-card dl {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.account-card dl div {
+  display: grid;
+  gap: 2px;
+}
+
+.account-card dt {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.account-card dd {
+  margin: 0;
+  font-weight: 750;
+}
+
+.account-card a {
+  min-height: 42px;
+  padding: 10px 12px;
+  color: var(--leaf-dark);
+  background: #eef4ef;
+  border: 1px solid #d8e4db;
+  border-radius: 8px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.danger-card {
+  border-color: #ecc8c1;
+}
+
+.danger-card p {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.danger-action {
+  min-height: 42px;
+  padding: 0 14px;
+  color: white;
+  background: #a93e2d;
+  border: 1px solid #a93e2d;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.health-disclaimer {
+  margin-top: 18px;
+  padding: 14px;
+  color: #654d16;
+  background: #fff7e8;
+  border: 1px solid #efd8a6;
+  border-radius: 8px;
+  line-height: 1.45;
+}
+
+.legal-body {
+  background: #f5f7f4;
+}
+
+.legal-document {
+  width: min(760px, calc(100% - 28px));
+  margin: 24px auto;
+  padding: 28px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+
+.legal-document h1 {
+  margin: 10px 0 20px;
+  font-size: clamp(2rem, 6vw, 3.2rem);
+}
+
+.legal-document h2 {
+  margin: 24px 0 7px;
+  font-size: 1.18rem;
+}
+
+.legal-document p {
+  color: var(--muted);
+  line-height: 1.62;
+}
+
+.legal-document a {
+  color: var(--leaf-dark);
+  font-weight: 800;
 }
 
 .meal-grid {
@@ -793,6 +1173,87 @@ fieldset {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --ink: #eef5f1;
+    --muted: #b4c0ba;
+    --line: #405048;
+    --panel: #1d2924;
+    --wash: #111915;
+    --leaf: #55a77d;
+    --leaf-dark: #7cc69f;
+    --tomato: #ef806b;
+    --blue: #76add2;
+    --shadow: 0 18px 45px rgba(0, 0, 0, 0.3);
+  }
+
+  body,
+  .legal-body {
+    background: var(--wash);
+  }
+
+  .top-bar,
+  .page.is-active,
+  .setup-card,
+  .meal-card,
+  .grocery-group,
+  .store-card,
+  .account-card,
+  .paywall-card,
+  .legal-document,
+  #prep-tips-content article,
+  .instacart-product,
+  .plan-history-card {
+    background: var(--panel);
+  }
+
+  input,
+  .money-field,
+  .ghost-action,
+  .swap-meal-action {
+    color: var(--ink);
+    background: #17211d;
+  }
+
+  .steps,
+  .segmented,
+  .usage-banner,
+  .favorite-action,
+  .account-card a,
+  .plan-history-card button,
+  .chip {
+    background: #26372f;
+  }
+
+  .empty-state,
+  .prep-tips-panel,
+  .subscription-option,
+  .field,
+  .group,
+  .tip {
+    background: #17211d;
+  }
+
+  .demo-disclosure,
+  .health-disclaimer {
+    color: #f5dda2;
+    background: #3b311d;
+    border-color: #65532d;
+  }
+}
+
 @media (max-width: 820px) {
   .app-shell {
     width: min(100% - 20px, 1120px);
@@ -805,11 +1266,36 @@ fieldset {
     flex-direction: column;
   }
 
+  .subscription-button {
+    width: 100%;
+  }
+
   .setup-card,
   .meal-grid,
   #prep-tips-content,
-  .instacart-products {
+  .instacart-products,
+  .subscription-options,
+  .account-grid {
     grid-template-columns: 1fr;
+  }
+
+  .usage-banner {
+    margin-top: 0;
+  }
+
+  .usage-banner button {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .paywall-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .legal-document {
+    margin: 10px auto;
+    padding: 20px;
   }
 
   .steps {
@@ -843,9 +1329,14 @@ fieldset {
   }
 
   .page-footer,
-  .split-footer {
+  .split-footer,
+  .plan-history-card {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .plan-history-card button {
+    width: 100%;
   }
 
   .page-footer button,

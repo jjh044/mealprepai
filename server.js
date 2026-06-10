@@ -3,9 +3,14 @@ const http = require("http");
 const https = require("https");
 const path = require("path");
 const { URL } = require("url");
+const { processSignedNotification } = require("./app-store-notifications");
 
 const PORT = Number(process.env.PORT || 3000);
 const ROOT = __dirname;
+const MAX_JSON_BODY_BYTES = 64 * 1024;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const RATE_LIMIT_MAX_REQUESTS = 60;
+const requestBuckets = new Map();
 loadLocalEnv();
 
 const RAPIDAPI_HOST =
@@ -20,8 +25,6 @@ const GOOGLE_PLACES_NEW_RAPIDAPI_HOST =
   process.env.RAPIDAPI_GOOGLE_PLACES_NEW_HOST || "google-map-places-new-v2.p.rapidapi.com";
 const TASTY_RAPIDAPI_HOST =
   process.env.RAPIDAPI_TASTY_HOST || "tasty.p.rapidapi.com";
-const YOUTUBE_RAPIDAPI_HOST =
-  process.env.RAPIDAPI_YOUTUBE_HOST || "youtube138.p.rapidapi.com";
 const ingredientCache = new Map();
 const instacartCache = new Map();
 const instacartProductCache = new Map();
@@ -174,6 +177,33 @@ const mimeTypes = {
 async function handleRequest(req, res) {
   try {
     const requestUrl = new URL(req.url, `http://${req.headers.host}`);
+    setSecurityHeaders(res);
+
+    if (requestUrl.pathname.startsWith("/api/") && !allowRequest(req, res)) {
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/health") {
+      sendJson(res, 200, {
+        status: "ok",
+        services: {
+          openai: Boolean(process.env.OPENAI_API_KEY),
+          rapidapi: Boolean(process.env.RAPIDAPI_KEY),
+          youtube: Boolean(process.env.YOUTUBE_API_KEY)
+        }
+      });
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/app-store/notifications") {
+      try {
+        await handleAppStoreNotificationRequest(req, res);
+      } catch (error) {
+        if (!error.statusCode) console.error(error);
+        sendJson(res, error.statusCode || 500, { error: error.message });
+      }
+      return;
+    }
 
     if (requestUrl.pathname === "/api/recipes") {
       try {
@@ -189,8 +219,14 @@ async function handleRequest(req, res) {
       try {
         await handleIngredientRequest(req, res);
       } catch (error) {
-        console.error(error);
-        sendJson(res, 502, { error: "Ingredient provider request failed", detail: error.message });
+        if (!error.statusCode || error.statusCode >= 500) {
+          console.error(error);
+        }
+        sendJson(
+          res,
+          error.statusCode || 502,
+          { error: error.statusCode ? error.message : "Ingredient provider request failed" }
+        );
       }
       return;
     }
@@ -283,13 +319,24 @@ function loadLocalEnv() {
 
 async function handleRecipeRequest(requestUrl, res) {
   if (!process.env.RAPIDAPI_KEY) {
-    sendJson(res, 200, []);
+    sendJson(res, 200, [], "public, s-maxage=21600, stale-while-revalidate=86400");
     return;
   }
 
-  const preference = requestUrl.searchParams.get("preference") || "balanced";
+  const preference = normalizePreference(requestUrl.searchParams.get("preference"));
   const recipes = await fetchMealPrepRecipes(preference);
-  sendJson(res, 200, recipes);
+  sendJson(res, 200, recipes, "public, s-maxage=21600, stale-while-revalidate=86400");
+}
+
+async function handleAppStoreNotificationRequest(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  const body = await readJsonBody(req);
+  const result = await processSignedNotification(body.signedPayload, null);
+  sendJson(res, 200, result);
 }
 
 async function handleIngredientRequest(req, res) {
@@ -299,7 +346,12 @@ async function handleIngredientRequest(req, res) {
   }
 
   const body = await readJsonBody(req);
-  const ingredients = Array.isArray(body.ingredients) ? body.ingredients.slice(0, 12) : [];
+  const ingredients = Array.isArray(body.ingredients)
+    ? body.ingredients
+      .slice(0, 12)
+      .map((ingredient) => ({ name: String(ingredient?.name || "").trim().slice(0, 100) }))
+      .filter((ingredient) => ingredient.name)
+    : [];
 
   if (!process.env.RAPIDAPI_KEY) {
     sendJson(res, 200, fallbackIngredients(ingredients));
@@ -665,7 +717,7 @@ async function fetchMealPrepRecipes(preference) {
     fetchTastyMealPrepRecipes(preference)
   ];
 
-  if (process.env.OPENAI_API_KEY) {
+  if (process.env.OPENAI_API_KEY && process.env.YOUTUBE_API_KEY) {
     providers.push(fetchYoutubeMealPrepRecipes(preference));
   }
 
@@ -761,7 +813,7 @@ async function fetchYoutubeMealPrepRecipes(preference) {
   const cacheKey = preference || "balanced";
   const cached = youtubeRecipeCache.get(cacheKey);
 
-  if (cached && Date.now() - cached.createdAt < 30 * 60 * 1000) {
+  if (cached && Date.now() - cached.createdAt < 6 * 60 * 60 * 1000) {
     return cached.recipes;
   }
 
@@ -782,84 +834,80 @@ async function fetchYoutubeMealPrepRecipes(preference) {
 
 async function fetchLiveYoutubeMealPrepRecipes(preference) {
   const mealSearches = [
-    ["Breakfast", ["breakfast burrito recipe under 30 minutes", "oatmeal breakfast recipe under 30 minutes"]],
-    ["Lunch", ["lunch bowl recipe under 30 minutes", "lunch wrap recipe under 30 minutes"]],
-    ["Dinner", ["one pan dinner recipe under 30 minutes", "pasta dinner recipe under 30 minutes"]]
+    ["Breakfast", "breakfast recipe oatmeal eggs burrito"],
+    ["Lunch", "lunch recipe bowl wrap salad"],
+    ["Dinner", "dinner recipe one pan pasta skillet"]
   ];
-  const videos = [];
+  const searchCandidates = [];
 
-  for (const [meal, queries] of mealSearches) {
-    const candidates = [];
-
-    for (const query of queries) {
-      const response = await rapidApiGetFromHost(
-        YOUTUBE_RAPIDAPI_HOST,
-        `/search/?${new URLSearchParams({
-          q: `${query} ${youtubePreferenceQuery(preference)}`.trim(),
-          hl: "en",
-          gl: "US"
-        })}`
-      );
-
-      (response.contents || [])
-        .map((item) => item.video)
-        .filter(Boolean)
-        .filter((item) =>
-          Number(item.lengthSeconds) > 0 &&
-          Number(item.lengthSeconds) <= 30 * 60 &&
-          isSpecificYoutubeRecipeCandidate(item)
-        )
-        .forEach((item) => candidates.push(item));
-
-      await wait(350);
-    }
-
-    const exactMatches = candidates.filter((item) => isYoutubeMealMatch(item, meal));
-    const fallbackMatches = candidates.filter((item) => isLikelyYoutubeRecipeVideo(item));
-    const selectedVideos = [...exactMatches, ...fallbackMatches]
-      .filter((item, index, items) =>
-        items.findIndex((candidate) => candidate.videoId === item.videoId) === index
-      )
-      .slice(0, 5);
-
-    selectedVideos.forEach((video) => {
-      videos.push({
-        meal,
-        videoId: video.videoId,
-        title: video.title,
-        channel: video.author?.title || "YouTube creator",
-        durationMinutes: Math.max(1, Math.ceil(Number(video.lengthSeconds) / 60)),
-        image: bestThumbnail(video.thumbnails),
-        descriptionSnippet: video.descriptionSnippet || ""
-      });
-    });
-  }
-
-  const detailedVideos = [];
-
-  for (const video of videos) {
-    const details = await rapidApiGetFromHost(
-      YOUTUBE_RAPIDAPI_HOST,
-      `/video/details/?${new URLSearchParams({
-        id: video.videoId,
-        hl: "en",
-        gl: "US"
+  for (const [meal, query] of mealSearches) {
+    const response = await youtubeApiGet(
+      `/youtube/v3/search?${new URLSearchParams({
+        part: "snippet",
+        type: "video",
+        q: `${query} ${youtubePreferenceQuery(preference)}`.trim(),
+        maxResults: "10",
+        videoEmbeddable: "true",
+        videoSyndicated: "true",
+        safeSearch: "moderate",
+        regionCode: "US",
+        relevanceLanguage: "en"
       })}`
     );
-    const sourceDuration = Math.ceil(Number(details.lengthSeconds || video.durationMinutes * 60) / 60);
 
-    if (sourceDuration <= 30) {
-      detailedVideos.push({
-        ...video,
-        title: details.title || video.title,
-        durationMinutes: sourceDuration,
-        description: String(details.description || video.descriptionSnippet).slice(0, 7000),
-        image: bestThumbnail(details.thumbnails) || video.image
+    (response.items || []).forEach((item) => {
+      if (!item.id?.videoId || !item.snippet) return;
+      searchCandidates.push({
+        meal,
+        videoId: item.id.videoId,
+        title: decodeHtmlEntities(item.snippet.title),
+        channel: decodeHtmlEntities(item.snippet.channelTitle || "YouTube creator"),
+        image: officialYoutubeThumbnail(item.snippet.thumbnails),
+        descriptionSnippet: decodeHtmlEntities(item.snippet.description || "")
       });
-    }
+    });
 
-    await wait(350);
+    await wait(150);
   }
+
+  const candidateIds = [...new Set(searchCandidates.map((video) => video.videoId))];
+  if (candidateIds.length === 0) return [];
+
+  const detailsResponse = await youtubeApiGet(
+    `/youtube/v3/videos?${new URLSearchParams({
+      part: "snippet,contentDetails,status",
+      id: candidateIds.join(",")
+    })}`
+  );
+  const detailsById = new Map((detailsResponse.items || []).map((item) => [item.id, item]));
+  const detailedVideos = searchCandidates
+    .map((video) => {
+      const details = detailsById.get(video.videoId);
+      if (!details?.status?.embeddable || details.status.uploadStatus !== "processed") return null;
+
+      const durationMinutes = youtubeDurationMinutes(details.contentDetails?.duration);
+      const candidate = {
+        ...video,
+        title: decodeHtmlEntities(details.snippet?.title || video.title),
+        channel: decodeHtmlEntities(details.snippet?.channelTitle || video.channel),
+        durationMinutes,
+        description: decodeHtmlEntities(
+          String(details.snippet?.description || video.descriptionSnippet)
+        ).slice(0, 7000),
+        image: officialYoutubeThumbnail(details.snippet?.thumbnails) || video.image
+      };
+
+      return durationMinutes <= 30 &&
+        isSpecificYoutubeRecipeCandidate(candidate) &&
+        (isYoutubeMealMatch(candidate, video.meal) || isLikelyYoutubeRecipeVideo(candidate))
+        ? candidate
+        : null;
+    })
+    .filter(Boolean)
+    .filter((video, index, items) =>
+      items.findIndex((candidate) => candidate.videoId === video.videoId) === index
+    )
+    .slice(0, 15);
 
   if (detailedVideos.length === 0) {
     return [];
@@ -1000,7 +1048,11 @@ function normalizeYoutubeRecipe(recipe, video, preference) {
     id: `youtube-${video.meal.toLowerCase()}-${video.videoId}`,
     meal: video.meal,
     title: recipeTitle.slice(0, 100),
-    summary: String(recipe.summary || `AI recipe based on ${video.channel}'s video.`).slice(0, 180),
+    summary: String(
+      recipe.summary
+        ? `AI-generated from the creator's public video description. ${recipe.summary}`
+        : `AI-generated from ${video.channel}'s public video description.`
+    ).slice(0, 220),
     cost: Math.max(1.5, Math.min(15, Number(recipe.cost) || ingredients.length * 0.75)),
     minutes,
     protein: Math.max(0, Math.round(Number(recipe.protein) || 20)),
@@ -1023,6 +1075,37 @@ function youtubePreferenceQuery(preference) {
   };
 
   return queries[preference] || "";
+}
+
+function youtubeDurationMinutes(isoDuration) {
+  const match = String(isoDuration || "").match(
+    /^P(?:(\d+)D)?(?:T(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?)?$/
+  );
+  if (!match) return Number.POSITIVE_INFINITY;
+
+  const days = Number(match[1] || 0);
+  const hours = Number(match[2] || 0);
+  const minutes = Number(match[3] || 0);
+  const seconds = Number(match[4] || 0);
+  return Math.max(1, Math.ceil(days * 1440 + hours * 60 + minutes + seconds / 60));
+}
+
+function officialYoutubeThumbnail(thumbnails = {}) {
+  return thumbnails.maxres?.url ||
+    thumbnails.standard?.url ||
+    thumbnails.high?.url ||
+    thumbnails.medium?.url ||
+    thumbnails.default?.url ||
+    "";
+}
+
+function decodeHtmlEntities(value) {
+  return String(value || "")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, "\"")
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">");
 }
 
 function isYoutubeMealMatch(video, meal) {
@@ -1091,6 +1174,12 @@ function mealsWithRecipeLimit(recipes, limit) {
 function ensureYoutubeRecipeInventory(recipes) {
   const seenIds = new Set();
   const combined = [...recipes, ...curatedYoutubeRecipes]
+    .map((recipe) => ({
+      ...recipe,
+      summary: /^AI-generated from|^Curated from/i.test(recipe.summary)
+        ? recipe.summary
+        : `Curated from the linked creator video. ${recipe.summary}`
+    }))
     .filter((recipe) => {
       if (seenIds.has(recipe.id)) return false;
       seenIds.add(recipe.id);
@@ -1208,6 +1297,49 @@ function rapidApiGet(apiPath, retryCount = 0) {
   return rapidApiGetFromHost(RAPIDAPI_HOST, apiPath, retryCount);
 }
 
+function youtubeApiGet(apiPath) {
+  if (!process.env.YOUTUBE_API_KEY) {
+    return Promise.reject(new Error("Missing YOUTUBE_API_KEY"));
+  }
+
+  const separator = apiPath.includes("?") ? "&" : "?";
+  const pathWithKey = `${apiPath}${separator}key=${encodeURIComponent(process.env.YOUTUBE_API_KEY)}`;
+  const options = {
+    method: "GET",
+    hostname: "www.googleapis.com",
+    path: pathWithKey,
+    headers: {
+      Accept: "application/json"
+    }
+  };
+
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (apiRes) => {
+      const chunks = [];
+      apiRes.on("data", (chunk) => chunks.push(chunk));
+      apiRes.on("end", () => {
+        const body = Buffer.concat(chunks).toString();
+        if (apiRes.statusCode < 200 || apiRes.statusCode >= 300) {
+          reject(new Error(`YouTube Data API returned ${apiRes.statusCode}: ${body}`));
+          return;
+        }
+
+        try {
+          resolve(JSON.parse(body));
+        } catch (error) {
+          reject(error);
+        }
+      });
+    });
+
+    req.setTimeout(15000, () => {
+      req.destroy(new Error("YouTube Data API request timed out"));
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
+
 function rapidApiGetFromHost(hostname, apiPath, retryCount = 0) {
   const options = {
     method: "GET",
@@ -1248,6 +1380,9 @@ function rapidApiGetFromHost(hostname, apiPath, retryCount = 0) {
       });
     });
 
+    req.setTimeout(30000, () => {
+      req.destroy(new Error("RapidAPI request timed out"));
+    });
     req.on("error", reject);
     req.end();
   });
@@ -1286,6 +1421,9 @@ function openAiPost(apiPath, payload) {
       });
     });
 
+    req.setTimeout(30000, () => {
+      req.destroy(new Error("OpenAI request timed out"));
+    });
     req.on("error", reject);
     req.write(data);
     req.end();
@@ -1568,12 +1706,24 @@ function roundNutrient(value) {
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on("data", (chunk) => chunks.push(chunk));
+    let size = 0;
+    let rejected = false;
+    req.on("data", (chunk) => {
+      if (rejected) return;
+      size += chunk.length;
+      if (size > MAX_JSON_BODY_BYTES) {
+        rejected = true;
+        reject(Object.assign(new Error("Request body is too large"), { statusCode: 413 }));
+        return;
+      }
+      chunks.push(chunk);
+    });
     req.on("end", () => {
+      if (rejected) return;
       try {
         resolve(JSON.parse(Buffer.concat(chunks).toString() || "{}"));
       } catch (error) {
-        reject(error);
+        reject(Object.assign(new Error("Request body must be valid JSON"), { statusCode: 400 }));
       }
     });
     req.on("error", reject);
@@ -1722,12 +1872,52 @@ function serveStatic(pathname, res) {
     }
 
     const contentType = mimeTypes[path.extname(filePath)] || "application/octet-stream";
-    res.writeHead(200, { "Content-Type": contentType });
+    res.writeHead(200, {
+      "Content-Type": contentType,
+      "Cache-Control": filePath.endsWith(".html") ? "no-cache" : "public, max-age=3600"
+    });
     res.end(data);
   });
 }
 
-function sendJson(res, statusCode, data) {
-  res.writeHead(statusCode, { "Content-Type": "application/json; charset=utf-8" });
+function sendJson(res, statusCode, data, cacheControl = "no-store") {
+  res.writeHead(statusCode, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": cacheControl
+  });
   res.end(JSON.stringify(data));
+}
+
+function normalizePreference(value) {
+  const allowed = new Set(["balanced", "high-protein", "vegetarian", "vegan", "gluten-free"]);
+  return allowed.has(value) ? value : "balanced";
+}
+
+function setSecurityHeaders(res) {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'self'; img-src 'self' data: https://images.unsplash.com https://i.ytimg.com https:; connect-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+  );
+}
+
+function allowRequest(req, res) {
+  const now = Date.now();
+  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  const clientId = forwarded || req.socket?.remoteAddress || "unknown";
+  const bucket = requestBuckets.get(clientId);
+
+  if (!bucket || now - bucket.startedAt >= RATE_LIMIT_WINDOW_MS) {
+    requestBuckets.set(clientId, { count: 1, startedAt: now });
+    return true;
+  }
+
+  bucket.count += 1;
+  if (bucket.count <= RATE_LIMIT_MAX_REQUESTS) return true;
+
+  res.setHeader("Retry-After", String(Math.ceil((RATE_LIMIT_WINDOW_MS - (now - bucket.startedAt)) / 1000)));
+  sendJson(res, 429, { error: "Too many requests. Please wait and try again." });
+  return false;
 }

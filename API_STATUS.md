@@ -27,6 +27,14 @@
 - Current behavior: generates prep order, time savers, and substitutions for the selected meal plan.
 - CLI status: API key and structured JSON response tested successfully with HTTP 200.
 
+### Official YouTube Data API v3
+
+- Env var: `YOUTUBE_API_KEY`
+- Provider endpoints: `/youtube/v3/search` and `/youtube/v3/videos`
+- Current behavior: runs three meal-specific searches, batches video details, requires embeddable processed videos, filters to 30 minutes or less, and sends public title/description metadata to the existing AI recipe extractor.
+- Cache: six hours per dietary preference, plus a six-hour shared CDN cache on recipe responses.
+- The previous unofficial YouTube138 RapidAPI integration has been removed.
+
 ### Instacart product listing via RapidAPI
 
 - Env vars: `RAPIDAPI_KEY`, `RAPIDAPI_INSTACART_HOST`

@@ -264,6 +264,19 @@ const starterRecipeBank = [
 
 const YOUTUBE_PROVIDER = "YouTube + AI";
 const YOUTUBE_RECIPE_SHARE = 0.75;
+const STORAGE_KEYS = {
+  favorites: "prepwise-favorites",
+  history: "prepwise-plan-history",
+  plan: "prepwise-current-plan",
+  preferences: "prepwise-preferences"
+};
+const DEFAULT_REQUEST_TIMEOUT_MS = 15000;
+const SLOW_REQUEST_TIMEOUT_MS = 55000;
+const subscriptionManager = window.PrepWiseSubscription.createSubscriptionManager({
+  storage: window.localStorage
+});
+const storeAdapter = window.PrepWiseStore.createStoreAdapter();
+document.body.classList.toggle("storekit-native", storeAdapter.isNative);
 
 let recipeBank = [...starterRecipeBank];
 
@@ -288,6 +301,26 @@ const prepTipsPanel = document.querySelector("#prep-tips-panel");
 const prepTipsContent = document.querySelector("#prep-tips-content");
 const loadInstacartProductsButton = document.querySelector("#load-instacart-products");
 const instacartProducts = document.querySelector("#instacart-products");
+const subscriptionButton = document.querySelector("#subscription-button");
+const subscriptionLabel = document.querySelector("#subscription-label");
+const subscriptionDetail = document.querySelector("#subscription-detail");
+const usageBanner = document.querySelector("#usage-banner");
+const paywallDialog = document.querySelector("#paywall-dialog");
+const paywallReason = document.querySelector("#paywall-reason");
+const purchaseStatus = document.querySelector("#purchase-status");
+const restorePurchasesButton = document.querySelector("#restore-purchases");
+const manageDemoSubscriptionButton = document.querySelector("#manage-demo-subscription");
+const manageSubscriptionButton = document.querySelector("#manage-subscription");
+const planHistoryPanel = document.querySelector("#plan-history-panel");
+const planHistoryList = document.querySelector("#plan-history-list");
+const accountSubscriptionStatus = document.querySelector("#account-subscription-status");
+const accountRenewalStatus = document.querySelector("#account-renewal-status");
+const accountUpgradeButton = document.querySelector("#account-upgrade");
+const accountRestoreButton = document.querySelector("#account-restore");
+const accountManageSubscriptionButton = document.querySelector("#account-manage-subscription");
+const signOutButton = document.querySelector("#sign-out");
+const deleteAccountButton = document.querySelector("#delete-account");
+const accountActionStatus = document.querySelector("#account-action-status");
 
 let currentPlan = [];
 let currentGroceries = new Map();
@@ -302,20 +335,371 @@ let activeInstructionsId = 0;
 let recentRecipeIds = [];
 let previousPlanRecipeIds = new Set();
 
+function finiteRemaining(value) {
+  return Number.isFinite(value) ? value : "Unlimited";
+}
+
+function updateSubscriptionUi() {
+  const status = subscriptionManager.status();
+  document.body.classList.toggle("is-pro", status.isPro);
+  subscriptionLabel.textContent = status.isPro ? "PrepWise Pro" : "Free plan";
+  subscriptionDetail.textContent = status.isPro ? "Unlimited access" : "View limits";
+  manageDemoSubscriptionButton.hidden = status.entitlement.source !== "local-demo";
+  accountSubscriptionStatus.textContent = status.isPro
+    ? `PrepWise Pro (${status.entitlement.state || "active"})`
+    : "Free";
+  accountRenewalStatus.textContent = subscriptionRenewalText(status.entitlement);
+  renderPlanHistory();
+
+  if (status.isPro) {
+    usageBanner.innerHTML = `
+      <strong>PrepWise Pro</strong>
+      <span>Unlimited plans, swaps, and AI prep help are active.</span>
+    `;
+    return;
+  }
+
+  usageBanner.innerHTML = `
+    <strong>Free this week</strong>
+    <span>${finiteRemaining(status.remaining.plans)} plans left</span>
+    <span>${finiteRemaining(status.remaining.swaps)} swaps left</span>
+    <span>${finiteRemaining(status.remaining.ai)} AI assist left</span>
+    <button type="button" data-open-paywall="usage">Upgrade</button>
+  `;
+  usageBanner.querySelector("[data-open-paywall]")?.addEventListener("click", () => {
+    openPaywall("Upgrade for unlimited weekly usage.");
+  });
+}
+
+function subscriptionRenewalText(entitlement) {
+  if (!entitlement?.active) {
+    if (entitlement?.state === "expired") return "Expired";
+    if (entitlement?.state === "refunded") return "Refunded";
+    if (entitlement?.state === "revoked") return "Revoked";
+    return "Not applicable";
+  }
+  if (entitlement.state === "grace_period") return "Billing grace period";
+  if (entitlement.state === "billing_retry") return "Billing retry";
+  if (entitlement.expiresAt) return `Renews or expires ${new Date(entitlement.expiresAt).toLocaleDateString()}`;
+  return entitlement.source === "local-demo" ? "Local demo only" : "Active";
+}
+
+async function loadStoreProducts() {
+  try {
+    const products = await storeAdapter.loadProducts();
+    products.forEach((product) => {
+      const price = document.querySelector(`[data-product-price="${product.id}"]`);
+      const detail = document.querySelector(`[data-product-detail="${product.id}"]`);
+      if (!price || !detail) return;
+
+      price.textContent = product.displayPrice || (storeAdapter.isNative ? "Unavailable" : "Local demo");
+      const trialText = product.trial?.displayText ? `${product.trial.displayText}, then ` : "";
+      detail.textContent = `${trialText}${product.displayPrice || "Apple price"} per ${product.period}`;
+    });
+  } catch (error) {
+    console.error("Could not load App Store products", error);
+    purchaseStatus.textContent = "Apple subscription products are temporarily unavailable.";
+  }
+}
+
+function purchaseMessage(result) {
+  const messages = {
+    success: "PrepWise Pro is active.",
+    restored: "Your PrepWise Pro purchase was restored.",
+    pending: "Purchase is pending approval or payment confirmation.",
+    cancelled: "Purchase was cancelled. No charge was made.",
+    expired: "The subscription has expired.",
+    refunded: "The purchase was refunded and Pro access was removed.",
+    revoked: "The subscription was revoked and Pro access was removed.",
+    billing_retry: "Apple is retrying billing. Pro access remains active for now.",
+    grace_period: "The subscription is in a billing grace period.",
+    upgraded: "Your PrepWise Pro plan was upgraded.",
+    downgraded: "Your plan change will take effect on Apple's scheduled date.",
+    unavailable: "StoreKit is unavailable in this browser development build."
+  };
+  return messages[result?.state] || "Subscription status was updated.";
+}
+
+function applyStoreResult(result) {
+  if (result?.entitlement) {
+    subscriptionManager.applyVerifiedEntitlement(result.entitlement);
+  }
+  purchaseStatus.textContent = purchaseMessage(result);
+  accountActionStatus.textContent = purchaseStatus.textContent;
+  updateSubscriptionUi();
+}
+
+async function purchaseProduct(productId) {
+  if (!storeAdapter.isNative) {
+    subscriptionManager.activateDemo(productId);
+    applyStoreResult({ state: "success" });
+    window.setTimeout(closePaywall, 700);
+    return;
+  }
+
+  purchaseStatus.textContent = "Confirming purchase with Apple...";
+  try {
+    applyStoreResult(await storeAdapter.purchase(productId));
+  } catch (error) {
+    console.error(error);
+    purchaseStatus.textContent = "The purchase could not be completed.";
+  }
+}
+
+async function restorePurchases() {
+  if (!storeAdapter.isNative) {
+    applyStoreResult({ state: subscriptionManager.isPro() ? "restored" : "unavailable" });
+    return;
+  }
+
+  purchaseStatus.textContent = "Restoring purchases...";
+  try {
+    applyStoreResult(await storeAdapter.restore());
+  } catch (error) {
+    console.error(error);
+    purchaseStatus.textContent = "Purchases could not be restored.";
+  }
+}
+
+async function manageSubscriptions() {
+  try {
+    const result = await storeAdapter.manageSubscriptions();
+    if (result.state === "unavailable") {
+      window.open("https://apps.apple.com/account/subscriptions", "_blank", "noopener");
+      purchaseStatus.textContent = "Opened Apple subscription management.";
+      accountActionStatus.textContent = purchaseStatus.textContent;
+    }
+  } catch (error) {
+    console.error(error);
+    accountActionStatus.textContent = "Subscription settings could not be opened.";
+  }
+}
+
+function planWithoutLoadingState(plan) {
+  return plan.map(({ instructionsLoading, ...meal }) => meal);
+}
+
+function savePlanHistory(prefs) {
+  if (!subscriptionManager.isPro() || currentPlan.length === 0) return;
+
+  const history = loadStoredValue(STORAGE_KEYS.history, []);
+  const entry = {
+    id: `${Date.now()}-${currentPlan.map((meal) => meal.id).join("-")}`,
+    savedAt: new Date().toISOString(),
+    preferences: prefs,
+    plan: planWithoutLoadingState(currentPlan)
+  };
+  localStorage.setItem(STORAGE_KEYS.history, JSON.stringify([entry, ...history].slice(0, 8)));
+  renderPlanHistory();
+}
+
+function renderPlanHistory() {
+  if (!planHistoryPanel || !planHistoryList) return;
+
+  const isPro = subscriptionManager.isPro();
+  planHistoryPanel.hidden = !isPro;
+  if (!isPro) {
+    planHistoryList.innerHTML = "";
+    return;
+  }
+
+  const history = loadStoredValue(STORAGE_KEYS.history, []);
+  if (history.length === 0) {
+    planHistoryList.innerHTML = `<p class="empty-state">Build a Pro meal plan to start your history.</p>`;
+    return;
+  }
+
+  planHistoryList.innerHTML = history
+    .map((entry) => {
+      const mealNames = (entry.plan || []).map((meal) => meal.title).filter(Boolean).join(", ");
+      const savedDate = new Date(entry.savedAt);
+      return `
+        <article class="plan-history-card">
+          <div>
+            <strong>${escapeHtml(savedDate.toLocaleDateString())}</strong>
+            <p>${escapeHtml(mealNames)}</p>
+          </div>
+          <button type="button" data-history-id="${escapeHtml(entry.id)}">Restore plan</button>
+        </article>
+      `;
+    })
+    .join("");
+
+  planHistoryList.querySelectorAll("[data-history-id]").forEach((button) => {
+    button.addEventListener("click", () => restoreHistoryEntry(button.dataset.historyId));
+  });
+}
+
+function applyPreferences(prefs) {
+  if (!prefs) return;
+
+  const budget = document.querySelector("#budget");
+  const zip = document.querySelector("#zip");
+  const people = document.querySelector("#people");
+  const preference = document.querySelector(`input[name="preference"][value="${CSS.escape(String(prefs.preference || ""))}"]`);
+
+  if (Number.isFinite(Number(prefs.budget))) budget.value = String(prefs.budget);
+  if (/^\d{5}$/.test(String(prefs.zip || ""))) zip.value = String(prefs.zip);
+  if (Number.isFinite(Number(prefs.people))) people.value = String(prefs.people);
+  if (preference) preference.checked = true;
+}
+
+function restoreHistoryEntry(historyId) {
+  const entry = loadStoredValue(STORAGE_KEYS.history, [])
+    .find((item) => item.id === historyId);
+  if (!entry || !Array.isArray(entry.plan)) return;
+
+  applyPreferences(entry.preferences);
+  const prefs = getPreferences();
+  currentPlan = entry.plan;
+  currentGroceries = buildGroceries(currentPlan, prefs);
+  hasBuiltPlan = true;
+  rememberRecentRecipes(currentPlan);
+  saveCurrentState(prefs);
+  renderPlan(currentPlan, prefs);
+  renderGroceries(currentGroceries);
+  renderStores(currentPlan, prefs);
+  enrichGroceries();
+  setRecipeStatus("Restored a saved PrepWise Pro plan from this device.");
+  showPage("meals");
+}
+
+function openPaywall(reason) {
+  paywallReason.textContent = reason || "Choose PrepWise Pro for unlimited meal planning.";
+  purchaseStatus.textContent = "";
+  updateSubscriptionUi();
+
+  if (typeof paywallDialog.showModal === "function") {
+    paywallDialog.showModal();
+  } else {
+    paywallDialog.setAttribute("open", "");
+  }
+}
+
+function closePaywall() {
+  if (paywallDialog.open && typeof paywallDialog.close === "function") {
+    paywallDialog.close();
+  } else {
+    paywallDialog.removeAttribute("open");
+  }
+}
+
+function requireFeature(feature, reason) {
+  if (subscriptionManager.canUse(feature)) return true;
+  openPaywall(reason);
+  return false;
+}
+
+function runAiFeatures(prefs) {
+  if (location.protocol === "file:" || currentPlan.length === 0) return;
+
+  if (!subscriptionManager.consume("ai")) {
+    renderPrepTips({
+      prepOrder: ["Your free AI assist has been used for this week."],
+      timeSavers: ["Upgrade to Pro for unlimited prep tips and recipe instructions."],
+      substitutions: []
+    });
+    currentPlan = currentPlan.map((meal) => ({ ...meal, instructionsLoading: false }));
+    renderPlan(currentPlan, prefs);
+    updateSubscriptionUi();
+    return;
+  }
+
+  updateSubscriptionUi();
+  generateMealInstructions(prefs);
+  generatePrepTips(prefs);
+}
+
 function dollars(value) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 }
 
 function loadFavorites() {
   try {
-    return JSON.parse(localStorage.getItem("prepwise-favorites") || "[]");
+    return JSON.parse(localStorage.getItem(STORAGE_KEYS.favorites) || "[]");
   } catch {
     return [];
   }
 }
 
 function saveFavorites() {
-  localStorage.setItem("prepwise-favorites", JSON.stringify(favoriteMeals));
+  localStorage.setItem(STORAGE_KEYS.favorites, JSON.stringify(favoriteMeals));
+}
+
+function loadStoredValue(key, fallback) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key) || "null");
+    return value ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveCurrentState(prefs) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.preferences, JSON.stringify(prefs));
+    localStorage.setItem(
+      STORAGE_KEYS.plan,
+      JSON.stringify({
+        savedAt: new Date().toISOString(),
+        plan: planWithoutLoadingState(currentPlan)
+      })
+    );
+  } catch (error) {
+    console.error("Could not save the current plan", error);
+  }
+}
+
+function restorePreferences() {
+  const prefs = loadStoredValue(STORAGE_KEYS.preferences, null);
+  if (!prefs) return null;
+
+  applyPreferences(prefs);
+
+  return getPreferences();
+}
+
+function restoreSavedPlan(prefs) {
+  const saved = loadStoredValue(STORAGE_KEYS.plan, null);
+  if (!saved || !Array.isArray(saved.plan) || saved.plan.length !== meals.length) return false;
+
+  currentPlan = saved.plan;
+  currentGroceries = buildGroceries(currentPlan, prefs);
+  hasBuiltPlan = true;
+  rememberRecentRecipes(currentPlan);
+  renderPlan(currentPlan, prefs);
+  renderGroceries(currentGroceries);
+  renderStores(currentPlan, prefs);
+  enrichGroceries();
+  setRecipeStatus("Restored your last saved meal plan. Build again for fresh recipe results.");
+  return true;
+}
+
+async function apiFetch(url, options = {}, timeoutMs = DEFAULT_REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    if (!response.ok) {
+      let detail = "";
+      try {
+        const data = await response.json();
+        detail = data?.error ? `: ${data.error}` : "";
+      } catch {
+        detail = "";
+      }
+      throw new Error(`Request returned ${response.status}${detail}`);
+    }
+    return response;
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error("Request timed out. Check your connection and try again.");
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 }
 
 function isFavorite(id) {
@@ -359,9 +743,9 @@ function fallbackImage(title) {
 
 function getPreferences() {
   return {
-    budget: Number(document.querySelector("#budget").value || 125),
-    zip: document.querySelector("#zip").value || "local",
-    people: Number(document.querySelector("#people").value || 1),
+    budget: Math.min(350, Math.max(35, Number(document.querySelector("#budget").value || 125))),
+    zip: document.querySelector("#zip").value.trim(),
+    people: Math.min(8, Math.max(1, Number(document.querySelector("#people").value || 1))),
     preference: document.querySelector("input[name='preference']:checked").value
   };
 }
@@ -401,10 +785,7 @@ async function loadRealRecipes(prefs, renderId) {
   setRecipeStatus("Loading quick recipes from Spoonacular, Tasty, and YouTube...");
 
   try {
-    const response = await fetch(`/api/recipes?preference=${encodeURIComponent(prefs.preference)}`);
-    if (!response.ok) {
-      throw new Error(`Recipe API returned ${response.status}`);
-    }
+    const response = await apiFetch(`/api/recipes?preference=${encodeURIComponent(prefs.preference)}`);
 
     const recipes = await response.json();
     if (!Array.isArray(recipes) || recipes.length === 0) {
@@ -601,20 +982,17 @@ function replacementCandidates(meal, currentId, prefs, useYoutube) {
 
 function refreshDependentViews(prefs) {
   currentGroceries = buildGroceries(currentPlan, prefs);
+  saveCurrentState(prefs);
   renderGroceries(currentGroceries);
   renderStores(currentPlan, prefs);
   enrichGroceries();
-  generateMealInstructions(prefs);
-  generatePrepTips(prefs);
+  runAiFeatures(prefs);
 }
 
 async function fetchMoreRecipes(prefs) {
   if (location.protocol === "file:") return;
 
-  const response = await fetch(`/api/recipes?preference=${encodeURIComponent(prefs.preference)}`);
-  if (!response.ok) {
-    throw new Error(`Recipe API returned ${response.status}`);
-  }
+  const response = await apiFetch(`/api/recipes?preference=${encodeURIComponent(prefs.preference)}`);
 
   const recipes = await response.json();
   if (Array.isArray(recipes)) {
@@ -624,6 +1002,7 @@ async function fetchMoreRecipes(prefs) {
 
 async function swapMeal(item, button) {
   const prefs = getPreferences();
+  if (!requireFeature("swaps", "You have used all free meal swaps for this week.")) return;
   button.disabled = true;
   button.textContent = "Finding another...";
 
@@ -648,6 +1027,8 @@ async function swapMeal(item, button) {
     const currentIndex = currentPlan.findIndex((meal) => meal.id === item.id);
     if (currentIndex !== -1) {
       currentPlan[currentIndex] = chooseFromTop(candidates, 6);
+      subscriptionManager.consume("swaps");
+      updateSubscriptionUi();
       rememberRecentRecipes(currentPlan);
       refreshDependentViews(prefs);
       renderPlan(currentPlan, prefs);
@@ -701,7 +1082,7 @@ async function generatePrepTips(prefs) {
   renderPrepTips(null, "Building fast prep tips...");
 
   try {
-    const response = await fetch("/api/ai/prep-tips", {
+    const response = await apiFetch("/api/ai/prep-tips", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -712,10 +1093,6 @@ async function generatePrepTips(prefs) {
       })
     });
 
-    if (!response.ok) {
-      throw new Error(`Prep tips API returned ${response.status}`);
-    }
-
     const tips = await response.json();
     if (tipsId === activeTipsId) {
       renderPrepTips(tips);
@@ -723,7 +1100,11 @@ async function generatePrepTips(prefs) {
   } catch (error) {
     console.error(error);
     if (tipsId === activeTipsId) {
-      renderPrepTips(null);
+      renderPrepTips({
+        prepOrder: ["Prep guidance is temporarily unavailable. Your meal plan is still saved."],
+        timeSavers: [],
+        substitutions: []
+      });
     }
   }
 }
@@ -773,7 +1154,7 @@ async function generateMealInstructions(prefs) {
   renderPlan(currentPlan, prefs);
 
   try {
-    const response = await fetch("/api/ai/meal-instructions", {
+    const response = await apiFetch("/api/ai/meal-instructions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -783,10 +1164,6 @@ async function generateMealInstructions(prefs) {
         meals: currentPlan
       })
     });
-
-    if (!response.ok) {
-      throw new Error(`Meal instructions API returned ${response.status}`);
-    }
 
     const data = await response.json();
     const byId = new Map(
@@ -808,6 +1185,7 @@ async function generateMealInstructions(prefs) {
         reheating: generated?.reheating || ""
       };
     });
+    saveCurrentState(prefs);
     renderPlan(currentPlan, prefs);
   } catch (error) {
     console.error(error);
@@ -916,17 +1294,13 @@ async function enrichGroceries() {
   if (ingredients.length === 0) return;
 
   try {
-    const response = await fetch("/api/ingredients/normalize", {
+    const response = await apiFetch("/api/ingredients/normalize", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ ingredients })
     });
-
-    if (!response.ok) {
-      throw new Error(`Ingredient API returned ${response.status}`);
-    }
 
     const results = await response.json();
     results.filter(Boolean).forEach((result) => {
@@ -944,10 +1318,7 @@ async function loadNearbyStores(zip) {
     return null;
   }
 
-  const response = await fetch(`/api/stores?zip=${encodeURIComponent(zip)}`);
-  if (!response.ok) {
-    throw new Error(`Store API returned ${response.status}`);
-  }
+  const response = await apiFetch(`/api/stores?zip=${encodeURIComponent(zip)}`);
 
   return response.json();
 }
@@ -1058,17 +1429,13 @@ async function loadInstacartProductDetail(product, button) {
   }
 
   try {
-    const response = await fetch("/api/instacart/product", {
+    const response = await apiFetch("/api/instacart/product", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({ url: product.url })
-    });
-
-    if (!response.ok) {
-      throw new Error(`Instacart product API returned ${response.status}`);
-    }
+    }, SLOW_REQUEST_TIMEOUT_MS);
 
     const data = await response.json();
     if (detail) {
@@ -1101,10 +1468,7 @@ async function loadInstacartProducts() {
   instacartProducts.innerHTML = `<p class="empty-state">Instacart is fetching live product listings. This can take a minute.</p>`;
 
   try {
-    const response = await fetch("/api/instacart/products");
-    if (!response.ok) {
-      throw new Error(`Instacart API returned ${response.status}`);
-    }
+    const response = await apiFetch("/api/instacart/products", {}, SLOW_REQUEST_TIMEOUT_MS);
 
     renderInstacartProducts(await response.json());
     loadInstacartProductsButton.textContent = "Refresh Instacart products";
@@ -1130,6 +1494,10 @@ async function rerender(options = {}) {
   const renderId = ++activeRenderId;
   const prefs = getPreferences();
 
+  if (options.loadRecipes && !requireFeature("plans", "You have used both free meal plans for this week.")) {
+    return false;
+  }
+
   if (options.loadRecipes) {
     hasBuiltPlan = false;
     clearPlanViews("Loading quick recipes...");
@@ -1141,16 +1509,22 @@ async function rerender(options = {}) {
   }
 
   currentPlan = buildPlan(prefs);
+  if (options.loadRecipes) {
+    subscriptionManager.consume("plans");
+    updateSubscriptionUi();
+  }
   rememberRecentRecipes(currentPlan);
   currentGroceries = buildGroceries(currentPlan, prefs);
+  saveCurrentState(prefs);
+  if (options.loadRecipes) savePlanHistory(prefs);
 
   renderPlan(currentPlan, prefs);
   renderGroceries(currentGroceries);
   renderStores(currentPlan, prefs);
   enrichGroceries();
-  generateMealInstructions(prefs);
-  generatePrepTips(prefs);
+  runAiFeatures(prefs);
   hasBuiltPlan = true;
+  return true;
 }
 
 function showPage(pageId) {
@@ -1181,8 +1555,9 @@ document.querySelectorAll("[data-page-link]").forEach((button) => {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  await rerender({ loadRecipes: true });
-  showPage("meals");
+  if (!form.reportValidity()) return;
+  const built = await rerender({ loadRecipes: true });
+  if (built) showPage("meals");
 });
 
 copyButton.addEventListener("click", async () => {
@@ -1202,5 +1577,64 @@ if (loadInstacartProductsButton) {
   loadInstacartProductsButton.addEventListener("click", loadInstacartProducts);
 }
 
-setRecipeStatus("Build a meal prep plan to load quick recipes, including YouTube videos.");
-clearPlanViews("");
+subscriptionButton.addEventListener("click", () => {
+  const status = subscriptionManager.status();
+  openPaywall(
+    status.isPro
+      ? "Your local PrepWise Pro demo is active."
+      : "Free includes 2 plans, 3 swaps, and 1 AI assist each week."
+  );
+});
+
+document.querySelectorAll("[data-subscription-product]").forEach((button) => {
+  button.addEventListener("click", () => purchaseProduct(button.dataset.subscriptionProduct));
+});
+
+restorePurchasesButton.addEventListener("click", restorePurchases);
+manageSubscriptionButton.addEventListener("click", manageSubscriptions);
+
+manageDemoSubscriptionButton.addEventListener("click", () => {
+  subscriptionManager.clearDemo();
+  purchaseStatus.textContent = "Returned to the Free plan.";
+  updateSubscriptionUi();
+});
+
+accountUpgradeButton.addEventListener("click", () => openPaywall("Review PrepWise Pro plans and subscription status."));
+accountRestoreButton.addEventListener("click", restorePurchases);
+accountManageSubscriptionButton.addEventListener("click", manageSubscriptions);
+
+signOutButton.addEventListener("click", () => {
+  currentPlan = [];
+  currentGroceries = new Map();
+  hasBuiltPlan = false;
+  clearPlanViews("Signed out of the local guest session. Saved device data remains available.");
+  accountActionStatus.textContent = "Signed out of the local guest session.";
+  showPage("account");
+});
+
+deleteAccountButton.addEventListener("click", () => {
+  const confirmed = window.confirm(
+    "Permanently delete all PrepWise plans, preferences, favorites, history, usage, and local demo subscription data from this device?"
+  );
+  if (!confirmed) return;
+
+  Object.keys(localStorage)
+    .filter((key) => key.startsWith("prepwise-"))
+    .forEach((key) => localStorage.removeItem(key));
+  currentPlan = [];
+  currentGroceries = new Map();
+  favoriteMeals = [];
+  hasBuiltPlan = false;
+  clearPlanViews("");
+  applyPreferences({ budget: 125, zip: "60614", people: 2, preference: "balanced" });
+  updateSubscriptionUi();
+  accountActionStatus.textContent = "All local PrepWise account data was permanently deleted. Cancel Apple subscriptions separately.";
+});
+
+const restoredPreferences = restorePreferences() || getPreferences();
+updateSubscriptionUi();
+loadStoreProducts();
+if (!restoreSavedPlan(restoredPreferences)) {
+  setRecipeStatus("Build a meal prep plan to load quick recipes, including YouTube videos.");
+  clearPlanViews("");
+}

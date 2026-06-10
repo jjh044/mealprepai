@@ -21,8 +21,15 @@
           <button class="step" type="button" data-page="meals">Meals</button>
           <button class="step" type="button" data-page="groceries">Grocery list</button>
           <button class="step" type="button" data-page="stores">Price comparison</button>
+          <button class="step" type="button" data-page="account">Account</button>
         </nav>
+        <button id="subscription-button" class="subscription-button" type="button">
+          <span id="subscription-label">Free plan</span>
+          <small id="subscription-detail">View limits</small>
+        </button>
       </header>
+
+      <section id="usage-banner" class="usage-banner" aria-live="polite"></section>
 
       <section id="setup" class="page is-active" aria-label="Meal prep setup">
         <div class="intro">
@@ -35,18 +42,28 @@
             Weekly budget
             <span class="money-field">
               <span>$</span>
-              <input id="budget" name="budget" type="number" min="35" max="350" value="125" />
+              <input id="budget" name="budget" type="number" min="35" max="350" value="125" required />
             </span>
           </label>
 
           <label>
             ZIP code
-            <input id="zip" name="zip" type="text" inputmode="numeric" maxlength="5" value="60614" />
+            <input
+              id="zip"
+              name="zip"
+              type="text"
+              inputmode="numeric"
+              autocomplete="postal-code"
+              pattern="[0-9]{5}"
+              maxlength="5"
+              value="60614"
+              required
+            />
           </label>
 
           <label>
             Number of people
-            <input id="people" name="people" type="number" min="1" max="8" value="2" />
+            <input id="people" name="people" type="number" min="1" max="8" value="2" required />
           </label>
 
           <fieldset>
@@ -67,6 +84,15 @@
 
           <button class="primary-action" type="submit">Build meal prep</button>
         </form>
+
+        <section id="plan-history-panel" class="plan-history-panel" hidden>
+          <div>
+            <p class="eyebrow">PrepWise Pro</p>
+            <h2>Saved plan history</h2>
+            <p>Your eight most recent plans are stored on this device.</p>
+          </div>
+          <div id="plan-history-list" class="plan-history-list"></div>
+        </section>
       </section>
 
       <section id="meals" class="page" aria-label="Selected weekly meals">
@@ -124,7 +150,99 @@
           <div id="instacart-products" class="instacart-products"></div>
         </section>
       </section>
+
+      <section id="account" class="page" aria-label="Account and privacy">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">Account</p>
+            <h2>Your PrepWise settings</h2>
+            <p>Manage subscription access, support, privacy, and data stored by this build.</p>
+          </div>
+        </div>
+
+        <div class="account-grid">
+          <article class="account-card">
+            <h3>Account status</h3>
+            <dl>
+              <div><dt>Profile</dt><dd id="account-profile-status">Local guest profile</dd></div>
+              <div><dt>Subscription</dt><dd id="account-subscription-status">Free</dd></div>
+              <div><dt>Renewal</dt><dd id="account-renewal-status">Not applicable</dd></div>
+            </dl>
+            <button id="account-upgrade" class="primary-action" type="button">View PrepWise Pro</button>
+            <button id="account-restore" class="ghost-action" type="button">Restore purchases</button>
+            <button id="account-manage-subscription" class="ghost-action" type="button">Manage subscription</button>
+          </article>
+
+          <article class="account-card">
+            <h3>Help and legal</h3>
+            <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
+            <a href="/terms.html" target="_blank" rel="noopener">Terms of Use</a>
+            <a href="/support.html" target="_blank" rel="noopener">Contact support</a>
+          </article>
+
+          <article class="account-card danger-card">
+            <h3>Account controls</h3>
+            <p>This web build stores a local guest profile only. Deleting it permanently removes plans, preferences, favorites, history, quota data, and demo subscription state from this device.</p>
+            <button id="sign-out" class="ghost-action" type="button">Sign out</button>
+            <button id="delete-account" class="danger-action" type="button">Delete account and local data</button>
+            <p id="account-action-status" class="purchase-status" aria-live="polite"></p>
+          </article>
+        </div>
+
+        <aside class="health-disclaimer">
+          Nutrition, allergen, cost, and store information are estimates. Always verify product labels, ingredients, allergens, preparation safety, and current retailer prices.
+        </aside>
+      </section>
     </main>
+
+    <dialog id="paywall-dialog" class="paywall-dialog" aria-labelledby="paywall-title">
+      <form method="dialog" class="paywall-card">
+        <button class="paywall-close" type="submit" aria-label="Close upgrade screen">Close</button>
+        <p class="eyebrow">Upgrade</p>
+        <h2 id="paywall-title">PrepWise Pro</h2>
+        <p class="paywall-tagline">Meal prep without weekly limits</p>
+        <p id="paywall-reason" class="paywall-reason"></p>
+
+        <ul class="paywall-benefits">
+          <li>Unlimited meal-plan builds</li>
+          <li>Unlimited meal swaps</li>
+          <li>Unlimited AI prep tips and instructions</li>
+          <li>Foundation for saved history and cross-device sync</li>
+        </ul>
+
+        <div class="subscription-options">
+          <button type="button" class="subscription-option" data-subscription-product="prepwise_pro_yearly">
+            <strong>Yearly</strong>
+            <span data-product-price="prepwise_pro_yearly">Loading Apple price...</span>
+            <small data-product-detail="prepwise_pro_yearly">Billed once per year</small>
+          </button>
+          <button type="button" class="subscription-option" data-subscription-product="prepwise_pro_monthly">
+            <strong>Monthly</strong>
+            <span data-product-price="prepwise_pro_monthly">Loading Apple price...</span>
+            <small data-product-detail="prepwise_pro_monthly">Billed once per month</small>
+          </button>
+        </div>
+
+        <p class="demo-disclosure">
+          Development build: these buttons activate a local Pro demo and do not charge money.
+        </p>
+
+        <p class="renewal-disclosure">
+          Payment is charged to your Apple Account after confirmation. Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period. Your account is charged for renewal within 24 hours before the period ends. Manage or cancel in Apple subscription settings.
+        </p>
+
+        <div class="paywall-actions">
+          <button id="restore-purchases" class="ghost-action" type="button">Restore purchases</button>
+          <button id="manage-subscription" class="ghost-action" type="button">Manage subscription</button>
+          <button id="manage-demo-subscription" class="ghost-action" type="button" hidden>End local demo</button>
+        </div>
+        <div class="paywall-legal">
+          <a href="/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
+          <a href="/terms.html" target="_blank" rel="noopener">Terms of Use</a>
+        </div>
+        <p id="purchase-status" class="purchase-status" aria-live="polite"></p>
+      </form>
+    </dialog>
 
     <template id="meal-card-template">
       <article class="meal-card">
@@ -144,6 +262,8 @@
       </article>
     </template>
 
+    <script src="subscription.js"></script>
+    <script src="native-store.js"></script>
     <script src="client.js"></script>
   </body>
 </html>
