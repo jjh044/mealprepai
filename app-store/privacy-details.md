@@ -10,9 +10,9 @@ This is a planning worksheet, not the final App Store Connect declaration. Updat
 | User ID | Yes | Yes | No | Authentication and sync |
 | Purchase history | Yes | Yes | No | Subscription entitlement |
 | Other user content | Meal plans/preferences | Yes | No | Personalization and sync |
-| Product interaction | Weekly feature usage | Yes | No | App functionality and quota enforcement |
-| Crash data | No third-party SDK currently | No | No | Not currently collected |
-| Performance data | Limited server request diagnostics | Potentially | No | Security and app functionality |
+| Product interaction | Account flow, planning, limits, paywall, billing, return visits, and page usage | Potentially | No | Analytics and app functionality |
+| Crash data | Browser and server errors through Sentry | Potentially | No | App functionality |
+| Performance data | Sentry diagnostics and limited server request diagnostics | Potentially | No | Security and app functionality |
 
 ## Required Checks
 

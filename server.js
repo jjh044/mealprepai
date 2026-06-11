@@ -5,6 +5,7 @@ const https = require("https");
 const path = require("path");
 const { URL } = require("url");
 const Stripe = require("stripe");
+const Sentry = require("@sentry/node");
 const { ConvexHttpClient } = require("convex/browser");
 const { anyApi } = require("convex/server");
 const { processSignedNotification } = require("./app-store-notifications");
@@ -17,6 +18,16 @@ const RATE_LIMIT_MAX_REQUESTS = 60;
 const requestBuckets = new Map();
 const routeBuckets = new Map();
 loadLocalEnv();
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.APP_ENV || "production",
+    release: process.env.VERCEL_GIT_COMMIT_SHA || undefined,
+    sendDefaultPii: false,
+    tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || 0.05),
+  });
+}
 
 const RAPIDAPI_HOST =
   process.env.RAPIDAPI_SPOONACULAR_HOST || "spoonacular-recipe-food-nutrition-v1.p.rapidapi.com";
@@ -221,6 +232,12 @@ async function handleRequest(req, res) {
     if (requestUrl.pathname === "/api/config") {
       sendJson(res, 200, {
         convexUrl: process.env.CONVEX_URL || "",
+        environment: process.env.APP_ENV || "production",
+        posthogHost: process.env.POSTHOG_HOST || "https://us.i.posthog.com",
+        posthogKey: process.env.POSTHOG_KEY || "",
+        release: process.env.VERCEL_GIT_COMMIT_SHA || "",
+        sentryDsn: process.env.SENTRY_DSN || "",
+        sentryTracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || 0.05),
         billingConfigured: Boolean(
           process.env.STRIPE_SECRET_KEY &&
           process.env.STRIPE_MONTHLY_PRICE_ID &&
@@ -259,7 +276,7 @@ async function handleRequest(req, res) {
       try {
         await handleAppStoreNotificationRequest(req, res);
       } catch (error) {
-        if (!error.statusCode) console.error(error);
+        if (!error.statusCode) reportServerError(error, requestUrl.pathname, requestId);
         sendJson(res, error.statusCode || 500, { error: error.message });
       }
       return;
@@ -269,7 +286,7 @@ async function handleRequest(req, res) {
       try {
         await handleRecipeRequest(requestUrl, res);
       } catch (error) {
-        console.error(error);
+        reportServerError(error, requestUrl.pathname, requestId);
         sendJson(res, 200, []);
       }
       return;
@@ -280,7 +297,7 @@ async function handleRequest(req, res) {
         await handleIngredientRequest(req, res);
       } catch (error) {
         if (!error.statusCode || error.statusCode >= 500) {
-          console.error(error);
+          reportServerError(error, requestUrl.pathname, requestId);
         }
         sendJson(
           res,
@@ -295,7 +312,7 @@ async function handleRequest(req, res) {
       try {
         await handlePrepTipsRequest(req, res);
       } catch (error) {
-        console.error(error);
+        reportServerError(error, requestUrl.pathname, requestId);
         sendJson(res, 502, { error: "OpenAI prep helper failed", detail: error.message });
       }
       return;
@@ -305,7 +322,7 @@ async function handleRequest(req, res) {
       try {
         await handleMealInstructionsRequest(req, res);
       } catch (error) {
-        console.error(error);
+        reportServerError(error, requestUrl.pathname, requestId);
         sendJson(res, 502, { error: "OpenAI meal instructions failed", detail: error.message });
       }
       return;
@@ -315,7 +332,7 @@ async function handleRequest(req, res) {
       try {
         await handleInstacartProductsRequest(requestUrl, res);
       } catch (error) {
-        console.error(error);
+        reportServerError(error, requestUrl.pathname, requestId);
         sendJson(res, 502, { error: "Instacart provider request failed", detail: error.message });
       }
       return;
@@ -325,7 +342,7 @@ async function handleRequest(req, res) {
       try {
         await handleInstacartProductRequest(req, res);
       } catch (error) {
-        console.error(error);
+        reportServerError(error, requestUrl.pathname, requestId);
         sendJson(res, 502, { error: "Instacart product request failed", detail: error.message });
       }
       return;
@@ -335,7 +352,7 @@ async function handleRequest(req, res) {
       try {
         await handleStoresRequest(requestUrl, res);
       } catch (error) {
-        console.error(error);
+        reportServerError(error, requestUrl.pathname, requestId);
         sendJson(res, 200, fallbackStorePayload(requestUrl));
       }
       return;
@@ -343,7 +360,7 @@ async function handleRequest(req, res) {
 
     serveStatic(requestUrl.pathname, res);
   } catch (error) {
-    console.error(error);
+    reportServerError(error, String(req.url || "").split("?")[0], requestId, req.method);
     const statusCode = error.statusCode || (/auth|identity|token/i.test(error.message) ? 401 : 500);
     sendJson(res, statusCode, {
       error: statusCode >= 500 ? "Unexpected server error" : error.message
@@ -360,6 +377,18 @@ if (require.main === module) {
 }
 
 module.exports = handleRequest;
+
+function reportServerError(error, route, requestId, method) {
+  console.error(error);
+  if (!process.env.SENTRY_DSN) return;
+  Sentry.captureException(error, {
+    tags: {
+      method: method || "unknown",
+      route,
+    },
+    extra: { requestId },
+  });
+}
 
 function loadLocalEnv() {
   [".env.local", ".env"].forEach((filename) => {
@@ -2135,7 +2164,7 @@ function setSecurityHeaders(res) {
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; img-src 'self' data: https://images.unsplash.com https://i.ytimg.com https:; connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    "default-src 'self'; img-src 'self' data: https://images.unsplash.com https://i.ytimg.com https:; connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud https://*.posthog.com https://*.i.posthog.com https://*.sentry.io; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
   );
 }
 

@@ -34,6 +34,14 @@ window.PrepWiseCloud = {
   refresh: () => operations?.refresh(),
 };
 
+function track(event, properties = {}) {
+  window.PrepWiseTelemetry?.capture?.(event, properties);
+}
+
+function reportError(error, context = {}) {
+  window.PrepWiseTelemetry?.captureException?.(error, context);
+}
+
 function Bridge() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const token = useAuthToken();
@@ -78,14 +86,19 @@ function Bridge() {
     setBusy(true);
     setAuthError("");
     const form = new FormData(event.currentTarget);
+    const flow = authMode === "signUp" ? "sign_up" : "sign_in";
+    track(`${flow}_submitted`);
     try {
       await signIn("password", {
         flow: authMode === "signUp" ? "signUp" : "signIn",
         email: String(form.get("email") || "").trim().toLowerCase(),
         password: String(form.get("password") || ""),
       });
+      track(`${flow}_completed`);
       setAuthMode(null);
     } catch (error) {
+      track(`${flow}_failed`, { reason: "authentication_error" });
+      reportError(error, { action: flow });
       setAuthError(error?.message || "Authentication failed");
     } finally {
       setBusy(false);
@@ -129,6 +142,7 @@ async function start() {
     createRoot(document.getElementById("cloud-root")).render(<App client={client} />);
   } catch (error) {
     console.error("PrepWise cloud services are unavailable", error);
+    reportError(error, { action: "cloud_initialization" });
     publish({ ready: true, loading: false, error: error.message });
   }
 }

@@ -138,3 +138,21 @@ npx convex dev --once
 ```
 
 Then test signup, sign-in, plan persistence, weekly quota exhaustion, monthly trial checkout, yearly checkout, webhook updates, customer portal cancellation, and account deletion in Stripe test mode.
+
+## 6. Analytics and Error Monitoring
+
+The application includes privacy-conscious PostHog and Sentry integrations.
+
+Required Vercel production variables:
+
+```text
+POSTHOG_KEY
+POSTHOG_HOST=https://us.i.posthog.com
+SENTRY_DSN
+SENTRY_TRACES_SAMPLE_RATE=0.05
+APP_ENV=production
+```
+
+PostHog is configured with autocapture and session replay disabled. It records explicit product events for signup, sign-in, plan generation, return visits, mobile page usage, weekly limits, paywalls, Stripe test Checkout, cancellation observation, and account deletion.
+
+Sentry monitors uncaught browser errors, failed API requests, timeouts, cloud initialization, and caught server provider failures. Default personally identifiable information is disabled.

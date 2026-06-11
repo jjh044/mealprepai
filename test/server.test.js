@@ -38,8 +38,11 @@ test("public config exposes only client-safe service state", async () => {
     assert.equal(response.status, 200);
     assert.equal(typeof body.convexUrl, "string");
     assert.equal(typeof body.billingConfigured, "boolean");
+    assert.equal(typeof body.posthogKey, "string");
+    assert.equal(typeof body.sentryDsn, "string");
     assert.equal("stripeSecretKey" in body, false);
     assert.equal("webhookSecret" in body, false);
+    assert.equal("sentryAuthToken" in body, false);
   });
 });
 

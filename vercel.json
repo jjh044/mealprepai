@@ -18,6 +18,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "telemetry.js",
+      "use": "@vercel/static"
+    },
+    {
       "src": "subscription.js",
       "use": "@vercel/static"
     },
@@ -61,6 +65,10 @@
     {
       "src": "/cloud.js",
       "dest": "/cloud.js"
+    },
+    {
+      "src": "/telemetry.js",
+      "dest": "/telemetry.js"
     },
     {
       "src": "/subscription.js",

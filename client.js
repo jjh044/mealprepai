@@ -339,6 +339,15 @@ let activeInstructionsId = 0;
 let recentRecipeIds = [];
 let previousPlanRecipeIds = new Set();
 let restoredCloudAccount = false;
+let lastTrackedSubscriptionState = "";
+
+function track(event, properties = {}) {
+  window.PrepWiseTelemetry?.capture?.(event, properties);
+}
+
+function reportError(error, context = {}) {
+  window.PrepWiseTelemetry?.captureException?.(error, context);
+}
 let cloudState = window.PrepWiseCloud?.getState?.() || {
   ready: false,
   authenticated: false,
@@ -478,6 +487,7 @@ function applyStoreResult(result) {
 async function purchaseProduct(productId) {
   if (!storeAdapter.isNative) {
     if (!cloudState.authenticated) {
+      track("checkout_blocked", { reason: "authentication_required", product_id: productId });
       closePaywall();
       window.PrepWiseCloud?.openAuth?.("signUp");
       return;
@@ -485,6 +495,7 @@ async function purchaseProduct(productId) {
     purchaseStatus.textContent = "Opening secure Stripe checkout...";
     try {
       const plan = productId === "prepwise_pro_yearly" ? "yearly" : "monthly";
+      track("stripe_checkout_started", { plan, product_id: productId });
       const response = await apiFetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -494,6 +505,8 @@ async function purchaseProduct(productId) {
       window.location.assign(result.url);
     } catch (error) {
       console.error(error);
+      reportError(error, { action: "stripe_checkout", product_id: productId });
+      track("stripe_checkout_failed", { product_id: productId });
       purchaseStatus.textContent = "Checkout could not be opened.";
     }
     return;
@@ -530,6 +543,7 @@ async function manageSubscriptions() {
       return;
     }
     try {
+      track("subscription_portal_opened");
       const response = await apiFetch("/api/billing/portal", { method: "POST" });
       const result = await response.json();
       window.location.assign(result.url);
@@ -666,6 +680,10 @@ function openPaywall(reason) {
   paywallReason.textContent = reason || "Choose PrepWise Pro for unlimited meal planning.";
   purchaseStatus.textContent = "";
   updateSubscriptionUi();
+  track("paywall_viewed", {
+    reason: String(reason || "manual").slice(0, 120),
+    authenticated: cloudState.authenticated,
+  });
 
   if (typeof paywallDialog.showModal === "function") {
     paywallDialog.showModal();
@@ -693,17 +711,22 @@ async function consumeFeature(feature, reason) {
     try {
       const result = await window.PrepWiseCloud.consumeFeature(feature);
       if (!result?.allowed) {
+        track("free_limit_reached", { feature, authenticated: true });
         openPaywall(reason);
         return false;
       }
       return true;
     } catch (error) {
       console.error("Could not verify usage", error);
+      reportError(error, { action: "consume_feature", feature });
       openPaywall("We could not verify your account limits. Please try again.");
       return false;
     }
   }
-  if (!requireFeature(feature, reason)) return false;
+  if (!requireFeature(feature, reason)) {
+    track("free_limit_reached", { feature, authenticated: false });
+    return false;
+  }
   subscriptionManager.consume(feature);
   return true;
 }
@@ -816,12 +839,21 @@ async function apiFetch(url, options = {}, timeoutMs = DEFAULT_REQUEST_TIMEOUT_M
       } catch {
         detail = "";
       }
-      throw new Error(`Request returned ${response.status}${detail}`);
+      const error = new Error(`Request returned ${response.status}${detail}`);
+      reportError(error, {
+        action: "api_request",
+        method: options.method || "GET",
+        path: String(url).split("?")[0],
+        status: response.status,
+      });
+      throw error;
     }
     return response;
   } catch (error) {
     if (error.name === "AbortError") {
-      throw new Error("Request timed out. Check your connection and try again.");
+      const timeoutError = new Error("Request timed out. Check your connection and try again.");
+      reportError(timeoutError, { action: "api_timeout", path: String(url).split("?")[0] });
+      throw timeoutError;
     }
     throw error;
   } finally {
@@ -1625,6 +1657,7 @@ function titleCase(value) {
 async function rerender(options = {}) {
   const renderId = ++activeRenderId;
   const prefs = getPreferences();
+  const startedAt = performance.now();
 
   if (options.loadRecipes) {
     if (!await consumeFeature("plans", "You have used your free meal plan for this week.")) {
@@ -1652,6 +1685,13 @@ async function rerender(options = {}) {
   enrichGroceries();
   runAiFeatures(prefs);
   hasBuiltPlan = true;
+  track("meal_plan_generated", {
+    authenticated: cloudState.authenticated,
+    duration_ms: Math.round(performance.now() - startedAt),
+    household_size: prefs.people,
+    preference: prefs.preference,
+    source_count: new Set(currentPlan.map((meal) => meal.provider || meal.source || "starter")).size,
+  });
   return true;
 }
 
@@ -1667,6 +1707,10 @@ function showPage(pageId) {
     page.classList.toggle("is-active", page.id === pageId);
   });
   window.scrollTo({ top: 0, behavior: "smooth" });
+  track("app_page_viewed", {
+    page: pageId,
+    ...window.PrepWiseTelemetry?.mobileContext?.(),
+  });
 }
 
 document.querySelectorAll(".step").forEach((button) => {
@@ -1684,6 +1728,12 @@ document.querySelectorAll("[data-page-link]").forEach((button) => {
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!form.reportValidity()) return;
+  const prefs = getPreferences();
+  track("meal_plan_requested", {
+    authenticated: cloudState.authenticated,
+    household_size: prefs.people,
+    preference: prefs.preference,
+  });
   const built = await rerender({ loadRecipes: true });
   if (built) showPage("meals");
 });
@@ -1750,11 +1800,13 @@ deleteAccountButton.addEventListener("click", async () => {
     "Permanently delete your PrepWise account, cloud plans, preferences, usage, and linked web billing customer?"
   );
   if (!confirmed) return;
+  track("account_deletion_confirmed", { authenticated: cloudState.authenticated });
 
   if (cloudState.authenticated) {
     try {
       accountActionStatus.textContent = "Deleting your account...";
       await apiFetch("/api/account/delete", { method: "DELETE" });
+      track("account_deleted", { source: "cloud" });
       try {
         await window.PrepWiseCloud?.signOut?.();
       } catch {
@@ -1762,6 +1814,8 @@ deleteAccountButton.addEventListener("click", async () => {
       }
     } catch (error) {
       console.error(error);
+      reportError(error, { action: "account_deletion" });
+      track("account_deletion_failed", { source: "cloud" });
       accountActionStatus.textContent = "Your account could not be deleted. Please contact support.";
       return;
     }
@@ -1778,6 +1832,8 @@ deleteAccountButton.addEventListener("click", async () => {
   applyPreferences({ budget: 125, zip: "60614", people: 2, preference: "balanced" });
   updateSubscriptionUi();
   accountActionStatus.textContent = "Your PrepWise account and local data were permanently deleted.";
+  if (!cloudState.authenticated) track("account_deleted", { source: "guest" });
+  window.PrepWiseTelemetry?.reset?.();
 });
 
 const restoredPreferences = restorePreferences() || getPreferences();
@@ -1788,18 +1844,47 @@ if (!restoreSavedPlan(restoredPreferences)) {
   clearPlanViews("");
 }
 
-accountSignInButton.addEventListener("click", () => window.PrepWiseCloud?.openAuth?.("signIn"));
-accountCreateButton.addEventListener("click", () => window.PrepWiseCloud?.openAuth?.("signUp"));
+accountSignInButton.addEventListener("click", () => {
+  track("sign_in_opened");
+  window.PrepWiseCloud?.openAuth?.("signIn");
+});
+accountCreateButton.addEventListener("click", () => {
+  track("sign_up_opened");
+  window.PrepWiseCloud?.openAuth?.("signUp");
+});
 
 window.PrepWiseCloud?.subscribe?.((nextState) => {
   cloudState = nextState;
   updateSubscriptionUi();
   if (!nextState.authenticated) {
     restoredCloudAccount = false;
+    lastTrackedSubscriptionState = "";
     return;
   }
-  if (!nextState.data || restoredCloudAccount) return;
+  if (!nextState.data) return;
+  window.PrepWiseTelemetry?.identify?.(nextState.data.user.id, {
+    account_type: nextState.data.isPro ? "pro" : "free",
+  });
+  const subscription = nextState.data.subscription;
+  const subscriptionState = subscription
+    ? `${subscription.status}:${subscription.cancelAtPeriodEnd}:${subscription.currentPeriodEnd || ""}`
+    : "free";
+  if (subscriptionState !== lastTrackedSubscriptionState) {
+    lastTrackedSubscriptionState = subscriptionState;
+    track("subscription_state_observed", {
+      status: subscription?.status || "free",
+      scheduled_to_cancel: Boolean(subscription?.cancelAtPeriodEnd),
+    });
+    if (subscription?.cancelAtPeriodEnd) {
+      track("stripe_cancellation_detected", { status: subscription.status });
+    }
+  }
+  if (restoredCloudAccount) return;
   restoredCloudAccount = true;
+  track("authenticated_session_started", {
+    account_type: nextState.data.isPro ? "pro" : "free",
+    has_saved_plan: Boolean(nextState.data.plans?.length),
+  });
 
   const cloudPreferences = nextState.data.preferences;
   const latestPlan = nextState.data.plans?.[0];

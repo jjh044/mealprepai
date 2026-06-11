@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "build": "esbuild src/cloud-bridge.jsx --bundle --minify --format=iife --outfile=cloud.js",
+    "build": "esbuild src/cloud-bridge.jsx --bundle --minify --format=iife --outfile=cloud.js && esbuild src/telemetry.js --bundle --minify --format=iife --outfile=telemetry.js",
     "check": "node --check server.js && node --check client.js && node --check subscription.js && node --check native-store.js && node --check app-store-notifications.js",
     "test": "node --test"
   },
@@ -13,8 +13,11 @@
   },
   "dependencies": {
     "@convex-dev/auth": "^0.0.94",
+    "@sentry/browser": "^10.57.0",
+    "@sentry/node": "^10.57.0",
     "convex": "^1.41.0",
     "esbuild": "^0.28.0",
+    "posthog-js": "^1.386.6",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "stripe": "^22.2.0"

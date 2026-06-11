@@ -3,6 +3,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
 
+function read(filename) {
+  return fs.readFileSync(path.join(__dirname, "..", filename), "utf8");
+}
+
 function pngInfo(filePath) {
   const bytes = fs.readFileSync(filePath);
   assert.equal(bytes.subarray(1, 4).toString(), "PNG");
@@ -50,6 +54,13 @@ test("public legal pages cover required privacy and subscription topics", () => 
   assert.match(account, /Delete account and local data/i);
   assert.match(account, /Restore purchases/i);
   assert.match(account, /Manage subscription/i);
+});
+
+test("production HTML loads the analytics and error-monitoring bundle", () => {
+  const html = read("index.html");
+  assert.match(html, /telemetry\.js/);
+  assert.match(read("privacy.html"), /PostHog/);
+  assert.match(read("privacy.html"), /Sentry/);
 });
 
 test("App Store metadata stays within name and subtitle limits", () => {
