@@ -120,12 +120,13 @@ npm run build
 
 ## 4. Required Business Fields
 
-Before public launch, replace the placeholders in `privacy.html`, `terms.html`, and `support.html` with:
+Completed June 11, 2026:
 
-- Legal operator or business name
-- Monitored support email
-- Governing jurisdiction where appropriate
-- Final production domain
+- Legal operator: James Hope
+- Monitored support email: `creativesolutionssupport@gmail.com`
+- Governing jurisdiction: Missouri
+- Location: Kansas City, Missouri
+- Production domain: `https://mealprepai-two.vercel.app`
 
 ## 5. Release Verification
 
