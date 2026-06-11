@@ -30,6 +30,32 @@ test("health endpoint reports service configuration without secrets", async () =
   });
 });
 
+test("public config exposes only client-safe service state", async () => {
+  await withServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/config`);
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(typeof body.convexUrl, "string");
+    assert.equal(typeof body.billingConfigured, "boolean");
+    assert.equal("stripeSecretKey" in body, false);
+    assert.equal("webhookSecret" in body, false);
+  });
+});
+
+test("commercially unapproved scraper endpoints are disabled by default", async () => {
+  const original = process.env.ENABLE_INSTACART_SCRAPER;
+  delete process.env.ENABLE_INSTACART_SCRAPER;
+  try {
+    await withServer(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/instacart/products`);
+      assert.equal(response.status, 403);
+    });
+  } finally {
+    if (original !== undefined) process.env.ENABLE_INSTACART_SCRAPER = original;
+  }
+});
+
 test("store endpoint rejects invalid ZIP codes", async () => {
   await withServer(async (baseUrl) => {
     const response = await fetch(`${baseUrl}/api/stores?zip=invalid`);
@@ -40,7 +66,7 @@ test("store endpoint rejects invalid ZIP codes", async () => {
   });
 });
 
-test("recipe responses advertise a shared provider-quota cache", async () => {
+test("recipe responses stay within the provider cache allowance", async () => {
   const originalRapidApiKey = process.env.RAPIDAPI_KEY;
   const originalYoutubeKey = process.env.YOUTUBE_API_KEY;
   const originalOpenAiKey = process.env.OPENAI_API_KEY;
@@ -51,7 +77,7 @@ test("recipe responses advertise a shared provider-quota cache", async () => {
   try {
     await withServer(async (baseUrl) => {
       const response = await fetch(`${baseUrl}/api/recipes?preference=balanced`);
-      assert.match(response.headers.get("cache-control"), /s-maxage=21600/);
+      assert.match(response.headers.get("cache-control"), /s-maxage=3600/);
     });
   } finally {
     if (originalRapidApiKey) process.env.RAPIDAPI_KEY = originalRapidApiKey;

@@ -6,13 +6,13 @@ This is a planning worksheet, not the final App Store Connect declaration. Updat
 | --- | --- | --- | --- | --- |
 | Precise location | No | No | No | Not requested |
 | Coarse location / ZIP | Yes | Potentially | No | App functionality |
-| Email address | After accounts launch | Yes | No | Account and support |
-| User ID | After accounts launch | Yes | No | Authentication and sync |
+| Email address | Yes | Yes | No | Account and support |
+| User ID | Yes | Yes | No | Authentication and sync |
 | Purchase history | Yes | Yes | No | Subscription entitlement |
-| Other user content | Meal plans/preferences | Yes after accounts | No | Personalization and sync |
-| Product interaction | If analytics enabled | Potentially | No | Analytics |
-| Crash data | If crash reporting enabled | Potentially | No | App functionality |
-| Performance data | If monitoring enabled | Potentially | No | App functionality |
+| Other user content | Meal plans/preferences | Yes | No | Personalization and sync |
+| Product interaction | Weekly feature usage | Yes | No | App functionality and quota enforcement |
+| Crash data | No third-party SDK currently | No | No | Not currently collected |
+| Performance data | Limited server request diagnostics | Potentially | No | Security and app functionality |
 
 ## Required Checks
 

@@ -1,8 +1,12 @@
 const fs = require("fs");
+const crypto = require("crypto");
 const http = require("http");
 const https = require("https");
 const path = require("path");
 const { URL } = require("url");
+const Stripe = require("stripe");
+const { ConvexHttpClient } = require("convex/browser");
+const { anyApi } = require("convex/server");
 const { processSignedNotification } = require("./app-store-notifications");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -11,6 +15,7 @@ const MAX_JSON_BODY_BYTES = 64 * 1024;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const RATE_LIMIT_MAX_REQUESTS = 60;
 const requestBuckets = new Map();
+const routeBuckets = new Map();
 loadLocalEnv();
 
 const RAPIDAPI_HOST =
@@ -175,6 +180,22 @@ const mimeTypes = {
 };
 
 async function handleRequest(req, res) {
+  const requestStartedAt = Date.now();
+  const requestId = crypto.randomUUID();
+  res.setHeader("X-Request-Id", requestId);
+  res.on("finish", () => {
+    console.log(JSON.stringify({
+      level: "info",
+      event: "request",
+      requestId,
+      method: req.method,
+      path: String(req.url || "").split("?")[0],
+      status: res.statusCode,
+      durationMs: Date.now() - requestStartedAt,
+      client: clientFingerprint(req)
+    }));
+  });
+
   try {
     const requestUrl = new URL(req.url, `http://${req.headers.host}`);
     setSecurityHeaders(res);
@@ -187,11 +208,50 @@ async function handleRequest(req, res) {
       sendJson(res, 200, {
         status: "ok",
         services: {
+          convex: Boolean(process.env.CONVEX_URL),
           openai: Boolean(process.env.OPENAI_API_KEY),
           rapidapi: Boolean(process.env.RAPIDAPI_KEY),
+          stripe: Boolean(process.env.STRIPE_SECRET_KEY && process.env.STRIPE_WEBHOOK_SECRET),
           youtube: Boolean(process.env.YOUTUBE_API_KEY)
         }
       });
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/config") {
+      sendJson(res, 200, {
+        convexUrl: process.env.CONVEX_URL || "",
+        billingConfigured: Boolean(
+          process.env.STRIPE_SECRET_KEY &&
+          process.env.STRIPE_MONTHLY_PRICE_ID &&
+          process.env.STRIPE_YEARLY_PRICE_ID
+        )
+      });
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/billing/checkout") {
+      await handleStripeCheckoutRequest(req, res, requestUrl);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/billing/portal") {
+      await handleStripePortalRequest(req, res, requestUrl);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/billing/webhook") {
+      await handleStripeWebhookRequest(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/account/delete") {
+      await handleAccountDeletionRequest(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/usage/consume") {
+      await handleUsageConsumeRequest(req, res);
       return;
     }
 
@@ -284,7 +344,10 @@ async function handleRequest(req, res) {
     serveStatic(requestUrl.pathname, res);
   } catch (error) {
     console.error(error);
-    sendJson(res, 500, { error: "Unexpected server error" });
+    const statusCode = error.statusCode || (/auth|identity|token/i.test(error.message) ? 401 : 500);
+    sendJson(res, statusCode, {
+      error: statusCode >= 500 ? "Unexpected server error" : error.message
+    });
   }
 }
 
@@ -299,33 +362,176 @@ if (require.main === module) {
 module.exports = handleRequest;
 
 function loadLocalEnv() {
-  const envPath = path.join(ROOT, ".env");
-  if (!fs.existsSync(envPath)) return;
+  [".env.local", ".env"].forEach((filename) => {
+    const envPath = path.join(ROOT, filename);
+    if (!fs.existsSync(envPath)) return;
 
-  const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
-  lines.forEach((line) => {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) return;
-    const separatorIndex = trimmed.indexOf("=");
-    if (separatorIndex === -1) return;
+    const lines = fs.readFileSync(envPath, "utf8").split(/\r?\n/);
+    lines.forEach((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) return;
+      const separatorIndex = trimmed.indexOf("=");
+      if (separatorIndex === -1) return;
 
-    const key = trimmed.slice(0, separatorIndex).trim();
-    const value = trimmed.slice(separatorIndex + 1).trim().replace(/^["']|["']$/g, "");
-    if (!process.env[key]) {
-      process.env[key] = value;
-    }
+      const key = trimmed.slice(0, separatorIndex).trim();
+      const value = trimmed.slice(separatorIndex + 1).trim().replace(/^["']|["']$/g, "");
+      if (!process.env[key]) {
+        process.env[key] = value;
+      }
+    });
   });
 }
 
 async function handleRecipeRequest(requestUrl, res) {
   if (!process.env.RAPIDAPI_KEY) {
-    sendJson(res, 200, [], "public, s-maxage=21600, stale-while-revalidate=86400");
+    sendJson(res, 200, [], "public, s-maxage=3600");
     return;
   }
 
   const preference = normalizePreference(requestUrl.searchParams.get("preference"));
   const recipes = await fetchMealPrepRecipes(preference);
-  sendJson(res, 200, recipes, "public, s-maxage=21600, stale-while-revalidate=86400");
+  sendJson(res, 200, recipes, "public, s-maxage=3600");
+}
+
+async function handleStripeCheckoutRequest(req, res, requestUrl) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+  requireBillingConfiguration();
+  const body = await readJsonBody(req);
+  const plan = body.plan === "yearly" ? "yearly" : "monthly";
+  const priceId = plan === "yearly"
+    ? process.env.STRIPE_YEARLY_PRICE_ID
+    : process.env.STRIPE_MONTHLY_PRICE_ID;
+  const convex = authenticatedConvexClient(req);
+  const identity = await convex.query(anyApi.app.billingIdentity, {});
+  const stripe = stripeClient();
+  let customerId = identity.stripeCustomerId;
+  if (!customerId) {
+    const customer = await stripe.customers.create({
+      email: identity.email || undefined,
+      metadata: { convexUserId: String(identity.userId) }
+    });
+    customerId = customer.id;
+    await convex.mutation(anyApi.app.setStripeCustomer, { stripeCustomerId: customerId });
+  }
+
+  const origin = publicAppOrigin(requestUrl);
+  const session = await stripe.checkout.sessions.create({
+    mode: "subscription",
+    customer: customerId,
+    line_items: [{ price: priceId, quantity: 1 }],
+    allow_promotion_codes: true,
+    billing_address_collection: "auto",
+    client_reference_id: String(identity.userId),
+    subscription_data: plan === "monthly" ? { trial_period_days: 7 } : undefined,
+    success_url: `${origin}/?billing=success`,
+    cancel_url: `${origin}/?billing=cancelled`
+  });
+  sendJson(res, 200, { url: session.url });
+}
+
+async function handleStripePortalRequest(req, res, requestUrl) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+  requireBillingConfiguration();
+  const convex = authenticatedConvexClient(req);
+  const identity = await convex.query(anyApi.app.billingIdentity, {});
+  if (!identity.stripeCustomerId) {
+    sendJson(res, 409, { error: "No Stripe subscription is linked to this account" });
+    return;
+  }
+  const session = await stripeClient().billingPortal.sessions.create({
+    customer: identity.stripeCustomerId,
+    return_url: `${publicAppOrigin(requestUrl)}/?billing=portal-return`
+  });
+  sendJson(res, 200, { url: session.url });
+}
+
+async function handleStripeWebhookRequest(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+  requireBillingConfiguration();
+  const signature = req.headers["stripe-signature"];
+  if (!signature) {
+    sendJson(res, 400, { error: "Missing Stripe signature" });
+    return;
+  }
+  const rawBody = await readRawBody(req);
+  let event;
+  try {
+    event = stripeClient().webhooks.constructEvent(
+      rawBody,
+      signature,
+      process.env.STRIPE_WEBHOOK_SECRET
+    );
+  } catch (error) {
+    sendJson(res, 400, { error: "Invalid Stripe webhook signature" });
+    return;
+  }
+
+  if (event.type.startsWith("customer.subscription.")) {
+    await syncStripeSubscription(event, event.data.object);
+  } else if (event.type === "checkout.session.completed" && event.data.object.subscription) {
+    const subscription = await stripeClient().subscriptions.retrieve(event.data.object.subscription);
+    await syncStripeSubscription(event, subscription);
+  }
+  sendJson(res, 200, { received: true });
+}
+
+async function syncStripeSubscription(event, subscription) {
+  const customerId = typeof subscription.customer === "string"
+    ? subscription.customer
+    : subscription.customer.id;
+  const firstItem = subscription.items?.data?.[0];
+  const currentPeriodEnd = subscription.current_period_end || firstItem?.current_period_end;
+  await systemConvexClient().mutation(anyApi.billing.applyStripeEvent, {
+    syncSecret: process.env.STRIPE_SYNC_SECRET,
+    eventId: event.id,
+    eventType: event.type,
+    customerId,
+    subscriptionId: subscription.id,
+    priceId: firstItem?.price?.id,
+    status: subscription.status,
+    currentPeriodEnd: currentPeriodEnd
+      ? currentPeriodEnd * 1000
+      : undefined,
+    cancelAtPeriodEnd: Boolean(subscription.cancel_at_period_end || subscription.cancel_at)
+  });
+}
+
+async function handleAccountDeletionRequest(req, res) {
+  if (req.method !== "DELETE") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+  const convex = authenticatedConvexClient(req);
+  const identity = await convex.query(anyApi.app.billingIdentity, {});
+  if (identity.stripeCustomerId && process.env.STRIPE_SECRET_KEY) {
+    await stripeClient().customers.del(identity.stripeCustomerId);
+  }
+  await convex.mutation(anyApi.app.deleteMyAccount, {});
+  sendJson(res, 200, { deleted: true });
+}
+
+async function handleUsageConsumeRequest(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+  const body = await readJsonBody(req);
+  if (!["plans", "swaps", "ai"].includes(body.feature)) {
+    sendJson(res, 400, { error: "Unknown usage feature" });
+    return;
+  }
+  const result = await authenticatedConvexClient(req)
+    .mutation(anyApi.app.consumeFeature, { feature: body.feature });
+  sendJson(res, result.allowed ? 200 : 402, result);
 }
 
 async function handleAppStoreNotificationRequest(req, res) {
@@ -476,6 +682,10 @@ async function handleMealInstructionsRequest(req, res) {
 }
 
 async function handleInstacartProductsRequest(requestUrl, res) {
+  if (process.env.ENABLE_INSTACART_SCRAPER !== "true") {
+    sendJson(res, 403, { error: "Instacart scraper integration is disabled pending commercial approval" });
+    return;
+  }
   if (!process.env.RAPIDAPI_KEY) {
     sendJson(res, 200, []);
     return;
@@ -510,6 +720,10 @@ async function handleInstacartProductsRequest(requestUrl, res) {
 async function handleInstacartProductRequest(req, res) {
   if (req.method !== "POST") {
     sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+  if (process.env.ENABLE_INSTACART_SCRAPER !== "true") {
+    sendJson(res, 403, { error: "Instacart scraper integration is disabled pending commercial approval" });
     return;
   }
 
@@ -712,10 +926,11 @@ async function normalizeIngredient(ingredient) {
 }
 
 async function fetchMealPrepRecipes(preference) {
-  const providers = [
-    fetchSpoonacularMealPrepRecipes(preference),
-    fetchTastyMealPrepRecipes(preference)
-  ];
+  const providers = [fetchSpoonacularMealPrepRecipes(preference)];
+
+  if (process.env.ENABLE_TASTY_PROVIDER === "true") {
+    providers.push(fetchTastyMealPrepRecipes(preference));
+  }
 
   if (process.env.OPENAI_API_KEY && process.env.YOUTUBE_API_KEY) {
     providers.push(fetchYoutubeMealPrepRecipes(preference));
@@ -1730,6 +1945,27 @@ function readJsonBody(req) {
   });
 }
 
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    let totalBytes = 0;
+    const chunks = [];
+
+    req.on("data", (chunk) => {
+      totalBytes += chunk.length;
+      if (totalBytes > MAX_JSON_BODY_BYTES) {
+        const error = new Error("Request body is too large");
+        error.statusCode = 413;
+        reject(error);
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
 function normalizeRecipe(recipe, meal, preference) {
   const nutrients = recipe.nutrition?.nutrients || [];
   const protein = Math.round(findNutrient(nutrients, "Protein") || 20);
@@ -1899,25 +2135,124 @@ function setSecurityHeaders(res) {
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   res.setHeader(
     "Content-Security-Policy",
-    "default-src 'self'; img-src 'self' data: https://images.unsplash.com https://i.ytimg.com https:; connect-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    "default-src 'self'; img-src 'self' data: https://images.unsplash.com https://i.ytimg.com https:; connect-src 'self' https://*.convex.cloud https://*.convex.site wss://*.convex.cloud; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
   );
 }
 
 function allowRequest(req, res) {
   const now = Date.now();
-  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
-  const clientId = forwarded || req.socket?.remoteAddress || "unknown";
+  const clientId = clientFingerprint(req);
   const bucket = requestBuckets.get(clientId);
 
   if (!bucket || now - bucket.startedAt >= RATE_LIMIT_WINDOW_MS) {
     requestBuckets.set(clientId, { count: 1, startedAt: now });
-    return true;
+    return allowRouteRequest(req, res, clientId, now);
   }
 
   bucket.count += 1;
-  if (bucket.count <= RATE_LIMIT_MAX_REQUESTS) return true;
+  if (bucket.count <= RATE_LIMIT_MAX_REQUESTS) {
+    return allowRouteRequest(req, res, clientId, now);
+  }
 
   res.setHeader("Retry-After", String(Math.ceil((RATE_LIMIT_WINDOW_MS - (now - bucket.startedAt)) / 1000)));
   sendJson(res, 429, { error: "Too many requests. Please wait and try again." });
   return false;
+}
+
+function allowRouteRequest(req, res, clientId, now) {
+  const pathname = String(req.url || "").split("?")[0];
+  const limits = {
+    "/api/ai/prep-tips": 8,
+    "/api/ai/meal-instructions": 8,
+    "/api/billing/checkout": 5,
+    "/api/ingredients/normalize": 20,
+    "/api/recipes": 12,
+    "/api/usage/consume": 30,
+  };
+  const maximum = limits[pathname];
+  if (!maximum) return true;
+
+  const key = `${clientId}:${pathname}`;
+  const bucket = routeBuckets.get(key);
+  if (!bucket || now - bucket.startedAt >= RATE_LIMIT_WINDOW_MS) {
+    routeBuckets.set(key, { count: 1, startedAt: now });
+    return true;
+  }
+  bucket.count += 1;
+  if (bucket.count <= maximum) return true;
+  res.setHeader("Retry-After", String(Math.ceil((RATE_LIMIT_WINDOW_MS - (now - bucket.startedAt)) / 1000)));
+  sendJson(res, 429, { error: "This feature is being used too quickly. Please wait and try again." });
+  return false;
+}
+
+function clientFingerprint(req) {
+  const forwarded = String(req.headers["x-forwarded-for"] || "").split(",")[0].trim();
+  const address = forwarded || req.socket?.remoteAddress || "unknown";
+  const salt = process.env.RATE_LIMIT_SALT || "prepwise-local";
+  return crypto.createHash("sha256").update(`${salt}:${address}`).digest("hex").slice(0, 16);
+}
+
+function bearerToken(req) {
+  const authorization = String(req.headers.authorization || "");
+  if (!authorization.startsWith("Bearer ")) {
+    const error = new Error("Authentication required");
+    error.statusCode = 401;
+    throw error;
+  }
+  return authorization.slice(7).trim();
+}
+
+function authenticatedConvexClient(req) {
+  if (!process.env.CONVEX_URL) {
+    const error = new Error("Convex is not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+  const client = new ConvexHttpClient(process.env.CONVEX_URL);
+  const token = bearerToken(req);
+  client.setAuth(token);
+  return client;
+}
+
+function systemConvexClient() {
+  if (!process.env.CONVEX_URL || !process.env.STRIPE_SYNC_SECRET) {
+    const error = new Error("Convex billing synchronization is not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+  return new ConvexHttpClient(process.env.CONVEX_URL);
+}
+
+function stripeClient() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    const error = new Error("Stripe is not configured");
+    error.statusCode = 503;
+    throw error;
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    maxNetworkRetries: 2,
+    timeout: 15000,
+  });
+}
+
+function requireBillingConfiguration() {
+  const required = [
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "STRIPE_MONTHLY_PRICE_ID",
+    "STRIPE_YEARLY_PRICE_ID",
+    "STRIPE_SYNC_SECRET",
+    "CONVEX_URL",
+  ];
+  if (required.some((name) => !process.env[name])) {
+    const error = new Error("Billing is not fully configured");
+    error.statusCode = 503;
+    throw error;
+  }
+}
+
+function publicAppOrigin(requestUrl) {
+  const configured = String(process.env.APP_URL || "").replace(/\/+$/, "");
+  if (configured) return configured;
+  return requestUrl.origin;
 }

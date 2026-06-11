@@ -29,7 +29,7 @@ Set these Vercel environment variables before deploying:
 - `RAPIDAPI_TASTY_HOST`
 - `YOUTUBE_API_KEY`
 
-Recipe responses use a six-hour shared cache to protect provider quotas, especially the official YouTube Data API search quota.
+Recipe responses use a one-hour shared cache so Spoonacular content remains within its published cache allowance. YouTube recipe extraction also uses a separate provider cache.
 
 Google Places is used only for nearby store discovery. Basket prices are app estimates until a retailer pricing API is connected.
 
@@ -54,10 +54,10 @@ Google Places is used only for nearby store discovery. Basket prices are app est
 - Subscription group products: `prepwise_pro_monthly` and `prepwise_pro_yearly`
 - Free weekly limits: 2 meal plans, 3 meal swaps, and 1 AI-assist package
 - Pro entitlement: unlimited plans, swaps, and AI prep help
-- Pro users receive an eight-plan history stored locally on the current device
-- The browser build uses clearly labeled local demo activation. It does not process payments.
-- The iOS build must replace local demo activation with StoreKit 2 product loading, purchasing, transaction verification, restoration, and App Store Server Notifications.
-- Client-side quotas are product prototyping only. Production limits and Pro access must be enforced by an authenticated backend using verified Apple transaction state.
+- Signed-in users store preferences and plan history in Convex for cross-device access
+- The web build uses Stripe Checkout, Customer Portal, and verified webhook updates
+- The iOS build continues to use the StoreKit 2 bridge contract, transaction verification, restoration, and App Store Server Notifications
+- Signed-in web quotas are enforced by Convex mutations; local guest access is limited to one plan
 
 ## App Store Release Package
 
@@ -78,9 +78,11 @@ The App Store notification endpoint intentionally returns HTTP 503 until Apple s
 ## Production Readiness
 
 - Health check: `GET /api/health`
-- Saved plans currently use browser storage on one device. Cloud accounts and cross-device sync still require an identity provider and production database.
+- Convex Auth and Convex database functions are included for email/password accounts, preferences, plans, usage quotas, subscriptions, and account deletion.
+- Stripe Checkout, Customer Portal, signed webhooks, and Convex subscription synchronization are included for web billing.
 - Store locations may be live, but basket totals remain estimates until a licensed retailer-pricing integration is connected.
 - Review the commercial display and attribution terms for every recipe, image, video, mapping, nutrition, and retailer provider before launch.
+- Complete the external account setup in `DEPLOYMENT.md` before exposing billing or cloud accounts.
 
 ## Production API Framework
 
@@ -90,8 +92,8 @@ Selected integrations:
 - Nutrition and ingredient normalization: Edamam Food and Grocery Database via RapidAPI. Implemented in `server.js` through `/api/ingredients/normalize`.
 - AI layer: OpenAI Responses API. Implemented in `server.js` through `/api/ai/prep-tips`.
 - YouTube recipe discovery: YouTube138 search and video details via RapidAPI. Video descriptions are converted into normalized recipes and grocery ingredients with OpenAI.
-- Store discovery: Google Maps Geocoding API plus Places API Nearby Search (New). Not implemented yet.
-- Grocery shopping and pricing: Instacart Developer Platform API. Not implemented yet.
+- Store discovery: Google Places-backed nearby store discovery is implemented, while displayed basket totals remain estimates.
+- Grocery shopping and pricing: the unofficial Instacart scraper is disabled pending commercial approval; an official Instacart Developer Platform integration remains future work.
 
 Required environment variables for the backend layer are listed in `.env.example`.
 Do not place API keys in `client.js`, `index.html`, or any other browser-delivered file.
@@ -102,8 +104,8 @@ Run `node server.js` so API keys stay server-side.
 - `RecipeSearchService`: implemented with Spoonacular `/recipes/random`, capped at 30 minutes.
 - `IngredientParserService`: implemented with Edamam `/api/food-database/v2/parser`. Edamam `/nutrients` returned 401 with the current RapidAPI plan/key during testing.
 - `MealPlanService`: partially implemented with OpenAI prep tips.
-- `StoreLocatorService`: next step. Convert ZIP to latitude/longitude, then call Google Places `/v1/places:searchNearby`.
-- `PriceMatchingService`: next step. Use Instacart Developer Platform for nearby retailers, product matching, shopping list links, and checkout handoff.
+- `StoreLocatorService`: implemented through geocoding and nearby store search.
+- `PriceMatchingService`: not implemented. Use an approved retailer or Instacart Developer Platform integration before presenting live basket prices.
 
 ## Suggested Backend Services
 

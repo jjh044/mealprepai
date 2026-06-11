@@ -32,16 +32,16 @@
 - Env var: `YOUTUBE_API_KEY`
 - Provider endpoints: `/youtube/v3/search` and `/youtube/v3/videos`
 - Current behavior: runs three meal-specific searches, batches video details, requires embeddable processed videos, filters to 30 minutes or less, and sends public title/description metadata to the existing AI recipe extractor.
-- Cache: six hours per dietary preference, plus a six-hour shared CDN cache on recipe responses.
+- Cache: provider results are cached, while public recipe responses are limited to one hour to comply with Spoonacular's published terms.
 - The previous unofficial YouTube138 RapidAPI integration has been removed.
 
-### Instacart product listing via RapidAPI
+### Instacart product listing via RapidAPI (disabled)
 
 - Env vars: `RAPIDAPI_KEY`, `RAPIDAPI_INSTACART_HOST`
 - Local route: `GET /api/instacart/products`
 - Provider endpoint: `/scrapers/api/instacart/product/listing-by-url`
-- Current behavior: loads live Instacart product listings on demand on the Price Comparison page.
-- CLI status: tested successfully with HTTP 200.
+- Current behavior: code is retained but fails closed unless `ENABLE_INSTACART_SCRAPER=true`.
+- Launch status: disabled pending written commercial approval or replacement with the official Instacart Developer Platform.
 - Note: the tested endpoint is slow, taking about 107 seconds in CLI, and the sample response returned product names, sizes, images, and URLs but not prices.
 
 ## Needed For Full Functionality

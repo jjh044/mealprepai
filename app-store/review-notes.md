@@ -16,7 +16,7 @@ The current repository has a local guest profile only. A production review accou
 - Restore Purchases is available from both the paywall and Account screen
 - Manage Subscription opens Apple's subscription-management interface in the native iOS build
 
-The browser build uses an obvious local demo entitlement and never charges money. The iOS build must use StoreKit 2 verified transactions.
+The web build uses Stripe and does not grant App Store entitlement. The iOS build must use StoreKit 2 verified transactions.
 
 ## AI Functionality
 

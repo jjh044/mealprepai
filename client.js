@@ -277,6 +277,7 @@ const subscriptionManager = window.PrepWiseSubscription.createSubscriptionManage
 });
 const storeAdapter = window.PrepWiseStore.createStoreAdapter();
 document.body.classList.toggle("storekit-native", storeAdapter.isNative);
+if (!storeAdapter.isNative) subscriptionManager.clearDemo();
 
 let recipeBank = [...starterRecipeBank];
 
@@ -318,6 +319,9 @@ const accountRenewalStatus = document.querySelector("#account-renewal-status");
 const accountUpgradeButton = document.querySelector("#account-upgrade");
 const accountRestoreButton = document.querySelector("#account-restore");
 const accountManageSubscriptionButton = document.querySelector("#account-manage-subscription");
+const accountProfileStatus = document.querySelector("#account-profile-status");
+const accountSignInButton = document.querySelector("#account-sign-in");
+const accountCreateButton = document.querySelector("#account-create");
 const signOutButton = document.querySelector("#sign-out");
 const deleteAccountButton = document.querySelector("#delete-account");
 const accountActionStatus = document.querySelector("#account-action-status");
@@ -334,12 +338,49 @@ let activeStoresId = 0;
 let activeInstructionsId = 0;
 let recentRecipeIds = [];
 let previousPlanRecipeIds = new Set();
+let restoredCloudAccount = false;
+let cloudState = window.PrepWiseCloud?.getState?.() || {
+  ready: false,
+  authenticated: false,
+  loading: true,
+  data: null
+};
 
 function finiteRemaining(value) {
   return Number.isFinite(value) ? value : "Unlimited";
 }
 
 function updateSubscriptionUi() {
+  if (cloudState.authenticated && cloudState.data) {
+    const status = cloudState.data;
+    const subscription = status.subscription;
+    document.body.classList.toggle("is-pro", status.isPro);
+    subscriptionLabel.textContent = status.isPro ? "PrepWise Pro" : "Free plan";
+    subscriptionDetail.textContent = status.isPro ? "Unlimited access" : "View limits";
+    accountProfileStatus.textContent = status.user.email || "Signed-in account";
+    accountSubscriptionStatus.textContent = status.isPro ? `PrepWise Pro (${subscription?.status || "active"})` : "Free";
+    accountRenewalStatus.textContent = subscription?.currentPeriodEnd
+      ? `${subscription.cancelAtPeriodEnd ? "Ends" : "Renews"} ${new Date(subscription.currentPeriodEnd).toLocaleDateString()}`
+      : "Not applicable";
+    accountSignInButton.hidden = true;
+    accountCreateButton.hidden = true;
+    signOutButton.hidden = false;
+    usageBanner.innerHTML = status.isPro
+      ? `<strong>PrepWise Pro</strong><span>Unlimited plans, swaps, and AI prep help are active.</span>`
+      : `
+        <strong>Free this week</strong>
+        <span>${status.usage.remaining.plans} plans left</span>
+        <span>${status.usage.remaining.swaps} swaps left</span>
+        <span>${status.usage.remaining.ai} AI assist left</span>
+        <button type="button" data-open-paywall="usage">Upgrade</button>
+      `;
+    usageBanner.querySelector("[data-open-paywall]")?.addEventListener("click", () => {
+      openPaywall("Upgrade for unlimited weekly usage.");
+    });
+    renderPlanHistory();
+    return;
+  }
+
   const status = subscriptionManager.status();
   document.body.classList.toggle("is-pro", status.isPro);
   subscriptionLabel.textContent = status.isPro ? "PrepWise Pro" : "Free plan";
@@ -349,6 +390,10 @@ function updateSubscriptionUi() {
     ? `PrepWise Pro (${status.entitlement.state || "active"})`
     : "Free";
   accountRenewalStatus.textContent = subscriptionRenewalText(status.entitlement);
+  accountProfileStatus.textContent = "Local guest profile";
+  accountSignInButton.hidden = false;
+  accountCreateButton.hidden = false;
+  signOutButton.hidden = true;
   renderPlanHistory();
 
   if (status.isPro) {
@@ -385,6 +430,7 @@ function subscriptionRenewalText(entitlement) {
 }
 
 async function loadStoreProducts() {
+  if (!storeAdapter.isNative) return;
   try {
     const products = await storeAdapter.loadProducts();
     products.forEach((product) => {
@@ -431,9 +477,25 @@ function applyStoreResult(result) {
 
 async function purchaseProduct(productId) {
   if (!storeAdapter.isNative) {
-    subscriptionManager.activateDemo(productId);
-    applyStoreResult({ state: "success" });
-    window.setTimeout(closePaywall, 700);
+    if (!cloudState.authenticated) {
+      closePaywall();
+      window.PrepWiseCloud?.openAuth?.("signUp");
+      return;
+    }
+    purchaseStatus.textContent = "Opening secure Stripe checkout...";
+    try {
+      const plan = productId === "prepwise_pro_yearly" ? "yearly" : "monthly";
+      const response = await apiFetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan })
+      });
+      const result = await response.json();
+      window.location.assign(result.url);
+    } catch (error) {
+      console.error(error);
+      purchaseStatus.textContent = "Checkout could not be opened.";
+    }
     return;
   }
 
@@ -462,6 +524,21 @@ async function restorePurchases() {
 }
 
 async function manageSubscriptions() {
+  if (!storeAdapter.isNative) {
+    if (!cloudState.authenticated) {
+      window.PrepWiseCloud?.openAuth?.("signIn");
+      return;
+    }
+    try {
+      const response = await apiFetch("/api/billing/portal", { method: "POST" });
+      const result = await response.json();
+      window.location.assign(result.url);
+    } catch (error) {
+      console.error(error);
+      accountActionStatus.textContent = "Subscription settings could not be opened.";
+    }
+    return;
+  }
   try {
     const result = await storeAdapter.manageSubscriptions();
     if (result.state === "unavailable") {
@@ -480,6 +557,11 @@ function planWithoutLoadingState(plan) {
 }
 
 function savePlanHistory(prefs) {
+  if (cloudState.authenticated && currentPlan.length > 0) {
+    window.PrepWiseCloud?.savePlan?.(planWithoutLoadingState(currentPlan), prefs)
+      ?.catch((error) => console.error("Could not save cloud plan", error));
+    return;
+  }
   if (!subscriptionManager.isPro() || currentPlan.length === 0) return;
 
   const history = loadStoredValue(STORAGE_KEYS.history, []);
@@ -495,6 +577,22 @@ function savePlanHistory(prefs) {
 
 function renderPlanHistory() {
   if (!planHistoryPanel || !planHistoryList) return;
+
+  if (cloudState.authenticated && cloudState.data) {
+    const history = cloudState.data.plans || [];
+    planHistoryPanel.hidden = history.length === 0;
+    planHistoryList.innerHTML = history
+      .map((entry) => {
+        const mealNames = (entry.plan || []).map((meal) => meal.title).filter(Boolean).join(", ");
+        return `
+          <article class="plan-history-card">
+            <div><strong>${escapeHtml(new Date(entry.createdAt).toLocaleDateString())}</strong><p>${escapeHtml(mealNames)}</p></div>
+          </article>
+        `;
+      })
+      .join("");
+    return;
+  }
 
   const isPro = subscriptionManager.isPro();
   planHistoryPanel.hidden = !isPro;
@@ -590,10 +688,30 @@ function requireFeature(feature, reason) {
   return false;
 }
 
-function runAiFeatures(prefs) {
+async function consumeFeature(feature, reason) {
+  if (cloudState.authenticated) {
+    try {
+      const result = await window.PrepWiseCloud.consumeFeature(feature);
+      if (!result?.allowed) {
+        openPaywall(reason);
+        return false;
+      }
+      return true;
+    } catch (error) {
+      console.error("Could not verify usage", error);
+      openPaywall("We could not verify your account limits. Please try again.");
+      return false;
+    }
+  }
+  if (!requireFeature(feature, reason)) return false;
+  subscriptionManager.consume(feature);
+  return true;
+}
+
+async function runAiFeatures(prefs) {
   if (location.protocol === "file:" || currentPlan.length === 0) return;
 
-  if (!subscriptionManager.consume("ai")) {
+  if (!await consumeFeature("ai", "Your free AI assist has been used for this week.")) {
     renderPrepTips({
       prepOrder: ["Your free AI assist has been used for this week."],
       timeSavers: ["Upgrade to Pro for unlimited prep tips and recipe instructions."],
@@ -648,6 +766,10 @@ function saveCurrentState(prefs) {
   } catch (error) {
     console.error("Could not save the current plan", error);
   }
+  if (cloudState.authenticated) {
+    window.PrepWiseCloud?.savePreferences?.(prefs)
+      ?.catch((error) => console.error("Could not save cloud preferences", error));
+  }
 }
 
 function restorePreferences() {
@@ -680,7 +802,12 @@ async function apiFetch(url, options = {}, timeoutMs = DEFAULT_REQUEST_TIMEOUT_M
   const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(url, { ...options, signal: controller.signal });
+    const headers = new Headers(options.headers || {});
+    const token = window.PrepWiseCloud?.getToken?.();
+    if (token && String(url).startsWith("/api/")) {
+      headers.set("Authorization", `Bearer ${token}`);
+    }
+    const response = await fetch(url, { ...options, headers, signal: controller.signal });
     if (!response.ok) {
       let detail = "";
       try {
@@ -1002,7 +1129,8 @@ async function fetchMoreRecipes(prefs) {
 
 async function swapMeal(item, button) {
   const prefs = getPreferences();
-  if (!requireFeature("swaps", "You have used all free meal swaps for this week.")) return;
+  if (!cloudState.authenticated &&
+      !requireFeature("swaps", "You have used all free meal swaps for this week.")) return;
   button.disabled = true;
   button.textContent = "Finding another...";
 
@@ -1026,8 +1154,12 @@ async function swapMeal(item, button) {
 
     const currentIndex = currentPlan.findIndex((meal) => meal.id === item.id);
     if (currentIndex !== -1) {
+      if (!await consumeFeature("swaps", "You have used all free meal swaps for this week.")) {
+        button.disabled = false;
+        button.textContent = `Pick a different ${item.meal.toLowerCase()}`;
+        return;
+      }
       currentPlan[currentIndex] = chooseFromTop(candidates, 6);
-      subscriptionManager.consume("swaps");
       updateSubscriptionUi();
       rememberRecentRecipes(currentPlan);
       refreshDependentViews(prefs);
@@ -1494,11 +1626,10 @@ async function rerender(options = {}) {
   const renderId = ++activeRenderId;
   const prefs = getPreferences();
 
-  if (options.loadRecipes && !requireFeature("plans", "You have used both free meal plans for this week.")) {
-    return false;
-  }
-
   if (options.loadRecipes) {
+    if (!await consumeFeature("plans", "You have used your free meal plan for this week.")) {
+      return false;
+    }
     hasBuiltPlan = false;
     clearPlanViews("Loading quick recipes...");
     await loadRealRecipes(prefs, renderId);
@@ -1509,10 +1640,7 @@ async function rerender(options = {}) {
   }
 
   currentPlan = buildPlan(prefs);
-  if (options.loadRecipes) {
-    subscriptionManager.consume("plans");
-    updateSubscriptionUi();
-  }
+  if (options.loadRecipes) updateSubscriptionUi();
   rememberRecentRecipes(currentPlan);
   currentGroceries = buildGroceries(currentPlan, prefs);
   saveCurrentState(prefs);
@@ -1578,11 +1706,13 @@ if (loadInstacartProductsButton) {
 }
 
 subscriptionButton.addEventListener("click", () => {
-  const status = subscriptionManager.status();
+  const status = cloudState.authenticated && cloudState.data
+    ? { isPro: cloudState.data.isPro }
+    : subscriptionManager.status();
   openPaywall(
     status.isPro
-      ? "Your local PrepWise Pro demo is active."
-      : "Free includes 2 plans, 3 swaps, and 1 AI assist each week."
+      ? "Your PrepWise Pro subscription is active."
+      : "Free includes weekly meal planning, swaps, and AI assistance."
   );
 });
 
@@ -1603,20 +1733,39 @@ accountUpgradeButton.addEventListener("click", () => openPaywall("Review PrepWis
 accountRestoreButton.addEventListener("click", restorePurchases);
 accountManageSubscriptionButton.addEventListener("click", manageSubscriptions);
 
-signOutButton.addEventListener("click", () => {
+signOutButton.addEventListener("click", async () => {
+  if (cloudState.authenticated) {
+    await window.PrepWiseCloud?.signOut?.();
+  }
   currentPlan = [];
   currentGroceries = new Map();
   hasBuiltPlan = false;
-  clearPlanViews("Signed out of the local guest session. Saved device data remains available.");
-  accountActionStatus.textContent = "Signed out of the local guest session.";
+  clearPlanViews("Signed out. Cloud data remains available for your next sign-in.");
+  accountActionStatus.textContent = "Signed out.";
   showPage("account");
 });
 
-deleteAccountButton.addEventListener("click", () => {
+deleteAccountButton.addEventListener("click", async () => {
   const confirmed = window.confirm(
-    "Permanently delete all PrepWise plans, preferences, favorites, history, usage, and local demo subscription data from this device?"
+    "Permanently delete your PrepWise account, cloud plans, preferences, usage, and linked web billing customer?"
   );
   if (!confirmed) return;
+
+  if (cloudState.authenticated) {
+    try {
+      accountActionStatus.textContent = "Deleting your account...";
+      await apiFetch("/api/account/delete", { method: "DELETE" });
+      try {
+        await window.PrepWiseCloud?.signOut?.();
+      } catch {
+        // The server already invalidated and deleted the authentication session.
+      }
+    } catch (error) {
+      console.error(error);
+      accountActionStatus.textContent = "Your account could not be deleted. Please contact support.";
+      return;
+    }
+  }
 
   Object.keys(localStorage)
     .filter((key) => key.startsWith("prepwise-"))
@@ -1628,7 +1777,7 @@ deleteAccountButton.addEventListener("click", () => {
   clearPlanViews("");
   applyPreferences({ budget: 125, zip: "60614", people: 2, preference: "balanced" });
   updateSubscriptionUi();
-  accountActionStatus.textContent = "All local PrepWise account data was permanently deleted. Cancel Apple subscriptions separately.";
+  accountActionStatus.textContent = "Your PrepWise account and local data were permanently deleted.";
 });
 
 const restoredPreferences = restorePreferences() || getPreferences();
@@ -1638,3 +1787,42 @@ if (!restoreSavedPlan(restoredPreferences)) {
   setRecipeStatus("Build a meal prep plan to load quick recipes, including YouTube videos.");
   clearPlanViews("");
 }
+
+accountSignInButton.addEventListener("click", () => window.PrepWiseCloud?.openAuth?.("signIn"));
+accountCreateButton.addEventListener("click", () => window.PrepWiseCloud?.openAuth?.("signUp"));
+
+window.PrepWiseCloud?.subscribe?.((nextState) => {
+  cloudState = nextState;
+  updateSubscriptionUi();
+  if (!nextState.authenticated) {
+    restoredCloudAccount = false;
+    return;
+  }
+  if (!nextState.data || restoredCloudAccount) return;
+  restoredCloudAccount = true;
+
+  const cloudPreferences = nextState.data.preferences;
+  const latestPlan = nextState.data.plans?.[0];
+  if (cloudPreferences) {
+    applyPreferences(cloudPreferences);
+  } else {
+    window.PrepWiseCloud.savePreferences(getPreferences())
+      ?.catch((error) => console.error("Could not migrate preferences", error));
+  }
+  if (latestPlan?.plan?.length === meals.length) {
+    currentPlan = latestPlan.plan;
+    const prefs = getPreferences();
+    currentGroceries = buildGroceries(currentPlan, prefs);
+    hasBuiltPlan = true;
+    renderPlan(currentPlan, prefs);
+    renderGroceries(currentGroceries);
+    renderStores(currentPlan, prefs);
+    setRecipeStatus("Restored your latest cloud meal plan.");
+  } else {
+    const localPlan = loadStoredValue(STORAGE_KEYS.plan, null);
+    if (localPlan?.plan?.length === meals.length) {
+      window.PrepWiseCloud.savePlan(localPlan.plan, getPreferences())
+        ?.catch((error) => console.error("Could not migrate local plan", error));
+    }
+  }
+});

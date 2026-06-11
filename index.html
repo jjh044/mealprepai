@@ -20,7 +20,7 @@
           <button class="step is-active" type="button" data-page="setup">Budget</button>
           <button class="step" type="button" data-page="meals">Meals</button>
           <button class="step" type="button" data-page="groceries">Grocery list</button>
-          <button class="step" type="button" data-page="stores">Price comparison</button>
+          <button class="step" type="button" data-page="stores">Cost estimates</button>
           <button class="step" type="button" data-page="account">Account</button>
         </nav>
         <button id="subscription-button" class="subscription-button" type="button">
@@ -89,7 +89,7 @@
           <div>
             <p class="eyebrow">PrepWise Pro</p>
             <h2>Saved plan history</h2>
-            <p>Your eight most recent plans are stored on this device.</p>
+            <p>Your recent plans are securely synced when you sign in.</p>
           </div>
           <div id="plan-history-list" class="plan-history-list"></div>
         </section>
@@ -124,17 +124,21 @@
           </div>
         </div>
         <div id="grocery-list" class="grocery-list"></div>
+        <p class="provider-attribution">
+          Ingredient nutrition matches are provided by
+          <a href="https://www.edamam.com/" target="_blank" rel="noopener">Edamam</a>.
+        </p>
         <div class="page-footer split-footer">
           <button id="copy-list" class="ghost-action" type="button">Copy list</button>
           <button class="primary-action compact next-action" type="button" data-page-link="stores">Compare stores</button>
         </div>
       </section>
 
-      <section id="stores" class="page" aria-label="Store price comparison">
+      <section id="stores" class="page" aria-label="Estimated grocery costs by store">
         <div class="page-heading">
           <div>
-            <p class="eyebrow">Price comparison</p>
-            <h2>Which store saves the most?</h2>
+            <p class="eyebrow">Planning estimates</p>
+            <h2>Estimated grocery costs by store</h2>
             <p id="store-context"></p>
           </div>
           <button class="ghost-action" type="button" data-page-link="setup">Change setup</button>
@@ -144,7 +148,7 @@
           <div>
             <p class="eyebrow">Live Instacart products</p>
             <h3>Browse real product listings</h3>
-            <p>This optional RapidAPI Instacart lookup may be slow or time out. Basket prices above remain estimates.</p>
+            <p>This integration remains disabled until commercial access is approved. Basket totals above are planning estimates, not live retailer prices.</p>
           </div>
           <button id="load-instacart-products" class="ghost-action" type="button">Load Instacart products</button>
           <div id="instacart-products" class="instacart-products"></div>
@@ -168,6 +172,8 @@
               <div><dt>Subscription</dt><dd id="account-subscription-status">Free</dd></div>
               <div><dt>Renewal</dt><dd id="account-renewal-status">Not applicable</dd></div>
             </dl>
+            <button id="account-sign-in" class="primary-action" type="button">Sign in</button>
+            <button id="account-create" class="ghost-action" type="button">Create account</button>
             <button id="account-upgrade" class="primary-action" type="button">View PrepWise Pro</button>
             <button id="account-restore" class="ghost-action" type="button">Restore purchases</button>
             <button id="account-manage-subscription" class="ghost-action" type="button">Manage subscription</button>
@@ -182,7 +188,7 @@
 
           <article class="account-card danger-card">
             <h3>Account controls</h3>
-            <p>This web build stores a local guest profile only. Deleting it permanently removes plans, preferences, favorites, history, quota data, and demo subscription state from this device.</p>
+            <p>Deleting your account permanently removes cloud plans, preferences, usage, and authentication data. Any linked web subscription is cancelled as part of deletion.</p>
             <button id="sign-out" class="ghost-action" type="button">Sign out</button>
             <button id="delete-account" class="danger-action" type="button">Delete account and local data</button>
             <p id="account-action-status" class="purchase-status" aria-live="polite"></p>
@@ -213,18 +219,18 @@
         <div class="subscription-options">
           <button type="button" class="subscription-option" data-subscription-product="prepwise_pro_yearly">
             <strong>Yearly</strong>
-            <span data-product-price="prepwise_pro_yearly">Loading Apple price...</span>
+            <span data-product-price="prepwise_pro_yearly">$69.99/year</span>
             <small data-product-detail="prepwise_pro_yearly">Billed once per year</small>
           </button>
           <button type="button" class="subscription-option" data-subscription-product="prepwise_pro_monthly">
             <strong>Monthly</strong>
-            <span data-product-price="prepwise_pro_monthly">Loading Apple price...</span>
-            <small data-product-detail="prepwise_pro_monthly">Billed once per month</small>
+            <span data-product-price="prepwise_pro_monthly">$9.99/month</span>
+            <small data-product-detail="prepwise_pro_monthly">7 days free, then billed monthly</small>
           </button>
         </div>
 
         <p class="demo-disclosure">
-          Development build: these buttons activate a local Pro demo and do not charge money.
+          Web payments are processed securely by Stripe. App Store builds use Apple in-app purchase.
         </p>
 
         <p class="renewal-disclosure">
@@ -262,8 +268,10 @@
       </article>
     </template>
 
+    <div id="cloud-root"></div>
     <script src="subscription.js"></script>
     <script src="native-store.js"></script>
+    <script src="cloud.js"></script>
     <script src="client.js"></script>
   </body>
 </html>
