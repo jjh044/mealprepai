@@ -35,7 +35,11 @@ export default defineSchema({
   }).index("by_user_period", ["userId", "period"]),
   subscriptions: defineTable({
     userId: v.id("users"),
-    stripeCustomerId: v.string(),
+    platform: v.optional(v.string()),
+    productId: v.optional(v.string()),
+    originalTransactionId: v.optional(v.string()),
+    purchaseTokenHash: v.optional(v.string()),
+    stripeCustomerId: v.optional(v.string()),
     stripeSubscriptionId: v.optional(v.string()),
     priceId: v.optional(v.string()),
     status: v.string(),
@@ -45,7 +49,9 @@ export default defineSchema({
   })
     .index("by_user", ["userId"])
     .index("by_customer", ["stripeCustomerId"])
-    .index("by_subscription", ["stripeSubscriptionId"]),
+    .index("by_subscription", ["stripeSubscriptionId"])
+    .index("by_original_transaction", ["originalTransactionId"])
+    .index("by_purchase_token_hash", ["purchaseTokenHash"]),
   stripeEvents: defineTable({
     eventId: v.string(),
     eventType: v.string(),

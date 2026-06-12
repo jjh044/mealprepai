@@ -44,9 +44,11 @@
 
     return {
       isNative: Boolean(nativeStore),
+      platform: nativeStore?.platform || "web",
       loadProducts,
       manageSubscriptions,
       purchase,
+      refresh: async () => nativeStore?.refresh?.() || { state: "unavailable" },
       restore
     };
   }

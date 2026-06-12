@@ -46,6 +46,30 @@ test("public config exposes only client-safe service state", async () => {
   });
 });
 
+test("native Capacitor origins can call authenticated API routes", async () => {
+  await withServer(async (baseUrl) => {
+    const response = await fetch(`${baseUrl}/api/config`, {
+      headers: { Origin: "https://app.prepwise.local" }
+    });
+    assert.equal(response.status, 200);
+    assert.equal(
+      response.headers.get("access-control-allow-origin"),
+      "https://app.prepwise.local"
+    );
+
+    const preflight = await fetch(`${baseUrl}/api/account/delete`, {
+      method: "OPTIONS",
+      headers: {
+        Origin: "capacitor://app.prepwise.local",
+        "Access-Control-Request-Method": "DELETE",
+        "Access-Control-Request-Headers": "authorization"
+      }
+    });
+    assert.equal(preflight.status, 204);
+    assert.match(preflight.headers.get("access-control-allow-headers"), /Authorization/);
+  });
+});
+
 test("commercially unapproved scraper endpoints are disabled by default", async () => {
   const original = process.env.ENABLE_INSTACART_SCRAPER;
   delete process.env.ENABLE_INSTACART_SCRAPER;

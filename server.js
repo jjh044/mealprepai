@@ -8,6 +8,10 @@ const Stripe = require("stripe");
 const Sentry = require("@sentry/node");
 const { ConvexHttpClient } = require("convex/browser");
 const { anyApi } = require("convex/server");
+const {
+  Environment: AppleEnvironment,
+  SignedDataVerifier
+} = require("@apple/app-store-server-library");
 const { processSignedNotification } = require("./app-store-notifications");
 
 const PORT = Number(process.env.PORT || 3000);
@@ -209,7 +213,13 @@ async function handleRequest(req, res) {
 
   try {
     const requestUrl = new URL(req.url, `http://${req.headers.host}`);
-    setSecurityHeaders(res);
+    setSecurityHeaders(req, res);
+
+    if (req.method === "OPTIONS") {
+      res.writeHead(204);
+      res.end();
+      return;
+    }
 
     if (requestUrl.pathname.startsWith("/api/") && !allowRequest(req, res)) {
       return;
@@ -259,6 +269,11 @@ async function handleRequest(req, res) {
 
     if (requestUrl.pathname === "/api/billing/webhook") {
       await handleStripeWebhookRequest(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/billing/native/verify") {
+      await handleNativeBillingVerificationRequest(req, res);
       return;
     }
 
@@ -548,6 +563,212 @@ async function handleAccountDeletionRequest(req, res) {
   sendJson(res, 200, { deleted: true });
 }
 
+async function handleNativeBillingVerificationRequest(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+  if (!process.env.NATIVE_BILLING_SYNC_SECRET) {
+    sendJson(res, 503, { error: "Native billing verification is not configured" });
+    return;
+  }
+
+  const body = await readJsonBody(req);
+  const verified = body.platform === "ios"
+    ? await verifyAppleTransaction(body)
+    : body.platform === "android"
+      ? await verifyGooglePlayPurchase(body)
+      : null;
+  if (!verified) {
+    sendJson(res, 400, { error: "Unknown native billing platform" });
+    return;
+  }
+
+  await authenticatedConvexClient(req).mutation(anyApi.billing.applyNativeSubscription, {
+    syncSecret: process.env.NATIVE_BILLING_SYNC_SECRET,
+    platform: verified.platform,
+    productId: verified.productId,
+    originalTransactionId: verified.originalTransactionId,
+    purchaseTokenHash: verified.purchaseTokenHash,
+    status: verified.status,
+    currentPeriodEnd: verified.currentPeriodEnd
+  });
+  sendJson(res, 200, {
+    state: verified.state,
+    entitlement: {
+      productId: verified.productId,
+      state: verified.status,
+      originalTransactionId: verified.originalTransactionId,
+      expiresAt: verified.currentPeriodEnd
+        ? new Date(verified.currentPeriodEnd).toISOString()
+        : null,
+      source: `${verified.platform}-server-verified`
+    }
+  });
+}
+
+async function verifyAppleTransaction(body) {
+  if (typeof body.signedTransaction !== "string" || body.signedTransaction.length < 100) {
+    throw Object.assign(new Error("A signed Apple transaction is required"), { statusCode: 400 });
+  }
+  const verifier = appleSignedDataVerifier();
+  const transaction = await verifier.verifyAndDecodeTransaction(body.signedTransaction);
+  if (!["prepwise_pro_monthly", "prepwise_pro_yearly"].includes(transaction.productId)) {
+    throw Object.assign(new Error("Unknown Apple subscription product"), { statusCode: 400 });
+  }
+  if (!transaction.originalTransactionId) {
+    throw Object.assign(new Error("Apple transaction is missing its original transaction ID"), {
+      statusCode: 400
+    });
+  }
+  const currentPeriodEnd = transaction.expiresDate || undefined;
+  const status = transaction.revocationDate
+    ? "revoked"
+    : currentPeriodEnd && currentPeriodEnd <= Date.now()
+      ? "expired"
+      : "active";
+  return {
+    platform: "ios",
+    productId: transaction.productId,
+    originalTransactionId: transaction.originalTransactionId,
+    status,
+    state: status === "active" ? "success" : status,
+    currentPeriodEnd
+  };
+}
+
+function appleSignedDataVerifier() {
+  const environment = String(process.env.APPLE_ENVIRONMENT || "SANDBOX").toUpperCase() === "PRODUCTION"
+    ? AppleEnvironment.PRODUCTION
+    : AppleEnvironment.SANDBOX;
+  const appAppleId = environment === AppleEnvironment.PRODUCTION
+    ? Number(process.env.APPLE_APP_ID)
+    : undefined;
+  if (environment === AppleEnvironment.PRODUCTION && !Number.isFinite(appAppleId)) {
+    throw Object.assign(new Error("APPLE_APP_ID is required for production verification"), { statusCode: 503 });
+  }
+  return new SignedDataVerifier(
+    appleRootCertificates(),
+    true,
+    environment,
+    process.env.APPLE_BUNDLE_ID || "com.prepwise.app",
+    appAppleId
+  );
+}
+
+function appleRootCertificates() {
+  let encoded;
+  try {
+    encoded = JSON.parse(process.env.APPLE_ROOT_CA_BASE64_JSON || "[]");
+  } catch {
+    encoded = [];
+  }
+  if (!Array.isArray(encoded) || encoded.length === 0) {
+    throw Object.assign(new Error("Apple root certificates are not configured"), { statusCode: 503 });
+  }
+  return encoded.map((certificate) => Buffer.from(certificate, "base64"));
+}
+
+async function verifyGooglePlayPurchase(body) {
+  if (typeof body.purchaseToken !== "string" || body.purchaseToken.length < 20) {
+    throw Object.assign(new Error("A Google Play purchase token is required"), { statusCode: 400 });
+  }
+  const credentials = googleServiceAccount();
+  const accessToken = await googleServiceAccessToken(credentials);
+  const packageName = process.env.GOOGLE_PLAY_PACKAGE_NAME || "com.prepwise.app";
+  const response = await fetch(
+    `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(packageName)}/purchases/subscriptionsv2/tokens/${encodeURIComponent(body.purchaseToken)}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!response.ok) {
+    throw Object.assign(new Error(`Google Play verification returned ${response.status}`), {
+      statusCode: response.status === 404 ? 400 : 502
+    });
+  }
+  const purchase = await response.json();
+  const lineItem = purchase.lineItems?.[0];
+  if (!lineItem || !["prepwise_pro_monthly", "prepwise_pro_yearly"].includes(lineItem.productId)) {
+    throw Object.assign(new Error("Unknown Google Play subscription product"), { statusCode: 400 });
+  }
+  const states = {
+    SUBSCRIPTION_STATE_ACTIVE: "active",
+    SUBSCRIPTION_STATE_IN_GRACE_PERIOD: "grace_period",
+    SUBSCRIPTION_STATE_CANCELED: "active",
+    SUBSCRIPTION_STATE_PENDING: "billing_retry",
+    SUBSCRIPTION_STATE_ON_HOLD: "expired",
+    SUBSCRIPTION_STATE_PAUSED: "expired",
+    SUBSCRIPTION_STATE_EXPIRED: "expired"
+  };
+  const status = states[purchase.subscriptionState] || "expired";
+  const currentPeriodEnd = lineItem.expiryTime ? Date.parse(lineItem.expiryTime) : undefined;
+  if (purchase.acknowledgementState === "ACKNOWLEDGEMENT_STATE_PENDING" &&
+      ["active", "grace_period", "billing_retry"].includes(status)) {
+    const acknowledge = await fetch(
+      `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/${encodeURIComponent(packageName)}/purchases/subscriptions/${encodeURIComponent(lineItem.productId)}/tokens/${encodeURIComponent(body.purchaseToken)}:acknowledge`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json"
+        },
+        body: "{}"
+      }
+    );
+    if (!acknowledge.ok) {
+      throw Object.assign(new Error(`Google Play acknowledgement returned ${acknowledge.status}`), {
+        statusCode: 502
+      });
+    }
+  }
+  const purchaseTokenHash = crypto.createHash("sha256").update(body.purchaseToken).digest("hex");
+  return {
+    platform: "android",
+    productId: lineItem.productId,
+    originalTransactionId: purchaseTokenHash,
+    purchaseTokenHash,
+    status,
+    state: ["active", "grace_period", "billing_retry"].includes(status) ? "success" : status,
+    currentPeriodEnd
+  };
+}
+
+function googleServiceAccount() {
+  try {
+    const credentials = JSON.parse(process.env.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON || "");
+    if (!credentials.client_email || !credentials.private_key) throw new Error("Incomplete credentials");
+    return credentials;
+  } catch {
+    throw Object.assign(new Error("Google Play service account is not configured"), { statusCode: 503 });
+  }
+}
+
+async function googleServiceAccessToken(credentials) {
+  const now = Math.floor(Date.now() / 1000);
+  const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
+  const claim = Buffer.from(JSON.stringify({
+    iss: credentials.client_email,
+    scope: "https://www.googleapis.com/auth/androidpublisher",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600
+  })).toString("base64url");
+  const unsigned = `${header}.${claim}`;
+  const signature = crypto.sign("RSA-SHA256", Buffer.from(unsigned), credentials.private_key)
+    .toString("base64url");
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: `${unsigned}.${signature}`
+    })
+  });
+  if (!response.ok) {
+    throw Object.assign(new Error(`Google OAuth returned ${response.status}`), { statusCode: 502 });
+  }
+  return (await response.json()).access_token;
+}
+
 async function handleUsageConsumeRequest(req, res) {
   if (req.method !== "POST") {
     sendJson(res, 405, { error: "Method not allowed" });
@@ -570,8 +791,42 @@ async function handleAppStoreNotificationRequest(req, res) {
   }
 
   const body = await readJsonBody(req);
-  const result = await processSignedNotification(body.signedPayload, null);
+  const result = await processSignedNotification(body.signedPayload, verifyAppleNotification);
+  if (result.update) {
+    await systemConvexClient().mutation(anyApi.billing.applyAppleNotification, {
+      syncSecret: process.env.NATIVE_BILLING_SYNC_SECRET,
+      productId: result.update.productId,
+      originalTransactionId: result.update.originalTransactionId,
+      status: result.update.state,
+      currentPeriodEnd: result.update.expiresAt
+        ? Date.parse(result.update.expiresAt)
+        : undefined
+    });
+  }
   sendJson(res, 200, result);
+}
+
+async function verifyAppleNotification(signedPayload) {
+  const verifier = appleSignedDataVerifier();
+  const notification = await verifier.verifyAndDecodeNotification(signedPayload);
+  const signedTransaction = notification.data?.signedTransactionInfo;
+  const transaction = signedTransaction
+    ? await verifier.verifyAndDecodeTransaction(signedTransaction)
+    : null;
+  return {
+    notificationUUID: notification.notificationUUID,
+    notificationType: notification.notificationType,
+    subtype: notification.subtype,
+    transaction: transaction
+      ? {
+          productId: transaction.productId,
+          originalTransactionId: transaction.originalTransactionId,
+          expiresDate: transaction.expiresDate
+            ? new Date(transaction.expiresDate).toISOString()
+            : null
+        }
+      : null
+  };
 }
 
 async function handleIngredientRequest(req, res) {
@@ -2158,7 +2413,18 @@ function normalizePreference(value) {
   return allowed.has(value) ? value : "balanced";
 }
 
-function setSecurityHeaders(res) {
+function setSecurityHeaders(req, res) {
+  const origin = req.headers.origin;
+  const nativeOrigins = new Set([
+    "capacitor://app.prepwise.local",
+    "https://app.prepwise.local"
+  ]);
+  if (nativeOrigins.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type");
+    res.setHeader("Access-Control-Allow-Methods", "DELETE, GET, OPTIONS, POST");
+    res.setHeader("Vary", "Origin");
+  }
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");

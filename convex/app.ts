@@ -3,7 +3,13 @@ import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
 const FREE_LIMITS = { plans: 2, swaps: 3, ai: 1 } as const;
-const ACTIVE_SUBSCRIPTION_STATES = new Set(["active", "trialing", "past_due"]);
+const ACTIVE_SUBSCRIPTION_STATES = new Set([
+  "active",
+  "trialing",
+  "past_due",
+  "billing_retry",
+  "grace_period",
+]);
 
 function weekKey(now = new Date()) {
   const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));

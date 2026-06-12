@@ -4,14 +4,29 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "build": "esbuild src/cloud-bridge.jsx --bundle --minify --format=iife --outfile=cloud.js && esbuild src/telemetry.js --bundle --minify --format=iife --outfile=telemetry.js",
-    "check": "node --check server.js && node --check client.js && node --check subscription.js && node --check native-store.js && node --check app-store-notifications.js",
+    "build": "esbuild src/cloud-bridge.jsx --bundle --minify --format=iife --outfile=cloud.js && esbuild src/telemetry.js --bundle --minify --format=iife --outfile=telemetry.js && esbuild src/native-runtime.js --bundle --minify --format=iife --outfile=native-runtime.js && node scripts/build-web.js",
+    "native:add": "npm run build && cap add android && cap add ios",
+    "native:sync": "npm run build && cap sync",
+    "native:assets": "capacitor-assets generate",
+    "store:android-assets": "node scripts/generate-android-store-assets.js",
+    "check": "node --check server.js && node --check client.js && node --check subscription.js && node --check native-store.js && node --check app-store-notifications.js && node --check scripts/build-web.js && node --check scripts/generate-android-store-assets.js",
+    "typecheck": "tsc -p convex/tsconfig.json --noEmit",
     "test": "node --test"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "dependencies": {
+    "@apple/app-store-server-library": "^3.1.0",
+    "@capacitor/android": "^8.4.0",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/browser": "^8.0.3",
+    "@capacitor/core": "^8.4.0",
+    "@capacitor/ios": "^8.4.0",
+    "@capacitor/keyboard": "^8.0.3",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.1",
+    "@capacitor/status-bar": "^8.0.2",
     "@convex-dev/auth": "^0.0.94",
     "@sentry/browser": "^10.57.0",
     "@sentry/node": "^10.57.0",
@@ -21,5 +36,10 @@
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "stripe": "^22.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.4.0",
+    "@types/node": "^24.13.2"
   }
 }

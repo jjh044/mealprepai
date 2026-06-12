@@ -35,6 +35,47 @@ test("six App Store screenshots use the accepted 1290 by 2796 size", () => {
   });
 });
 
+test("Google Play assets use release-ready dimensions", () => {
+  const root = path.join(__dirname, "..", "app-store", "android");
+  assert.deepEqual(pngInfo(path.join(root, "play-icon-512.png")).width, 512);
+  const feature = pngInfo(path.join(root, "feature-graphic-1024x500.png"));
+  assert.equal(feature.width, 1024);
+  assert.equal(feature.height, 500);
+
+  const screenshots = fs.readdirSync(path.join(root, "screenshots"))
+    .filter((name) => /^\d{2}-.*\.png$/.test(name));
+  assert.equal(screenshots.length, 6);
+  screenshots.forEach((name) => {
+    const info = pngInfo(path.join(root, "screenshots", name));
+    assert.equal(info.width, 1080);
+    assert.equal(info.height, 1920);
+  });
+});
+
+test("native projects include first-party platform billing bridges", () => {
+  const root = path.join(__dirname, "..");
+  const android = fs.readFileSync(
+    path.join(root, "android", "app", "src", "main", "java", "com", "prepwise", "app", "PrepWiseBillingPlugin.java"),
+    "utf8"
+  );
+  const ios = fs.readFileSync(
+    path.join(root, "ios", "App", "App", "PrepWiseBillingPlugin.swift"),
+    "utf8"
+  );
+  assert.match(android, /BillingClient/);
+  assert.match(android, /purchaseToken/);
+  assert.match(ios, /import StoreKit/);
+  assert.match(ios, /Transaction\.currentEntitlements/);
+});
+
+test("native runtime loads before the store adapter and routes API calls remotely", () => {
+  const html = read("index.html");
+  assert.ok(html.indexOf("native-runtime.js") < html.indexOf("native-store.js"));
+  assert.match(read("src/native-runtime.js"), /PrepWiseApiOrigin/);
+  assert.match(read("client.js"), /billing\/native\/verify/);
+  assert.match(read("styles.css"), /safe-area-inset-bottom/);
+});
+
 test("public legal pages cover required privacy and subscription topics", () => {
   const root = path.join(__dirname, "..");
   const privacy = fs.readFileSync(path.join(root, "privacy.html"), "utf8");

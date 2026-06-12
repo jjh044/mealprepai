@@ -325,6 +325,7 @@ const accountCreateButton = document.querySelector("#account-create");
 const signOutButton = document.querySelector("#sign-out");
 const deleteAccountButton = document.querySelector("#delete-account");
 const accountActionStatus = document.querySelector("#account-action-status");
+const renewalDisclosure = document.querySelector("#renewal-disclosure");
 
 let currentPlan = [];
 let currentGroceries = new Map();
@@ -340,6 +341,19 @@ let recentRecipeIds = [];
 let previousPlanRecipeIds = new Set();
 let restoredCloudAccount = false;
 let lastTrackedSubscriptionState = "";
+let activePageId = "setup";
+let paywallReturnFocus = null;
+
+document.body.classList.toggle("native-store-build", storeAdapter.isNative);
+document.body.classList.toggle("native-ios-store", storeAdapter.platform === "ios");
+document.body.classList.toggle("native-android-store", storeAdapter.platform === "android");
+if (storeAdapter.platform === "ios") {
+  renewalDisclosure.textContent =
+    "Payment is charged to your Apple Account after confirmation. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current period. Manage or cancel in Apple subscription settings.";
+} else if (storeAdapter.platform === "android") {
+  renewalDisclosure.textContent =
+    "Payment is charged to your Google Play account after confirmation. Subscriptions renew automatically unless cancelled before the end of the current billing period. Manage or cancel in Google Play subscriptions.";
+}
 
 function track(event, properties = {}) {
   window.PrepWiseTelemetry?.capture?.(event, properties);
@@ -449,11 +463,11 @@ async function loadStoreProducts() {
 
       price.textContent = product.displayPrice || (storeAdapter.isNative ? "Unavailable" : "Local demo");
       const trialText = product.trial?.displayText ? `${product.trial.displayText}, then ` : "";
-      detail.textContent = `${trialText}${product.displayPrice || "Apple price"} per ${product.period}`;
+      detail.textContent = `${trialText}${product.displayPrice || "Store price"} per ${product.period}`;
     });
   } catch (error) {
-    console.error("Could not load App Store products", error);
-    purchaseStatus.textContent = "Apple subscription products are temporarily unavailable.";
+    console.error("Could not load app-store products", error);
+    purchaseStatus.textContent = "Subscription products are temporarily unavailable.";
   }
 }
 
@@ -470,7 +484,8 @@ function purchaseMessage(result) {
     grace_period: "The subscription is in a billing grace period.",
     upgraded: "Your PrepWise Pro plan was upgraded.",
     downgraded: "Your plan change will take effect on Apple's scheduled date.",
-    unavailable: "StoreKit is unavailable in this browser development build."
+    verification_required: "The purchase was received and is being verified.",
+    unavailable: "App-store billing is unavailable in this build."
   };
   return messages[result?.state] || "Subscription status was updated.";
 }
@@ -482,6 +497,16 @@ function applyStoreResult(result) {
   purchaseStatus.textContent = purchaseMessage(result);
   accountActionStatus.textContent = purchaseStatus.textContent;
   updateSubscriptionUi();
+}
+
+async function verifyNativeStoreResult(result) {
+  if (!result?.verification) return result;
+  const response = await apiFetch("/api/billing/native/verify", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(result.verification)
+  });
+  return response.json();
 }
 
 async function purchaseProduct(productId) {
@@ -512,12 +537,18 @@ async function purchaseProduct(productId) {
     return;
   }
 
-  purchaseStatus.textContent = "Confirming purchase with Apple...";
+  if (!cloudState.authenticated) {
+    closePaywall();
+    accountActionStatus.textContent = "Sign in before purchasing so Pro access can be restored across devices.";
+    window.PrepWiseCloud?.openAuth?.("signIn");
+    return;
+  }
+  purchaseStatus.textContent = `Confirming purchase with ${storeAdapter.platform === "android" ? "Google Play" : "Apple"}...`;
   try {
-    applyStoreResult(await storeAdapter.purchase(productId));
+    applyStoreResult(await verifyNativeStoreResult(await storeAdapter.purchase(productId)));
   } catch (error) {
     console.error(error);
-    purchaseStatus.textContent = "The purchase could not be completed.";
+    purchaseStatus.textContent = "The purchase was not activated because server verification failed.";
   }
 }
 
@@ -527,9 +558,14 @@ async function restorePurchases() {
     return;
   }
 
+  if (!cloudState.authenticated) {
+    accountActionStatus.textContent = "Sign in before restoring purchases.";
+    window.PrepWiseCloud?.openAuth?.("signIn");
+    return;
+  }
   purchaseStatus.textContent = "Restoring purchases...";
   try {
-    applyStoreResult(await storeAdapter.restore());
+    applyStoreResult(await verifyNativeStoreResult(await storeAdapter.restore()));
   } catch (error) {
     console.error(error);
     purchaseStatus.textContent = "Purchases could not be restored.";
@@ -556,8 +592,11 @@ async function manageSubscriptions() {
   try {
     const result = await storeAdapter.manageSubscriptions();
     if (result.state === "unavailable") {
-      window.open("https://apps.apple.com/account/subscriptions", "_blank", "noopener");
-      purchaseStatus.textContent = "Opened Apple subscription management.";
+      const url = storeAdapter.platform === "android"
+        ? "https://play.google.com/store/account/subscriptions"
+        : "https://apps.apple.com/account/subscriptions";
+      window.open(url, "_blank", "noopener");
+      purchaseStatus.textContent = "Opened app-store subscription management.";
       accountActionStatus.textContent = purchaseStatus.textContent;
     }
   } catch (error) {
@@ -677,6 +716,7 @@ function restoreHistoryEntry(historyId) {
 }
 
 function openPaywall(reason) {
+  paywallReturnFocus = document.activeElement;
   paywallReason.textContent = reason || "Choose PrepWise Pro for unlimited meal planning.";
   purchaseStatus.textContent = "";
   updateSubscriptionUi();
@@ -690,6 +730,7 @@ function openPaywall(reason) {
   } else {
     paywallDialog.setAttribute("open", "");
   }
+  paywallDialog.querySelector(".paywall-close")?.focus();
 }
 
 function closePaywall() {
@@ -698,6 +739,8 @@ function closePaywall() {
   } else {
     paywallDialog.removeAttribute("open");
   }
+  paywallReturnFocus?.focus?.();
+  paywallReturnFocus = null;
 }
 
 function requireFeature(feature, reason) {
@@ -830,7 +873,10 @@ async function apiFetch(url, options = {}, timeoutMs = DEFAULT_REQUEST_TIMEOUT_M
     if (token && String(url).startsWith("/api/")) {
       headers.set("Authorization", `Bearer ${token}`);
     }
-    const response = await fetch(url, { ...options, headers, signal: controller.signal });
+    const requestUrl = String(url).startsWith("/api/")
+      ? `${window.PrepWiseApiOrigin || ""}${url}`
+      : url;
+    const response = await fetch(requestUrl, { ...options, headers, signal: controller.signal });
     if (!response.ok) {
       let detail = "";
       try {
@@ -1695,13 +1741,21 @@ async function rerender(options = {}) {
   return true;
 }
 
-function showPage(pageId) {
+function showPage(pageId, options = {}) {
+  if (!document.getElementById(pageId)) return false;
   if (!hasBuiltPlan && pageId !== "setup") {
     clearPlanViews("Build a meal prep plan to see quick recipe results.");
   }
 
+  const previousPageId = activePageId;
+  activePageId = pageId;
+  if (options.pushHistory !== false && previousPageId !== pageId) {
+    window.history.pushState({ prepwisePage: pageId }, "", `#${pageId}`);
+  }
   document.querySelectorAll(".step").forEach((step) => {
     step.classList.toggle("is-active", step.dataset.page === pageId);
+    if (step.dataset.page === pageId) step.setAttribute("aria-current", "page");
+    else step.removeAttribute("aria-current");
   });
   document.querySelectorAll(".page").forEach((page) => {
     page.classList.toggle("is-active", page.id === pageId);
@@ -1711,7 +1765,23 @@ function showPage(pageId) {
     page: pageId,
     ...window.PrepWiseTelemetry?.mobileContext?.(),
   });
+  return true;
 }
+
+window.PrepWiseNavigation = {
+  back() {
+    if (activePageId === "setup") return false;
+    window.history.back();
+    return true;
+  },
+  current: () => activePageId,
+  show: (pageId) => showPage(pageId),
+};
+
+window.addEventListener("popstate", (event) => {
+  const pageId = event.state?.prepwisePage || window.location.hash.slice(1) || "setup";
+  showPage(pageId, { pushHistory: false });
+});
 
 document.querySelectorAll(".step").forEach((button) => {
   button.addEventListener("click", () => {
@@ -1911,3 +1981,19 @@ window.PrepWiseCloud?.subscribe?.((nextState) => {
     }
   }
 });
+
+window.addEventListener("prepwise:entitlement", async (event) => {
+  if (!cloudState.authenticated) return;
+  try {
+    applyStoreResult(await verifyNativeStoreResult(event.detail));
+  } catch (error) {
+    reportError(error, { action: "native_entitlement_refresh" });
+  }
+});
+
+const launchPage = window.location.hash.slice(1);
+if (launchPage && document.getElementById(launchPage)) {
+  showPage(launchPage, { pushHistory: false });
+} else {
+  window.history.replaceState({ prepwisePage: "setup" }, "", "#setup");
+}

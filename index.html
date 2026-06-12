@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
+    <div id="network-banner" class="network-banner" role="status" aria-live="polite" hidden></div>
     <main class="app-shell">
       <header class="top-bar">
         <div class="brand-row">
@@ -233,8 +234,8 @@
           Web payments are processed securely by Stripe. App Store builds use Apple in-app purchase.
         </p>
 
-        <p class="renewal-disclosure">
-          Payment is charged to your Apple Account after confirmation. Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period. Your account is charged for renewal within 24 hours before the period ends. Manage or cancel in Apple subscription settings.
+        <p class="renewal-disclosure" id="renewal-disclosure">
+          Payment is charged by your app store after confirmation. Subscriptions automatically renew unless cancelled before the end of the current period. Manage or cancel in your app-store subscription settings.
         </p>
 
         <div class="paywall-actions">
@@ -269,6 +270,7 @@
     </template>
 
     <div id="cloud-root"></div>
+    <script src="native-runtime.js"></script>
     <script src="telemetry.js"></script>
     <script src="subscription.js"></script>
     <script src="native-store.js"></script>

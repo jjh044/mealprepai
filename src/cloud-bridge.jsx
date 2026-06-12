@@ -64,6 +64,23 @@ function Bridge() {
     });
   }, [isAuthenticated, isLoading, data]);
 
+  useEffect(() => {
+    if (!authMode) return undefined;
+    const previousFocus = document.activeElement;
+    const focusTimer = window.setTimeout(() => {
+      document.querySelector(".auth-card input")?.focus();
+    }, 0);
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setAuthMode(null);
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.clearTimeout(focusTimer);
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus?.();
+    };
+  }, [authMode]);
+
   operations = {
     openAuth: setAuthMode,
     async signOut() {
@@ -135,7 +152,7 @@ function App({ client }) {
 
 async function start() {
   try {
-    const response = await fetch("/api/config");
+    const response = await fetch(`${window.PrepWiseApiOrigin || ""}/api/config`);
     const config = await response.json();
     if (!config.convexUrl) throw new Error("Convex is not configured");
     const client = new ConvexReactClient(config.convexUrl);

@@ -30,6 +30,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "native-runtime.js",
+      "use": "@vercel/static"
+    },
+    {
       "src": "privacy.html",
       "use": "@vercel/static"
     },
@@ -77,6 +81,10 @@
     {
       "src": "/native-store.js",
       "dest": "/native-store.js"
+    },
+    {
+      "src": "/native-runtime.js",
+      "dest": "/native-runtime.js"
     },
     {
       "src": "/privacy.html",
