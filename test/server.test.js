@@ -38,12 +38,73 @@ test("public config exposes only client-safe service state", async () => {
     assert.equal(response.status, 200);
     assert.equal(typeof body.convexUrl, "string");
     assert.equal(typeof body.billingConfigured, "boolean");
+    assert.equal(typeof body.devBillingBypass, "boolean");
+    assert.equal(typeof body.instacartProductsEnabled, "boolean");
+    assert.equal(typeof body.tastyProviderEnabled, "boolean");
     assert.equal(typeof body.posthogKey, "string");
     assert.equal(typeof body.sentryDsn, "string");
+    assert.equal("devBillingBypassSecret" in body, false);
+    assert.equal("DEV_BILLING_BYPASS" in body, false);
     assert.equal("stripeSecretKey" in body, false);
     assert.equal("webhookSecret" in body, false);
     assert.equal("sentryAuthToken" in body, false);
+    assert.equal("rapidApiKey" in body, false);
+    assert.equal("openAiKey" in body, false);
   });
+});
+
+test("development billing bypass is opt-in and disabled in production", async () => {
+  const originalAppEnv = process.env.APP_ENV;
+  const originalBypass = process.env.DEV_BILLING_BYPASS;
+
+  try {
+    process.env.APP_ENV = "development";
+    process.env.DEV_BILLING_BYPASS = "true";
+    await withServer(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/config`);
+      const body = await response.json();
+      assert.equal(body.devBillingBypass, true);
+    });
+
+    process.env.APP_ENV = "production";
+    process.env.DEV_BILLING_BYPASS = "true";
+    await withServer(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/config`);
+      const body = await response.json();
+      assert.equal(body.devBillingBypass, false);
+    });
+  } finally {
+    if (originalAppEnv === undefined) delete process.env.APP_ENV;
+    else process.env.APP_ENV = originalAppEnv;
+    if (originalBypass === undefined) delete process.env.DEV_BILLING_BYPASS;
+    else process.env.DEV_BILLING_BYPASS = originalBypass;
+  }
+});
+
+test("development billing bypass prevents Stripe checkout creation", async () => {
+  const originalAppEnv = process.env.APP_ENV;
+  const originalBypass = process.env.DEV_BILLING_BYPASS;
+
+  process.env.APP_ENV = "development";
+  process.env.DEV_BILLING_BYPASS = "true";
+  try {
+    await withServer(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/billing/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: "monthly" })
+      });
+      const body = await response.json();
+
+      assert.equal(response.status, 409);
+      assert.match(body.error, /Development billing bypass/);
+    });
+  } finally {
+    if (originalAppEnv === undefined) delete process.env.APP_ENV;
+    else process.env.APP_ENV = originalAppEnv;
+    if (originalBypass === undefined) delete process.env.DEV_BILLING_BYPASS;
+    else process.env.DEV_BILLING_BYPASS = originalBypass;
+  }
 });
 
 test("native Capacitor origins can call authenticated API routes", async () => {

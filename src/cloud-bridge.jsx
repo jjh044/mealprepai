@@ -154,6 +154,8 @@ async function start() {
   try {
     const response = await fetch(`${window.PrepWiseApiOrigin || ""}/api/config`);
     const config = await response.json();
+    window.PrepWiseAppConfig = config;
+    window.dispatchEvent(new CustomEvent("prepwise:config", { detail: config }));
     if (!config.convexUrl) throw new Error("Convex is not configured");
     const client = new ConvexReactClient(config.convexUrl);
     createRoot(document.getElementById("cloud-root")).render(<App client={client} />);

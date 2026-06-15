@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PrepWise Meal Prep</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260615-setup-layout" />
   </head>
   <body>
     <div id="network-banner" class="network-banner" role="status" aria-live="polite" hidden></div>
@@ -74,6 +74,12 @@
               <label for="pref-balanced">Balanced</label>
               <input type="radio" name="preference" id="pref-high-protein" value="high-protein" />
               <label for="pref-high-protein">High protein</label>
+              <input type="radio" name="preference" id="pref-high-protein-low-carb" value="high-protein-low-carb" />
+              <label for="pref-high-protein-low-carb">High protein, low carb</label>
+              <input type="radio" name="preference" id="pref-low-calorie" value="low-calorie" />
+              <label for="pref-low-calorie">Low calorie</label>
+              <input type="radio" name="preference" id="pref-low-carb" value="low-carb" />
+              <label for="pref-low-carb">Low carb</label>
               <input type="radio" name="preference" id="pref-vegetarian" value="vegetarian" />
               <label for="pref-vegetarian">Vegetarian</label>
               <input type="radio" name="preference" id="pref-vegan" value="vegan" />
@@ -100,8 +106,8 @@
         <div class="page-heading">
           <div>
             <p class="eyebrow">Your bulk meals</p>
-            <h2>Breakfast, lunch, and dinner for 5 days</h2>
-            <p id="recipe-source-status">Using starter recipe data.</p>
+            <h2 class="primary-page-title">5 Day Meal Plan</h2>
+            <p id="recipe-source-status">Recipe sources are ready.</p>
           </div>
         </div>
         <div id="meal-grid" class="meal-grid"></div>
@@ -121,7 +127,7 @@
         <div class="page-heading">
           <div>
             <p class="eyebrow">Collective list</p>
-            <h2>Everything needed for the week</h2>
+            <h2 class="primary-page-title">Grocery List</h2>
           </div>
         </div>
         <div id="grocery-list" class="grocery-list"></div>
@@ -139,13 +145,13 @@
         <div class="page-heading">
           <div>
             <p class="eyebrow">Planning estimates</p>
-            <h2>Estimated grocery costs by store</h2>
+            <h2 class="primary-page-title">Cheapest Stores Near You</h2>
             <p id="store-context"></p>
           </div>
           <button class="ghost-action" type="button" data-page-link="setup">Change setup</button>
         </div>
         <div id="store-list" class="store-list"></div>
-        <section class="instacart-panel">
+        <section class="instacart-panel" hidden>
           <div>
             <p class="eyebrow">Live Instacart products</p>
             <h3>Browse real product listings</h3>
@@ -275,6 +281,6 @@
     <script src="subscription.js"></script>
     <script src="native-store.js"></script>
     <script src="cloud.js"></script>
-    <script src="client.js"></script>
+    <script src="client.js?v=20260615-grocery-packages"></script>
   </body>
 </html>

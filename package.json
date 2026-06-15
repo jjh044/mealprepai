@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "start": "node server.js",
-    "build": "esbuild src/cloud-bridge.jsx --bundle --minify --format=iife --outfile=cloud.js && esbuild src/telemetry.js --bundle --minify --format=iife --outfile=telemetry.js && esbuild src/native-runtime.js --bundle --minify --format=iife --outfile=native-runtime.js && node scripts/build-web.js",
+    "build": "node scripts/build-app.js",
     "native:add": "npm run build && cap add android && cap add ios",
     "native:sync": "npm run build && cap sync",
-    "native:assets": "capacitor-assets generate",
+    "native:assets": "capacitor-assets generate --ios --android",
     "store:android-assets": "node scripts/generate-android-store-assets.js",
     "check": "node --check server.js && node --check client.js && node --check subscription.js && node --check native-store.js && node --check app-store-notifications.js && node --check scripts/build-web.js && node --check scripts/generate-android-store-assets.js",
     "typecheck": "tsc -p convex/tsconfig.json --noEmit",

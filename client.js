@@ -21,16 +21,16 @@ const starterRecipeBank = [
     id: "egg-wrap",
     meal: "Breakfast",
     title: "Spinach Egg Breakfast Wrap",
-    summary: "Scrambled eggs, spinach, salsa, and cheese in a tortilla.",
+    summary: "Scrambled eggs, spinach, salsa, and cheese in a low-carb tortilla.",
     cost: 2.55,
     minutes: 12,
     protein: 27,
-    tags: ["quick", "family", "balanced", "high-protein", "vegetarian"],
+    tags: ["quick", "family", "balanced", "high-protein", "high-protein-low-carb", "vegetarian"],
     source: "Social media breakfast wrap video",
     image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["eggs", 2, "each", "dairy"],
-      ["flour tortillas", 1, "each", "bakery"],
+      ["low-carb tortillas", 1, "each", "bakery"],
       ["baby spinach", 1, "cup", "produce"],
       ["shredded cheese", 0.25, "cup", "dairy"],
       ["salsa", 2, "tbsp", "pantry"]
@@ -75,17 +75,17 @@ const starterRecipeBank = [
   {
     id: "chicken-rice",
     meal: "Lunch",
-    title: "Lemon Chicken Rice Bowls",
-    summary: "Batch chicken, rice, cucumber, tomato, and yogurt sauce.",
+    title: "Lemon Chicken Cauliflower Rice Bowls",
+    summary: "Batch chicken, cauliflower rice, cucumber, tomato, and yogurt sauce.",
     cost: 4.35,
     minutes: 28,
     protein: 38,
-    tags: ["balanced", "batch", "family", "leftovers", "high-protein", "gluten-free"],
+    tags: ["balanced", "batch", "family", "leftovers", "high-protein", "high-protein-low-carb", "gluten-free"],
     source: "Meal prep blog chicken bowl recipe",
     image: "https://images.unsplash.com/photo-1547496502-affa22d38842?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["chicken breast", 0.4, "lb", "meat"],
-      ["rice", 0.5, "cup", "pantry"],
+      ["cauliflower rice", 1, "cup", "frozen"],
       ["cucumber", 0.5, "cup", "produce"],
       ["tomatoes", 0.5, "cup", "produce"],
       ["Greek yogurt", 0.25, "cup", "dairy"]
@@ -231,13 +231,13 @@ const starterRecipeBank = [
     cost: 6.6,
     minutes: 30,
     protein: 39,
-    tags: ["balanced", "family", "high-protein", "gluten-free"],
+    tags: ["balanced", "family", "high-protein", "high-protein-low-carb", "gluten-free"],
     source: "Online seafood meal prep article",
     image: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["salmon fillet", 0.35, "lb", "meat"],
       ["green beans", 1, "cup", "produce"],
-      ["potatoes", 0.4, "lb", "produce"],
+      ["broccoli", 1, "cup", "produce"],
       ["lemon", 0.5, "each", "produce"]
     ]
   },
@@ -264,6 +264,8 @@ const starterRecipeBank = [
 
 const YOUTUBE_PROVIDER = "YouTube + AI";
 const YOUTUBE_RECIPE_SHARE = 0.75;
+const MIN_PROVIDER_ROTATION_CANDIDATES = 3;
+const SELECTION_POOL_SIZE = 8;
 const STORAGE_KEYS = {
   favorites: "prepwise-favorites",
   history: "prepwise-plan-history",
@@ -278,6 +280,8 @@ const subscriptionManager = window.PrepWiseSubscription.createSubscriptionManage
 const storeAdapter = window.PrepWiseStore.createStoreAdapter();
 document.body.classList.toggle("storekit-native", storeAdapter.isNative);
 if (!storeAdapter.isNative) subscriptionManager.clearDemo();
+let appConfig = window.PrepWiseAppConfig || {};
+let appConfigPromise = null;
 
 let recipeBank = [...starterRecipeBank];
 
@@ -300,6 +304,7 @@ const copyButton = document.querySelector("#copy-list");
 const recipeSourceStatus = document.querySelector("#recipe-source-status");
 const prepTipsPanel = document.querySelector("#prep-tips-panel");
 const prepTipsContent = document.querySelector("#prep-tips-content");
+const instacartPanel = document.querySelector(".instacart-panel");
 const loadInstacartProductsButton = document.querySelector("#load-instacart-products");
 const instacartProducts = document.querySelector("#instacart-products");
 const subscriptionButton = document.querySelector("#subscription-button");
@@ -373,8 +378,50 @@ function finiteRemaining(value) {
   return Number.isFinite(value) ? value : "Unlimited";
 }
 
+function isDevBillingBypassEnabled() {
+  return appConfig.devBillingBypass === true;
+}
+
+function applyProductionConfigUi() {
+  if (instacartPanel) {
+    instacartPanel.hidden = appConfig.instacartProductsEnabled !== true;
+  }
+}
+
+async function loadAppConfig() {
+  if (appConfigPromise) return appConfigPromise;
+  appConfigPromise = fetch(`${window.PrepWiseApiOrigin || ""}/api/config`)
+    .then((response) => response.json())
+    .then((config) => {
+      appConfig = config || {};
+      window.PrepWiseAppConfig = appConfig;
+      if (isDevBillingBypassEnabled() && !storeAdapter.isNative && !subscriptionManager.isPro()) {
+        subscriptionManager.activateDemo(window.PrepWiseSubscription.PRODUCTS.yearly.id);
+      }
+      applyProductionConfigUi();
+      updateSubscriptionUi();
+      return appConfig;
+    })
+    .catch((error) => {
+      console.warn("Could not load app configuration", error);
+      return appConfig;
+    });
+  return appConfigPromise;
+}
+
+window.addEventListener("prepwise:config", (event) => {
+  appConfig = event.detail || {};
+  if (isDevBillingBypassEnabled() && !storeAdapter.isNative && !subscriptionManager.isPro()) {
+    subscriptionManager.activateDemo(window.PrepWiseSubscription.PRODUCTS.yearly.id);
+  }
+  applyProductionConfigUi();
+  updateSubscriptionUi();
+});
+applyProductionConfigUi();
+loadAppConfig();
+
 function updateSubscriptionUi() {
-  if (cloudState.authenticated && cloudState.data) {
+  if (cloudState.authenticated && cloudState.data && !isDevBillingBypassEnabled()) {
     const status = cloudState.data;
     const subscription = status.subscription;
     document.body.classList.toggle("is-pro", status.isPro);
@@ -467,7 +514,7 @@ async function loadStoreProducts() {
     });
   } catch (error) {
     console.error("Could not load app-store products", error);
-    purchaseStatus.textContent = "Subscription products are temporarily unavailable.";
+    purchaseStatus.textContent = "Subscription products are unavailable. Please try again later.";
   }
 }
 
@@ -511,6 +558,16 @@ async function verifyNativeStoreResult(result) {
 
 async function purchaseProduct(productId) {
   if (!storeAdapter.isNative) {
+    await loadAppConfig();
+    if (isDevBillingBypassEnabled()) {
+      subscriptionManager.activateDemo(productId);
+      purchaseStatus.textContent = "Development billing bypass is active. PrepWise Pro is enabled locally.";
+      accountActionStatus.textContent = purchaseStatus.textContent;
+      track("development_billing_bypass_activated", { product_id: productId });
+      updateSubscriptionUi();
+      closePaywall();
+      return;
+    }
     if (!cloudState.authenticated) {
       track("checkout_blocked", { reason: "authentication_required", product_id: productId });
       closePaywall();
@@ -554,6 +611,10 @@ async function purchaseProduct(productId) {
 
 async function restorePurchases() {
   if (!storeAdapter.isNative) {
+    await loadAppConfig();
+    if (isDevBillingBypassEnabled() && !subscriptionManager.isPro()) {
+      subscriptionManager.activateDemo(window.PrepWiseSubscription.PRODUCTS.yearly.id);
+    }
     applyStoreResult({ state: subscriptionManager.isPro() ? "restored" : "unavailable" });
     return;
   }
@@ -574,6 +635,12 @@ async function restorePurchases() {
 
 async function manageSubscriptions() {
   if (!storeAdapter.isNative) {
+    await loadAppConfig();
+    if (isDevBillingBypassEnabled()) {
+      accountActionStatus.textContent = "Development billing bypass is active. No Stripe portal is needed.";
+      purchaseStatus.textContent = accountActionStatus.textContent;
+      return;
+    }
     if (!cloudState.authenticated) {
       window.PrepWiseCloud?.openAuth?.("signIn");
       return;
@@ -610,7 +677,7 @@ function planWithoutLoadingState(plan) {
 }
 
 function savePlanHistory(prefs) {
-  if (cloudState.authenticated && currentPlan.length > 0) {
+  if (cloudState.authenticated && currentPlan.length > 0 && !isDevBillingBypassEnabled()) {
     window.PrepWiseCloud?.savePlan?.(planWithoutLoadingState(currentPlan), prefs)
       ?.catch((error) => console.error("Could not save cloud plan", error));
     return;
@@ -631,7 +698,7 @@ function savePlanHistory(prefs) {
 function renderPlanHistory() {
   if (!planHistoryPanel || !planHistoryList) return;
 
-  if (cloudState.authenticated && cloudState.data) {
+  if (cloudState.authenticated && cloudState.data && !isDevBillingBypassEnabled()) {
     const history = cloudState.data.plans || [];
     planHistoryPanel.hidden = history.length === 0;
     planHistoryList.innerHTML = history
@@ -750,6 +817,9 @@ function requireFeature(feature, reason) {
 }
 
 async function consumeFeature(feature, reason) {
+  await loadAppConfig();
+  if (isDevBillingBypassEnabled()) return true;
+
   if (cloudState.authenticated) {
     try {
       const result = await window.PrepWiseCloud.consumeFeature(feature);
@@ -979,7 +1049,7 @@ function clearPlanViews(message) {
 
 async function loadRealRecipes(prefs, renderId) {
   if (location.protocol === "file:") {
-    setRecipeStatus("Using starter recipe data. Run the local server to load live recipe APIs.");
+    setRecipeStatus("Using curated recipe data. Run the local server to load live recipe APIs.");
     return;
   }
 
@@ -1001,7 +1071,7 @@ async function loadRealRecipes(prefs, renderId) {
       return;
     }
 
-    recipeBank = recipes;
+    mergeRecipes(recipes);
     lastRecipePreference = prefs.preference;
     const providers = [...new Set(recipes.map((recipe) => recipe.provider || recipe.source).filter(Boolean))];
     setRecipeStatus(`Using live recipe data from ${providers.length ? providers.join(" and ") : "recipe APIs"}.`);
@@ -1009,13 +1079,19 @@ async function loadRealRecipes(prefs, renderId) {
     console.error(error);
     recipeBank = [...starterRecipeBank];
     lastRecipePreference = "";
-    setRecipeStatus("Using starter recipe data. Live recipe APIs could not be loaded.");
+    setRecipeStatus("Using curated recipe data. Live recipe APIs could not be loaded.");
   }
 }
 
 function matchesPreference(recipe, preference) {
   if (preference === "balanced") return recipe.tags.includes("balanced");
   if (preference === "high-protein") return recipe.tags.includes("high-protein") || recipe.protein >= 30;
+  if (preference === "high-protein-low-carb") {
+    return recipe.tags.includes("high-protein-low-carb") ||
+      (recipe.tags.includes("high-protein") && recipe.tags.includes("low-carb"));
+  }
+  if (preference === "low-calorie") return recipe.tags.includes("low-calorie") || recipe.cost <= 3.25;
+  if (preference === "low-carb") return recipe.tags.includes("low-carb") || recipe.tags.includes("high-protein-low-carb");
   if (preference === "vegetarian") return recipe.tags.includes("vegetarian") || recipe.tags.includes("vegan");
   if (preference === "vegan") return recipe.tags.includes("vegan");
   if (preference === "gluten-free") return recipe.tags.includes("gluten-free");
@@ -1029,6 +1105,8 @@ function scoreRecipe(recipe, prefs, mealIndex) {
   if (recipe.tags.includes("leftovers")) score += 14;
   if (matchesPreference(recipe, prefs.preference)) score += 24;
   if (recipe.protein >= 27) score += 10;
+  if (prefs.preference === "low-calorie" && recipe.cost <= 3.25) score += 10;
+  if (prefs.preference === "low-carb" && recipe.tags.includes("low-carb")) score += 14;
   if (recipe.tags.includes("family")) score += 6;
   if (mealIndex === 0 && recipe.minutes <= 12) score += 12;
 
@@ -1063,7 +1141,12 @@ function youtubeMealSlots(totalMeals) {
 
 function preferProvider(recipes, useYoutube, allowFallback = true) {
   const providerMatches = recipes.filter((recipe) => isYoutubeRecipe(recipe) === useYoutube);
-  return providerMatches.length > 0 || !allowFallback ? providerMatches : recipes;
+  if (!allowFallback) return providerMatches;
+  if (providerMatches.length >= MIN_PROVIDER_ROTATION_CANDIDATES) return providerMatches;
+
+  const providerIds = new Set(providerMatches.map((recipe) => recipe.id));
+  const fallbacks = recipes.filter((recipe) => !providerIds.has(recipe.id));
+  return [...providerMatches, ...fallbacks];
 }
 
 function avoidRecentRecipes(recipes) {
@@ -1086,10 +1169,8 @@ function buildPlan(prefs) {
       : starterRecipeBank.filter((recipe) => recipe.meal === meal && isQuickPrep(recipe));
     const uniqueRecipes = mealRecipes
       .filter((recipe) => !usedTitles.has(recipe.title.toLowerCase()));
-    const providerRecipes = preferProvider(
-      uniqueRecipes.length > 0 ? uniqueRecipes : mealRecipes,
-      youtubeSlots.has(mealIndex)
-    );
+    const baseRecipes = uniqueRecipes.length > 0 ? uniqueRecipes : mealRecipes;
+    const providerRecipes = preferProvider(baseRecipes, youtubeSlots.has(mealIndex));
     const preferredProviderRecipes = providerRecipes
       .filter((recipe) => matchesPreference(recipe, prefs.preference));
     const matchedRecipes = preferredProviderRecipes.length > 0
@@ -1103,7 +1184,7 @@ function buildPlan(prefs) {
       }))
       .sort((a, b) => b.score - a.score);
 
-    const selectedMeal = { ...chooseFromTop(candidates, 8).recipe, servings: prefs.people * prepDays };
+    const selectedMeal = { ...chooseFromTop(candidates, SELECTION_POOL_SIZE).recipe, servings: prefs.people * prepDays };
     usedTitles.add(selectedMeal.title.toLowerCase());
     selected.push(selectedMeal);
   });
@@ -1138,11 +1219,16 @@ function rememberRecentRecipes(plan) {
   recentRecipeIds = [...ids, ...recentRecipeIds.filter((id) => !ids.includes(id))].slice(0, 12);
 }
 
+function isKitchenStapleIngredient(name) {
+  return /\b(water|tap water|filtered water|ice water|boiling water|warm water|cold water)\b/i.test(String(name || ""));
+}
+
 function buildGroceries(plan, prefs) {
   const groceries = new Map();
 
   plan.forEach((recipe) => {
     recipe.ingredients.forEach(([name, amount, unit, category]) => {
+      if (isKitchenStapleIngredient(name)) return;
       const key = `${category}:${name}:${unit}`;
       const existing = groceries.get(key) || { name, amount: 0, unit, category };
       existing.amount += amount * prefs.people * prepDays;
@@ -1151,6 +1237,380 @@ function buildGroceries(plan, prefs) {
   });
 
   return groceries;
+}
+
+const STORE_PACKAGE_RULES = [
+  {
+    match: /\b(greek yogurt|yogurt)\b/i,
+    unitType: "volume",
+    packages: [
+      { amount: 32, unit: "oz", label: "32 oz tub" },
+      { amount: 16, unit: "oz", label: "16 oz tub" },
+      { amount: 5, unit: "oz", label: "5 oz tub" }
+    ]
+  },
+  {
+    match: /\bcottage cheese\b/i,
+    unitType: "volume",
+    packages: [
+      { amount: 24, unit: "oz", label: "24 oz tub" },
+      { amount: 16, unit: "oz", label: "16 oz tub" }
+    ]
+  },
+  {
+    match: /\bsalsa\b/i,
+    unitType: "volume",
+    packages: [
+      { amount: 24, unit: "oz", label: "24 oz jar" },
+      { amount: 16, unit: "oz", label: "16 oz jar" }
+    ]
+  },
+  {
+    match: /\bpeanut butter\b/i,
+    unitType: "volume",
+    packages: [
+      { amount: 40, unit: "oz", label: "40 oz jar" },
+      { amount: 16, unit: "oz", label: "16 oz jar" }
+    ]
+  },
+  {
+    match: /\b(shredded cheese|cheddar|mozzarella|parmesan cheese)\b/i,
+    unitType: "volume",
+    ouncesPerCup: 4,
+    packages: [
+      { amount: 16, unit: "oz", label: "16 oz bag" },
+      { amount: 8, unit: "oz", label: "8 oz bag" }
+    ]
+  },
+  {
+    match: /\b(baby spinach|spinach)\b/i,
+    unitType: "volume",
+    ouncesPerCup: 1,
+    packages: [
+      { amount: 16, unit: "oz", label: "16 oz bag" },
+      { amount: 5, unit: "oz", label: "5 oz clamshell" }
+    ]
+  },
+  {
+    match: /\b(cauliflower rice|broccoli|green beans|berries|frozen corn|frozen peas|peas|corn)\b/i,
+    unitType: "volume",
+    ouncesPerCup: 4,
+    packages: [
+      { amount: 16, unit: "oz", label: "16 oz bag" },
+      { amount: 12, unit: "oz", label: "12 oz bag" }
+    ]
+  },
+  {
+    match: /\b(shredded cabbage|cabbage|romaine)\b/i,
+    unitType: "produceEach",
+    cupsPerEach: 6,
+    packages: [
+      { amount: 1, unit: "head", label: "head", pluralLabel: "heads" }
+    ]
+  },
+  {
+    match: /\b(cucumber|zucchini|carrot|celery|lemon|bell peppers?|yellow onion|red onion|onion)\b/i,
+    unitType: "produceEach",
+    cupsPerEach: 1,
+    packages: [
+      { amount: 1, unit: "each", label: "each" }
+    ]
+  },
+  {
+    match: /\b(tomatoes|tomato)\b/i,
+    unitType: "produceEach",
+    cupsPerEach: 1,
+    packages: [
+      { amount: 1, unit: "each", label: "medium tomato", pluralLabel: "medium tomatoes" }
+    ]
+  },
+  {
+    match: /\b(potatoes|potato)\b/i,
+    unitType: "weight",
+    packages: [
+      { amount: 5, unit: "lb", label: "5 lb bag" },
+      { amount: 1, unit: "lb", label: "lb package" }
+    ]
+  },
+  {
+    match: /\b(chicken breast|ground turkey|ground beef|chicken sausage|salmon fillet|salmon)\b/i,
+    unitType: "weight",
+    packages: [
+      { amount: 3, unit: "lb", label: "3 lb package" },
+      { amount: 1, unit: "lb", label: "lb package" }
+    ]
+  },
+  {
+    match: /\b(milk|oat milk)\b/i,
+    unitType: "volume",
+    packages: [
+      { amount: 64, unit: "fl oz", label: "1/2 gallon" },
+      { amount: 32, unit: "fl oz", label: "1 quart" },
+      { amount: 16, unit: "fl oz", label: "1 pint" }
+    ]
+  },
+  {
+    match: /\b(tortillas?|wraps?)\b/i,
+    unitType: "each",
+    packages: [
+      { amount: 10, unit: "count", label: "10-count package" },
+      { amount: 8, unit: "count", label: "8-count package" }
+    ]
+  },
+  {
+    match: /\bpita bread\b/i,
+    unitType: "each",
+    packages: [
+      { amount: 6, unit: "count", label: "6-count package" }
+    ]
+  },
+  {
+    match: /\beggs?\b/i,
+    unitType: "each",
+    packages: [
+      { amount: 18, unit: "count", label: "18-count carton" },
+      { amount: 12, unit: "count", label: "dozen" }
+    ]
+  },
+  {
+    match: /\b(chili seasoning|everything seasoning|seasoning)\b/i,
+    unitType: "spice",
+    packages: [
+      { amount: 1, unit: "package", label: "packet or small jar", pluralLabel: "packets or small jars" }
+    ]
+  },
+  {
+    match: /\b(chia seeds|rice|quinoa|red lentils)\b/i,
+    unitType: "packageOnly",
+    packages: [
+      { amount: 1, unit: "package", label: "bag", pluralLabel: "bags" }
+    ]
+  },
+  {
+    match: /\b(pasta|rice noodles|noodles)\b/i,
+    unitType: "packageOnly",
+    packages: [
+      { amount: 1, unit: "package", label: "box or bag", pluralLabel: "boxes or bags" }
+    ]
+  },
+  {
+    match: /\b(rolled oats|oats)\b/i,
+    unitType: "packageOnly",
+    packages: [
+      { amount: 1, unit: "package", label: "canister", pluralLabel: "canisters" }
+    ]
+  },
+  {
+    match: /\b(plant protein powder)\b/i,
+    unitType: "spice",
+    packages: [
+      { amount: 1, unit: "package", label: "tub", pluralLabel: "tubs" }
+    ]
+  },
+  {
+    match: /\b(black beans|chickpeas|diced tomatoes|coconut milk)\b/i,
+    unitType: "each",
+    packages: [
+      { amount: 1, unit: "can", label: "can" }
+    ]
+  },
+  {
+    match: /\b(extra firm tofu|tofu)\b/i,
+    unitType: "each",
+    packages: [
+      { amount: 1, unit: "block", label: "block" }
+    ]
+  },
+  {
+    match: /\b(bread)\b/i,
+    unitType: "each",
+    packages: [
+      { amount: 20, unit: "slice", label: "loaf", pluralLabel: "loaves" }
+    ]
+  },
+  {
+    match: /\b(apples|apple)\b/i,
+    unitType: "each",
+    packages: [
+      { amount: 1, unit: "each", label: "apple", pluralLabel: "apples" }
+    ]
+  }
+];
+
+const STORE_UNIT_LABELS = new Set([
+  "bag",
+  "bags",
+  "box",
+  "boxes",
+  "carton",
+  "cartons",
+  "jar",
+  "jars",
+  "package",
+  "packages",
+  "packet",
+  "packets",
+  "tub",
+  "tubs"
+]);
+
+function normalizeUnit(unit) {
+  return String(unit || "").trim().toLowerCase();
+}
+
+function amountInStoreUnit(amount, unit, rule) {
+  const normalized = normalizeUnit(unit);
+  if (rule.unitType === "weight") {
+    if (["lb", "lbs", "pound", "pounds"].includes(normalized)) return amount;
+    if (["oz", "ounce", "ounces"].includes(normalized)) return amount / 16;
+    return null;
+  }
+  if (rule.unitType === "produceEach") {
+    if (["each", "count", "ct"].includes(normalized)) return amount;
+    const cupFactors = {
+      tsp: 1 / 48,
+      teaspoon: 1 / 48,
+      teaspoons: 1 / 48,
+      tbsp: 1 / 16,
+      tablespoon: 1 / 16,
+      tablespoons: 1 / 16,
+      cup: 1,
+      cups: 1
+    };
+    const factor = cupFactors[normalized];
+    return factor ? (amount * factor) / rule.cupsPerEach : null;
+  }
+  if (rule.unitType === "each") {
+    if ([
+      "each",
+      "count",
+      "ct",
+      "wrap",
+      "wraps",
+      "tortilla",
+      "tortillas",
+      "can",
+      "cans",
+      "block",
+      "blocks",
+      "slice",
+      "slices",
+      "loaf",
+      "loaves"
+    ].includes(normalized)) return amount;
+    return null;
+  }
+  if (rule.unitType === "spice") {
+    return amount > 0 ? 1 : 0;
+  }
+  if (rule.unitType === "packageOnly") {
+    return amount > 0 ? Math.ceil(amount / 8) : 0;
+  }
+  if (rule.unitType !== "volume") return null;
+
+  if (rule.ouncesPerCup) {
+    const cupFactors = {
+      tsp: 1 / 48,
+      teaspoon: 1 / 48,
+      teaspoons: 1 / 48,
+      tbsp: 1 / 16,
+      tablespoon: 1 / 16,
+      tablespoons: 1 / 16,
+      cup: 1,
+      cups: 1,
+      oz: 1 / rule.ouncesPerCup,
+      ounce: 1 / rule.ouncesPerCup,
+      ounces: 1 / rule.ouncesPerCup
+    };
+    const factor = cupFactors[normalized];
+    return factor ? amount * factor * rule.ouncesPerCup : null;
+  }
+
+  const volumeToOunces = {
+    tsp: 1 / 6,
+    teaspoon: 1 / 6,
+    teaspoons: 1 / 6,
+    tbsp: 0.5,
+    tablespoon: 0.5,
+    tablespoons: 0.5,
+    cup: 8,
+    cups: 8,
+    "fl oz": 1,
+    floz: 1,
+    oz: 1,
+    ounce: 1,
+    ounces: 1
+  };
+  const factor = volumeToOunces[normalized];
+  return factor ? amount * factor : null;
+}
+
+function choosePackageSize(amount, packages) {
+  const sorted = [...packages].sort((a, b) => b.amount - a.amount);
+  return sorted.find((candidate) => amount >= candidate.amount) || sorted[sorted.length - 1];
+}
+
+function packageQuantity(amount, packageSize) {
+  const count = Math.max(1, Math.ceil(amount / packageSize.amount));
+  if (packageSize.pluralLabel && count !== 1) return `${count} ${packageSize.pluralLabel}`;
+  if (packageSize.label === "dozen") return `${count} dozen`;
+  if (packageSize.label === "each") return `${count} each`;
+  const separator = /^\d/.test(packageSize.label) ? "- " : "";
+  return `${count}${separator || " "}${packageSize.label}${count === 1 || packageSize.label.endsWith("s") ? "" : "s"}`;
+}
+
+function storeQuantityFor(item) {
+  const rule = STORE_PACKAGE_RULES.find((candidate) => candidate.match.test(item.name));
+  if (!rule) {
+    const unit = normalizeUnit(item.unit);
+    if (["wrap", "wraps", "tortilla", "tortillas"].includes(unit)) {
+      return packageQuantity(item.amount, { amount: 10, unit: "count", label: "10-count package" });
+    }
+    if (["slice", "slices"].includes(unit) && /\bbread\b/i.test(item.name)) {
+      return packageQuantity(item.amount, { amount: 20, unit: "slice", label: "loaf", pluralLabel: "loaves" });
+    }
+    if (STORE_UNIT_LABELS.has(unit)) {
+      const count = Math.max(1, Math.ceil(item.amount));
+      const singular = unit.endsWith("s") ? unit.slice(0, -1) : unit;
+      return `${count} ${count === 1 ? singular : `${singular}s`}`;
+    }
+    if (["lb", "lbs", "pound", "pounds"].includes(unit)) {
+      const count = Math.max(1, Math.ceil(item.amount));
+      return `${count} lb package${count === 1 ? "" : "s"}`;
+    }
+    if (["oz", "ounce", "ounces"].includes(unit)) {
+      return `${Math.max(1, Math.ceil(item.amount))} oz package`;
+    }
+    if (["can", "cans"].includes(unit)) {
+      const count = Math.max(1, Math.ceil(item.amount));
+      return `${count} can${count === 1 ? "" : "s"}`;
+    }
+    if (["block", "blocks"].includes(unit)) {
+      const count = Math.max(1, Math.ceil(item.amount));
+      return `${count} block${count === 1 ? "" : "s"}`;
+    }
+    if (["each", "count", "ct"].includes(unit)) {
+      return `${Math.max(1, Math.ceil(item.amount))} each`;
+    }
+    if (["tsp", "teaspoon", "teaspoons", "tbsp", "tablespoon", "tablespoons"].includes(unit)) {
+      return item.category === "pantry" ? "1 small jar or package" : "1 package";
+    }
+    if (["cup", "cups"].includes(unit)) {
+      if (item.category === "produce") return "1 bag or package";
+      if (item.category === "dairy" || item.category === "refrigerated") return "1 tub or package";
+      if (item.category === "frozen") return "1 bag";
+      if (item.category === "pantry") return "1 bag or box";
+      return "1 package";
+    }
+    if (["scoop", "scoops"].includes(unit)) return "1 tub";
+    return `${formatAmount(item.amount)} ${item.unit}`;
+  }
+
+  const amount = amountInStoreUnit(item.amount, item.unit, rule);
+  if (!amount) return `${formatAmount(item.amount)} ${item.unit}`;
+
+  const packageSize = choosePackageSize(amount, rule.packages);
+  return packageQuantity(amount, packageSize);
 }
 
 function mergeRecipes(recipes) {
@@ -1311,7 +1771,7 @@ async function generatePrepTips(prefs) {
     console.error(error);
     if (tipsId === activeTipsId) {
       renderPrepTips({
-        prepOrder: ["Prep guidance is temporarily unavailable. Your meal plan is still saved."],
+        prepOrder: ["Prep guidance is unavailable. Your meal plan is still saved."],
         timeSavers: [],
         substitutions: []
       });
@@ -1430,7 +1890,10 @@ function renderPlan(plan, prefs) {
     favoriteButton.setAttribute("aria-pressed", String(saved));
     favoriteButton.addEventListener("click", () => toggleFavorite(item));
     node.querySelector(".meal-ingredients").innerHTML = item.ingredients
-      .map(([name, amount, unit]) => `<li>${name} ${formatAmount(amount * prefs.people * prepDays)} ${unit}</li>`)
+      .map(([name, amount, unit, category]) => {
+        const total = amount * prefs.people * prepDays;
+        return `<li>${escapeHtml(name)} ${escapeHtml(storeQuantityFor({ name, amount: total, unit, category }))}</li>`;
+      })
       .join("");
     renderMealInstructions(node, item);
     node.querySelector(".chip-row").innerHTML = [
@@ -1475,7 +1938,7 @@ function renderGroceries(groceries) {
           return `
             <li>
               <span><span class="grocery-item-name">${item.name}</span>${nutritionText}</span>
-              <strong>${formatAmount(item.amount)} ${item.unit}</strong>
+              <strong>${storeQuantityFor(item)}</strong>
             </li>
           `;
         })
@@ -1811,7 +2274,7 @@ form.addEventListener("submit", async (event) => {
 copyButton.addEventListener("click", async () => {
   const text = Array.from(currentGroceries.values())
     .sort((a, b) => a.category.localeCompare(b.category) || a.name.localeCompare(b.name))
-    .map((item) => `${formatAmount(item.amount)} ${item.unit} ${item.name}`)
+    .map((item) => `${storeQuantityFor(item)} ${item.name}`)
     .join("\n");
 
   await navigator.clipboard.writeText(text);
@@ -1826,7 +2289,7 @@ if (loadInstacartProductsButton) {
 }
 
 subscriptionButton.addEventListener("click", () => {
-  const status = cloudState.authenticated && cloudState.data
+  const status = cloudState.authenticated && cloudState.data && !isDevBillingBypassEnabled()
     ? { isPro: cloudState.data.isPro }
     : subscriptionManager.status();
   openPaywall(

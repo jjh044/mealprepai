@@ -80,7 +80,7 @@ const curatedYoutubeRecipes = [
     cost: 2.5,
     minutes: 20,
     protein: 22,
-    tags: ["balanced", "high-protein", "vegetarian", "gluten-free", "quick", "batch"],
+    tags: ["balanced", "high-protein", "high-protein-low-carb", "vegetarian", "gluten-free", "quick", "batch"],
     provider: "YouTube + AI",
     source: "YouTube",
     sourceUrl: "https://www.youtube.com/watch?v=5s0eRgZjlwU",
@@ -118,19 +118,19 @@ const curatedYoutubeRecipes = [
   {
     id: "youtube-lunch-uGMEn_8T__M",
     meal: "Lunch",
-    title: "Chicken Quinoa Buddha Bowl",
-    summary: "Chicken and quinoa bowls topped with carrots, tomatoes, red onion, and greens.",
+    title: "Chicken Cauliflower Rice Bowl",
+    summary: "Chicken and cauliflower rice bowls topped with carrots, tomatoes, red onion, and greens.",
     cost: 4.5,
     minutes: 25,
     protein: 41,
-    tags: ["balanced", "high-protein", "gluten-free", "batch", "leftovers"],
+    tags: ["balanced", "high-protein", "high-protein-low-carb", "gluten-free", "batch", "leftovers"],
     provider: "YouTube + AI",
     source: "Food and Health Communications",
     sourceUrl: "https://www.youtube.com/watch?v=uGMEn_8T__M",
     image: "https://i.ytimg.com/vi/uGMEn_8T__M/hqdefault.jpg",
     ingredients: [
       ["chicken breast", 5, "oz", "meat"],
-      ["cooked quinoa", 0.75, "cup", "pantry"],
+      ["cauliflower rice", 1, "cup", "frozen"],
       ["carrot", 0.5, "each", "produce"],
       ["tomatoes", 0.5, "cup", "produce"],
       ["red onion", 0.25, "each", "produce"],
@@ -167,7 +167,7 @@ const curatedYoutubeRecipes = [
     cost: 4.5,
     minutes: 30,
     protein: 36,
-    tags: ["balanced", "high-protein", "gluten-free", "batch", "family", "leftovers"],
+    tags: ["balanced", "high-protein", "high-protein-low-carb", "gluten-free", "batch", "family", "leftovers"],
     provider: "YouTube + AI",
     source: "YouTube",
     sourceUrl: "https://www.youtube.com/watch?v=pjWjLkQmCTw",
@@ -243,11 +243,14 @@ async function handleRequest(req, res) {
       sendJson(res, 200, {
         convexUrl: process.env.CONVEX_URL || "",
         environment: process.env.APP_ENV || "production",
+        devBillingBypass: isDevelopmentBillingBypassEnabled(),
         posthogHost: process.env.POSTHOG_HOST || "https://us.i.posthog.com",
         posthogKey: process.env.POSTHOG_KEY || "",
         release: process.env.VERCEL_GIT_COMMIT_SHA || "",
         sentryDsn: process.env.SENTRY_DSN || "",
         sentryTracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE || 0.05),
+        instacartProductsEnabled: process.env.ENABLE_INSTACART_SCRAPER === "true",
+        tastyProviderEnabled: process.env.ENABLE_TASTY_PROVIDER === "true",
         billingConfigured: Boolean(
           process.env.STRIPE_SECRET_KEY &&
           process.env.STRIPE_MONTHLY_PRICE_ID &&
@@ -440,6 +443,10 @@ async function handleRecipeRequest(requestUrl, res) {
 async function handleStripeCheckoutRequest(req, res, requestUrl) {
   if (req.method !== "POST") {
     sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+  if (isDevelopmentBillingBypassEnabled()) {
+    sendJson(res, 409, { error: "Development billing bypass is active" });
     return;
   }
   requireBillingConfiguration();
@@ -1446,7 +1453,7 @@ async function extractYoutubeRecipes(videos, preference) {
                     type: "array",
                     items: {
                       type: "string",
-                      enum: ["balanced", "high-protein", "vegetarian", "vegan", "gluten-free", "quick", "batch", "family", "leftovers"]
+                      enum: ["balanced", "high-protein", "high-protein-low-carb", "low-calorie", "low-carb", "vegetarian", "vegan", "gluten-free", "quick", "batch", "family", "leftovers"]
                     }
                   },
                   ingredients: {
@@ -1479,7 +1486,7 @@ async function extractYoutubeRecipes(videos, preference) {
       {
         role: "system",
         content:
-          "Convert qualifying YouTube cooking videos into practical meal-prep recipes and return only compact JSON with key recipes. Include a video only when its title and description clearly identify one specific dish being cooked and provide enough evidence for its ingredients. Reject general meal-prep advice, meal plans, what-I-eat videos, compilations, roundups, samplers, multiple-recipe videos, and vague videos that do not identify one dish. It is valid to return fewer recipes than supplied videos or an empty recipes array. Never invent a dish or ingredients unrelated to the source. Each accepted recipe must include videoId, a specific dish title, summary, minutes, protein, cost, tags, and ingredients. Ingredients must be an array of objects with name, amount, unit, and category. Amounts must be realistic amounts per person for one serving. category must be produce, meat, dairy, bakery, frozen, refrigerated, or pantry. minutes must be 30 or less. cost is estimated US dollars per serving. tags may include balanced, high-protein, vegetarian, vegan, gluten-free, quick, batch, family, and leftovers."
+          "Convert qualifying YouTube cooking videos into practical meal-prep recipes and return only compact JSON with key recipes. Include a video only when its title and description clearly identify one specific dish being cooked and provide enough evidence for its ingredients. Reject general meal-prep advice, meal plans, what-I-eat videos, compilations, roundups, samplers, multiple-recipe videos, and vague videos that do not identify one dish. It is valid to return fewer recipes than supplied videos or an empty recipes array. Never invent a dish or ingredients unrelated to the source. Each accepted recipe must include videoId, a specific dish title, summary, minutes, protein, cost, tags, and ingredients. Ingredients must be an array of objects with name, amount, unit, and category. Amounts must be realistic amounts per person for one serving. category must be produce, meat, dairy, bakery, frozen, refrigerated, or pantry. minutes must be 30 or less. cost is estimated US dollars per serving. tags may include balanced, high-protein, high-protein-low-carb, low-calorie, low-carb, vegetarian, vegan, gluten-free, quick, batch, family, and leftovers."
       },
       {
         role: "user",
@@ -1536,7 +1543,7 @@ function normalizeYoutubeRecipe(recipe, video, preference) {
   const tags = new Set(
     (Array.isArray(recipe.tags) ? recipe.tags : [])
       .map((tag) => String(tag).toLowerCase())
-      .filter((tag) => ["balanced", "high-protein", "vegetarian", "vegan", "gluten-free", "quick", "batch", "family", "leftovers"].includes(tag))
+      .filter((tag) => ["balanced", "high-protein", "high-protein-low-carb", "low-calorie", "low-carb", "vegetarian", "vegan", "gluten-free", "quick", "batch", "family", "leftovers"].includes(tag))
   );
 
   tags.add("leftovers");
@@ -1568,6 +1575,9 @@ function youtubePreferenceQuery(preference) {
   const queries = {
     balanced: "",
     "high-protein": "high protein",
+    "high-protein-low-carb": "high protein low carb",
+    "low-calorie": "low calorie",
+    "low-carb": "low carb",
     vegetarian: "vegetarian",
     vegan: "vegan",
     "gluten-free": "gluten free"
@@ -1768,6 +1778,9 @@ function preferenceSearchParams(preference) {
   const params = {
     balanced: {},
     "high-protein": { minProtein: "25" },
+    "high-protein-low-carb": { minProtein: "25", maxCarbs: "20" },
+    "low-calorie": { maxCalories: "500" },
+    "low-carb": { maxCarbs: "20" },
     vegetarian: { diet: "vegetarian" },
     vegan: { diet: "vegan" },
     "gluten-free": { intolerances: "gluten" }
@@ -1780,6 +1793,9 @@ function tastyPreferenceTags(preference) {
   const tags = {
     balanced: [],
     "high-protein": ["high_protein"],
+    "high-protein-low-carb": ["high_protein", "low_carb"],
+    "low-calorie": ["low_calorie"],
+    "low-carb": ["low_carb"],
     vegetarian: ["vegetarian"],
     vegan: ["vegan"],
     "gluten-free": ["gluten_free"]
@@ -2315,7 +2331,10 @@ function buildTags(recipe, preference) {
   if (recipe.vegetarian) tags.push("vegetarian");
   if (recipe.vegan) tags.push("vegan");
   if (recipe.glutenFree) tags.push("gluten-free");
-  if (preference === "high-protein") tags.push("high-protein");
+  if (preference === "high-protein" || preference === "high-protein-low-carb") tags.push("high-protein");
+  if (preference === "high-protein-low-carb") tags.push("high-protein-low-carb", "low-carb");
+  if (preference === "low-calorie") tags.push("low-calorie");
+  if (preference === "low-carb") tags.push("low-carb");
   if (recipe.readyInMinutes && recipe.readyInMinutes <= 20) tags.push("quick");
 
   return [...new Set(tags)];
@@ -2325,7 +2344,13 @@ function buildTastyTags(tagNames, preference, minutes) {
   const tagSet = new Set(["balanced", "leftovers"]);
 
   if (minutes <= 20) tagSet.add("quick");
-  if (tagNames.includes("high_protein") || preference === "high-protein") tagSet.add("high-protein");
+  if (tagNames.includes("high_protein") || preference === "high-protein" || preference === "high-protein-low-carb") tagSet.add("high-protein");
+  if (tagNames.includes("low_calorie") || preference === "low-calorie") tagSet.add("low-calorie");
+  if (tagNames.includes("low_carb")) tagSet.add("low-carb");
+  if (preference === "high-protein-low-carb") {
+    tagSet.add("high-protein-low-carb");
+    tagSet.add("low-carb");
+  }
   if (tagNames.includes("vegetarian")) tagSet.add("vegetarian");
   if (tagNames.includes("vegan")) {
     tagSet.add("vegan");
@@ -2391,10 +2416,12 @@ function serveStatic(pathname, res) {
       return;
     }
 
-    const contentType = mimeTypes[path.extname(filePath)] || "application/octet-stream";
+    const extension = path.extname(filePath);
+    const contentType = mimeTypes[extension] || "application/octet-stream";
+    const cacheControl = [".html", ".js", ".css"].includes(extension) ? "no-cache" : "public, max-age=3600";
     res.writeHead(200, {
       "Content-Type": contentType,
-      "Cache-Control": filePath.endsWith(".html") ? "no-cache" : "public, max-age=3600"
+      "Cache-Control": cacheControl
     });
     res.end(data);
   });
@@ -2409,7 +2436,7 @@ function sendJson(res, statusCode, data, cacheControl = "no-store") {
 }
 
 function normalizePreference(value) {
-  const allowed = new Set(["balanced", "high-protein", "vegetarian", "vegan", "gluten-free"]);
+  const allowed = new Set(["balanced", "high-protein", "high-protein-low-carb", "low-calorie", "low-carb", "vegetarian", "vegan", "gluten-free"]);
   return allowed.has(value) ? value : "balanced";
 }
 
@@ -2544,6 +2571,10 @@ function requireBillingConfiguration() {
     error.statusCode = 503;
     throw error;
   }
+}
+
+function isDevelopmentBillingBypassEnabled() {
+  return process.env.APP_ENV !== "production" && process.env.DEV_BILLING_BYPASS === "true";
 }
 
 function publicAppOrigin(requestUrl) {

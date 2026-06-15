@@ -467,15 +467,29 @@ h1 {
 
 .setup-card {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-  max-width: 760px;
+  grid-template-columns: 1fr;
+  justify-items: center;
+  gap: 16px;
+  max-width: 680px;
   margin: 0 auto;
-  padding: 24px;
-  background: var(--panel);
+  padding: 28px;
+  background: #fbfdfb;
   border: 1px solid var(--line);
   border-radius: 8px;
   box-shadow: var(--shadow);
+}
+
+.setup-card > label {
+  display: block;
+  width: min(100%, 420px);
+}
+
+.setup-card > label input,
+.setup-card > label .money-field {
+  min-height: 52px;
+  margin-top: 9px;
+  border-color: #d6e2da;
+  box-shadow: 0 1px 0 rgba(31, 41, 35, 0.03);
 }
 
 .plan-history-panel {
@@ -657,6 +671,11 @@ fieldset {
   margin-bottom: 6px;
   font-size: clamp(1.7rem, 4vw, 2.8rem);
   line-height: 1.04;
+}
+
+.page-heading .primary-page-title {
+  color: var(--leaf);
+  font-size: clamp(2.3rem, 6vw, 4.2rem);
 }
 
 .page-heading p {
