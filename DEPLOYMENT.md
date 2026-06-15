@@ -4,6 +4,12 @@ The application code is ready for external service configuration. Do not put sec
 
 ## 1. Convex Deployment
 
+Verified and redeployed June 15, 2026:
+
+- Production deployment: `https://expert-rabbit-478.convex.cloud`
+- Command run: `npx convex deploy --yes`
+- Result: schema validation passed and functions deployed to production.
+
 Completed June 11, 2026:
 
 - Team: `james-hope`
@@ -87,6 +93,21 @@ Copy its signing secret into Vercel as `STRIPE_WEBHOOK_SECRET`.
 Enable Stripe Customer Portal cancellation, payment-method updates, and invoice history.
 
 ## 3. Configure Vercel
+
+Verified and redeployed June 15, 2026:
+
+- Production deployment ID: `dpl_XPPpNPoKam2UrNjmeNZPYfBNS2rh`
+- Production deployment URL: `https://mealprepai-6dcmk0ime-james-s-projects2.vercel.app`
+- Production alias: `https://mealprepai-two.vercel.app`
+- Command run: `npx vercel deploy --prod --yes`
+- Health check passed at `/api/health` with Convex, OpenAI, RapidAPI, Stripe, and YouTube configured.
+- Public config check passed at `/api/config`:
+  - `environment=production`
+  - `convexUrl=https://expert-rabbit-478.convex.cloud`
+  - `devBillingBypass=false`
+  - `instacartProductsEnabled=false`
+  - `tastyProviderEnabled=false`
+  - `billingConfigured=true`
 
 Completed June 11, 2026:
 
