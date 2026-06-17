@@ -12,6 +12,7 @@ const staticFiles = [
   "privacy.html",
   "terms.html",
   "support.html",
+  "partners.html",
 ];
 
 function main() {

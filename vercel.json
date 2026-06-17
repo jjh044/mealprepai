@@ -46,6 +46,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "partners.html",
+      "use": "@vercel/static"
+    },
+    {
       "src": "api/[...path].js",
       "use": "@vercel/node",
       "config": {
@@ -97,6 +101,14 @@
     {
       "src": "/support.html",
       "dest": "/support.html"
+    },
+    {
+      "src": "/partners",
+      "dest": "/partners.html"
+    },
+    {
+      "src": "/partners.html",
+      "dest": "/partners.html"
     },
     {
       "src": "/.*",

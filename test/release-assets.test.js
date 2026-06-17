@@ -97,6 +97,20 @@ test("public legal pages cover required privacy and subscription topics", () => 
   assert.match(account, /Manage subscription/i);
 });
 
+test("creator partner page is routable and includes partnership details", () => {
+  const partners = read("partners.html");
+  const vercel = read("vercel.json");
+
+  assert.match(partners, /Creator partnership program/i);
+  assert.match(partners, /revenue share/i);
+  assert.match(partners, /handpicking a small founding group/i);
+  assert.match(partners, /View the app/i);
+  assert.match(partners, /IF THIS FEELS LIKE A FIT/i);
+  assert.match(partners, /No revenue-share terms are guaranteed/i);
+  assert.match(vercel, /partners\.html/);
+  assert.match(vercel, /"src": "\/partners"/);
+});
+
 test("production HTML loads the analytics and error-monitoring bundle", () => {
   const html = read("index.html");
   assert.match(html, /telemetry\.js/);

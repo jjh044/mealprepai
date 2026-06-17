@@ -808,6 +808,329 @@ fieldset {
   font-weight: 800;
 }
 
+.partner-body {
+  background: #f5f7f4;
+}
+
+.partner-page {
+  width: min(1120px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 24px 0 54px;
+}
+
+.partner-hero {
+  display: grid;
+  gap: 42px;
+  min-height: 88vh;
+  padding: 18px 0 34px;
+}
+
+.partner-nav {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.partner-brand {
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+  color: var(--ink);
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.partner-hero-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 100%;
+  gap: 28px;
+  align-items: center;
+  justify-items: center;
+}
+
+.partner-hero-copy {
+  display: grid;
+  width: 100%;
+  gap: 18px;
+  justify-items: center;
+  text-align: center;
+}
+
+.partner-hero-copy h1 {
+  width: 100%;
+  max-width: none;
+  font-size: clamp(1.35rem, 3.4vw, 2.45rem);
+  line-height: 0.98;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.partner-hero-eyebrow {
+  font-size: clamp(1rem, 2.4vw, 2rem);
+  line-height: 1.05;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.partner-hero-copy p:not(.eyebrow),
+.partner-band p,
+.partner-cta p {
+  max-width: 690px;
+  margin-right: auto;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 1.08rem;
+  line-height: 1.6;
+}
+
+.partner-hero-copy .partner-hero-lead {
+  color: var(--leaf-dark);
+  font-weight: 850;
+}
+
+.partner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+}
+
+.partner-actions a,
+.partner-nav a,
+.partner-cta a {
+  text-decoration: none;
+}
+
+.partner-snapshot {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  justify-self: center;
+  width: min(100%, 820px);
+  padding: 18px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.partner-snapshot div,
+.partner-card {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  background: #fbfdfb;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.partner-snapshot span {
+  color: var(--tomato);
+  font-size: 0.76rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.partner-snapshot strong {
+  font-size: 1.35rem;
+  line-height: 1.18;
+}
+
+.partner-section,
+.partner-band,
+.partner-cta {
+  margin-top: 22px;
+  padding: 34px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.partner-section-heading {
+  max-width: 760px;
+  margin: 0 auto 20px;
+  text-align: center;
+}
+
+.partner-section-heading h2,
+.partner-band h2,
+.partner-cta h2 {
+  font-size: clamp(2rem, 5vw, 4rem);
+  line-height: 1;
+}
+
+.partner-section-title {
+  display: block;
+  width: 100%;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.accent-title {
+  color: var(--tomato);
+}
+
+.partner-steps h2 {
+  font-size: clamp(2.7rem, 6.5vw, 5.6rem);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.partner-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.partner-card {
+  text-align: center;
+}
+
+.partner-card h3 {
+  margin-bottom: 0;
+  font-size: 1.2rem;
+}
+
+.partner-card p {
+  margin-bottom: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.partner-band {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 0.72fr);
+  justify-items: center;
+  gap: 24px;
+  align-items: center;
+  text-align: center;
+  color: white;
+  background: var(--leaf-dark);
+  border-color: var(--leaf-dark);
+}
+
+.partner-band .eyebrow,
+.partner-band p {
+  color: #dcebe3;
+}
+
+.partner-checklist {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.partner-checklist li {
+  padding: 12px 14px;
+  color: var(--ink);
+  background: white;
+  border-radius: 8px;
+  font-weight: 850;
+}
+
+.partner-number-list {
+  display: grid;
+  width: min(100%, 680px);
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.partner-number-list li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  color: var(--ink);
+  background: white;
+  border-radius: 8px;
+  font-size: clamp(0.72rem, 1.08vw, 0.92rem);
+  font-weight: 850;
+  line-height: 1.35;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.partner-number-list span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  color: white;
+  background: var(--tomato);
+  border-radius: 8px;
+  font-weight: 900;
+}
+
+.partner-number-list .long-step {
+  font-size: clamp(0.64rem, 0.92vw, 0.82rem);
+  white-space: normal;
+}
+
+.partner-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.partner-feature-grid span {
+  display: grid;
+  min-height: 112px;
+  align-content: center;
+  padding: 16px;
+  color: var(--leaf-dark);
+  background: #eef4ef;
+  border: 1px solid #d8e4db;
+  border-radius: 8px;
+  font-weight: 850;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.partner-fit-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.partner-fit-list span {
+  padding: 9px 12px;
+  color: var(--leaf-dark);
+  background: #eef4ef;
+  border: 1px solid #d8e4db;
+  border-radius: 999px;
+  font-weight: 850;
+}
+
+.partner-cta {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+}
+
+.partner-cta h2 {
+  max-width: 880px;
+  text-transform: uppercase;
+}
+
+.partner-cta p:not(.eyebrow) {
+  color: var(--leaf-dark);
+  font-weight: 850;
+}
+
+.partner-disclaimer {
+  font-size: 0.9rem;
+}
+
 .meal-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1326,6 +1649,9 @@ fieldset {
   .account-card,
   .paywall-card,
   .legal-document,
+  .partner-section,
+  .partner-cta,
+  .partner-snapshot,
   #prep-tips-content article,
   .instacart-product,
   .plan-history-card {
@@ -1353,10 +1679,30 @@ fieldset {
   .empty-state,
   .prep-tips-panel,
   .subscription-option,
+  .partner-snapshot div,
+  .partner-card,
   .field,
   .group,
   .tip {
     background: #17211d;
+  }
+
+  .partner-band {
+    color: #eef5f1;
+    background: #1f4634;
+    border-color: #315f48;
+  }
+
+  .partner-checklist li {
+    color: var(--ink);
+    background: #17211d;
+  }
+
+  .partner-number-list li,
+  .partner-feature-grid span {
+    color: var(--ink);
+    background: #17211d;
+    border-color: var(--line);
   }
 
   .demo-disclosure,
@@ -1388,6 +1734,10 @@ fieldset {
   #prep-tips-content,
   .instacart-products,
   .subscription-options,
+  .partner-hero-grid,
+  .partner-card-grid,
+  .partner-feature-grid,
+  .partner-band,
   .account-grid {
     grid-template-columns: 1fr;
   }
@@ -1458,6 +1808,38 @@ fieldset {
     width: 100%;
   }
 
+  .partner-page {
+    width: min(100% - 20px, 1120px);
+    padding-top: 12px;
+  }
+
+  .partner-hero {
+    gap: 24px;
+    min-height: 0;
+  }
+
+  .partner-section,
+  .partner-band,
+  .partner-cta {
+    padding: 22px;
+  }
+
+  .partner-snapshot {
+    grid-template-columns: 1fr;
+  }
+
+  .partner-actions,
+  .partner-nav {
+    align-items: center;
+    justify-content: center;
+  }
+
+  .partner-actions a,
+  .partner-nav .ghost-action,
+  .partner-cta a {
+    width: min(100%, 360px);
+  }
+
   .next-action {
     min-width: 0;
   }
@@ -1502,6 +1884,48 @@ fieldset {
   .page-heading h2 {
     font-size: 1.75rem;
     overflow-wrap: anywhere;
+  }
+
+  .partner-hero-copy h1 {
+    font-size: clamp(0.68rem, 3.25vw, 1.35rem);
+    line-height: 1.05;
+  }
+
+  .partner-hero-eyebrow {
+    font-size: clamp(0.76rem, 4.4vw, 1.4rem);
+  }
+
+  .partner-section-title {
+    font-size: clamp(1.35rem, 8.5vw, 2.4rem);
+  }
+
+  .partner-hero-copy p:not(.eyebrow),
+  .partner-band p,
+  .partner-cta p {
+    font-size: 1rem;
+  }
+
+  .partner-nav {
+    flex-direction: column;
+  }
+
+  .partner-number-list li {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 10px;
+    padding: 11px;
+    font-size: 0.78rem;
+    white-space: normal;
+    overflow-wrap: normal;
+  }
+
+  .partner-number-list .long-step {
+    font-size: clamp(0.64rem, 3.1vw, 0.78rem);
+    line-height: 1.25;
+  }
+
+  .partner-number-list span {
+    width: 30px;
+    height: 30px;
   }
 
   .meal-card img {
