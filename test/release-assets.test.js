@@ -107,6 +107,7 @@ test("creator partner page is routable and includes partnership details", () => 
   assert.match(partners, /View the app/i);
   assert.match(partners, /IF THIS FEELS LIKE A FIT/i);
   assert.match(partners, /No revenue-share terms are guaranteed/i);
+  assert.match(read("index.html"), /href="\/partners"/);
   assert.match(vercel, /partners\.html/);
   assert.match(vercel, /"src": "\/partners"/);
 });
