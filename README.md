@@ -4,6 +4,11 @@ PrepWise is a static MVP for a meal prep app that builds a simple 5-day bulk mea
 
 Open `index.html` in a browser to run it with starter data.
 
+Public pages:
+
+- App: https://mealprepai-two.vercel.app
+- Partner landing page: https://mealprepai-two.vercel.app/partners
+
 To use live API data, create `.env` with `RAPIDAPI_KEY` and `OPENAI_API_KEY`, then run:
 
 ```sh

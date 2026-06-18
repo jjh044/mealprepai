@@ -99,6 +99,7 @@ test("public legal pages cover required privacy and subscription topics", () => 
 
 test("creator partner page is routable and includes partnership details", () => {
   const partners = read("partners.html");
+  const readme = read("README.md");
   const vercel = read("vercel.json");
 
   assert.match(partners, /Creator partnership program/i);
@@ -108,6 +109,7 @@ test("creator partner page is routable and includes partnership details", () => 
   assert.match(partners, /IF THIS FEELS LIKE A FIT/i);
   assert.match(partners, /No revenue-share terms are guaranteed/i);
   assert.match(read("index.html"), /href="\/partners"/);
+  assert.match(readme, /https:\/\/mealprepai-two\.vercel\.app\/partners/);
   assert.match(vercel, /partners\.html/);
   assert.match(vercel, /"src": "\/partners"/);
 });
