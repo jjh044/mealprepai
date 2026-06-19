@@ -22,6 +22,12 @@ function main() {
   for (const filename of [...staticFiles, "cloud.js", "telemetry.js", "native-runtime.js"]) {
     fs.copyFileSync(path.join(root, filename), path.join(dist, filename));
   }
+
+  fs.cpSync(
+    path.join(root, "assets", "recipe-fallbacks"),
+    path.join(dist, "assets", "recipe-fallbacks"),
+    { recursive: true }
+  );
 }
 
 if (require.main === module) {

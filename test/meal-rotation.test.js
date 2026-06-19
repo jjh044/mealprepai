@@ -43,3 +43,20 @@ test("live recipes are merged with starter meals for rotation", () => {
   assert.match(source, /mergeRecipes\(recipes\);/);
   assert.doesNotMatch(source, /recipeBank = recipes;/);
 });
+
+test("meal rotation uses a broad pool and remembers more than a handful of meals", () => {
+  const source = fs.readFileSync("client.js", "utf8");
+
+  assert.match(source, /const SELECTION_POOL_SIZE = 16;/);
+  assert.match(source, /const RECENT_RECIPE_MEMORY = 36;/);
+  assert.match(source, /\.slice\(0, RECENT_RECIPE_MEMORY\)/);
+});
+
+test("YouTube discovery builds a large varied inventory", () => {
+  const source = fs.readFileSync("server.js", "utf8");
+
+  assert.match(source, /maxResults: "25"/);
+  assert.match(source, /youtubeMealSearches\(\)/);
+  assert.match(source, /mealsWithRecipeLimit\(combined, 12\)/);
+  assert.doesNotMatch(source, /mealsWithRecipeLimit\(combined, 2\)/);
+});

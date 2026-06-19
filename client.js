@@ -9,7 +9,6 @@ const starterRecipeBank = [
     protein: 24,
     tags: ["quick", "family", "leftovers", "balanced", "vegetarian", "gluten-free"],
     source: "Food blog overnight oats post",
-    image: "https://images.unsplash.com/photo-1517673132405-a56a62b18caf?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["rolled oats", 0.5, "cup", "pantry"],
       ["Greek yogurt", 0.5, "cup", "dairy"],
@@ -18,22 +17,24 @@ const starterRecipeBank = [
     ]
   },
   {
-    id: "egg-wrap",
+    id: "cheesy-baked-eggs",
     meal: "Breakfast",
-    title: "Spinach Egg Breakfast Wrap",
-    summary: "Scrambled eggs, spinach, salsa, and cheese in a low-carb tortilla.",
-    cost: 2.55,
-    minutes: 12,
-    protein: 27,
+    title: "Cheesy Baked Eggs",
+    summary: "Baked eggs with cheddar and Parmesan cooked until just set.",
+    cost: 2.5,
+    minutes: 20,
+    protein: 22,
     tags: ["quick", "family", "balanced", "high-protein", "high-protein-low-carb", "vegetarian"],
-    source: "Social media breakfast wrap video",
-    image: "https://images.unsplash.com/photo-1525351484163-7529414344d8?auto=format&fit=crop&w=700&q=80",
+    provider: "YouTube + AI",
+    source: "YouTube",
+    sourceUrl: "https://www.youtube.com/watch?v=5s0eRgZjlwU",
+    image: "https://i.ytimg.com/vi/5s0eRgZjlwU/hqdefault.jpg",
     ingredients: [
       ["eggs", 2, "each", "dairy"],
-      ["low-carb tortillas", 1, "each", "bakery"],
-      ["baby spinach", 1, "cup", "produce"],
-      ["shredded cheese", 0.25, "cup", "dairy"],
-      ["salsa", 2, "tbsp", "pantry"]
+      ["cheddar cheese", 0.25, "cup", "dairy"],
+      ["Parmesan cheese", 1, "tbsp", "dairy"],
+      ["butter", 1, "tsp", "dairy"],
+      ["black pepper", 0.25, "tsp", "pantry"]
     ]
   },
   {
@@ -46,7 +47,6 @@ const starterRecipeBank = [
     protein: 25,
     tags: ["quick", "vegetarian", "high-protein"],
     source: "Social media cottage cheese toast trend",
-    image: "https://images.unsplash.com/photo-1494390248081-4e521a5940db?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["whole grain bread", 2, "slices", "bakery"],
       ["cottage cheese", 0.5, "cup", "dairy"],
@@ -64,7 +64,6 @@ const starterRecipeBank = [
     protein: 26,
     tags: ["quick", "balanced", "vegetarian", "vegan", "gluten-free", "leftovers", "high-protein"],
     source: "Vegan meal prep blog jar recipe",
-    image: "https://images.unsplash.com/photo-1505253716362-afaea1d3d1af?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["chia seeds", 2, "tbsp", "pantry"],
       ["oat milk", 0.5, "cup", "refrigerated"],
@@ -75,20 +74,23 @@ const starterRecipeBank = [
   {
     id: "chicken-rice",
     meal: "Lunch",
-    title: "Lemon Chicken Cauliflower Rice Bowls",
-    summary: "Batch chicken, cauliflower rice, cucumber, tomato, and yogurt sauce.",
-    cost: 4.35,
-    minutes: 28,
-    protein: 38,
+    title: "Chicken Cauliflower Rice Bowl",
+    summary: "Chicken and cauliflower rice bowls topped with carrots, tomatoes, red onion, and greens.",
+    cost: 4.5,
+    minutes: 25,
+    protein: 41,
     tags: ["balanced", "batch", "family", "leftovers", "high-protein", "high-protein-low-carb", "gluten-free"],
-    source: "Meal prep blog chicken bowl recipe",
-    image: "https://images.unsplash.com/photo-1547496502-affa22d38842?auto=format&fit=crop&w=700&q=80",
+    provider: "YouTube + AI",
+    source: "Food and Health Communications",
+    sourceUrl: "https://www.youtube.com/watch?v=uGMEn_8T__M",
+    image: "https://i.ytimg.com/vi/uGMEn_8T__M/hqdefault.jpg",
     ingredients: [
-      ["chicken breast", 0.4, "lb", "meat"],
+      ["chicken breast", 5, "oz", "meat"],
       ["cauliflower rice", 1, "cup", "frozen"],
-      ["cucumber", 0.5, "cup", "produce"],
+      ["carrot", 0.5, "each", "produce"],
       ["tomatoes", 0.5, "cup", "produce"],
-      ["Greek yogurt", 0.25, "cup", "dairy"]
+      ["red onion", 0.25, "each", "produce"],
+      ["mixed greens", 1, "cup", "produce"]
     ]
   },
   {
@@ -101,7 +103,6 @@ const starterRecipeBank = [
     protein: 36,
     tags: ["batch", "family", "leftovers", "high-protein", "gluten-free", "balanced"],
     source: "Food blog turkey chili recipe",
-    image: "https://images.unsplash.com/photo-1596797038530-2c107229654b?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["ground turkey", 0.35, "lb", "meat"],
       ["black beans", 0.5, "can", "pantry"],
@@ -120,7 +121,6 @@ const starterRecipeBank = [
     protein: 22,
     tags: ["quick", "balanced", "vegetarian", "leftovers"],
     source: "Vegetarian food blog chickpea pita",
-    image: "https://images.unsplash.com/photo-1559847844-5315695dadae?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["chickpeas", 0.5, "can", "pantry"],
       ["pita bread", 1, "each", "bakery"],
@@ -139,7 +139,6 @@ const starterRecipeBank = [
     protein: 31,
     tags: ["quick", "balanced", "family", "high-protein"],
     source: "Online pantry recipe roundup",
-    image: "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["pasta", 0.5, "cup", "pantry"],
       ["canned tuna", 1, "can", "pantry"],
@@ -158,7 +157,6 @@ const starterRecipeBank = [
     protein: 24,
     tags: ["balanced", "batch", "vegetarian", "vegan", "gluten-free", "leftovers"],
     source: "Online vegan lunch bowl recipe",
-    image: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["quinoa", 0.5, "cup", "pantry"],
       ["black beans", 0.5, "can", "pantry"],
@@ -177,7 +175,6 @@ const starterRecipeBank = [
     protein: 29,
     tags: ["batch", "family", "leftovers", "high-protein", "gluten-free"],
     source: "Sheet-pan dinner blog recipe",
-    image: "https://images.unsplash.com/photo-1512058564366-18510be2db19?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["chicken sausage", 0.3, "lb", "meat"],
       ["potatoes", 0.5, "lb", "produce"],
@@ -195,7 +192,6 @@ const starterRecipeBank = [
     protein: 27,
     tags: ["balanced", "vegetarian", "vegan", "gluten-free", "leftovers", "high-protein"],
     source: "Plant-based social cooking video",
-    image: "https://images.unsplash.com/photo-1552611052-33e04de081de?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["extra firm tofu", 0.5, "block", "produce"],
       ["rice noodles", 0.5, "cup", "pantry"],
@@ -214,7 +210,6 @@ const starterRecipeBank = [
     protein: 34,
     tags: ["quick", "family", "leftovers", "high-protein", "gluten-free"],
     source: "Weeknight dinner blog taco bowl",
-    image: "https://images.unsplash.com/photo-1551504734-5ee1c4a1479b?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["ground beef", 0.3, "lb", "meat"],
       ["rice", 0.5, "cup", "pantry"],
@@ -224,21 +219,25 @@ const starterRecipeBank = [
     ]
   },
   {
-    id: "salmon-tray",
+    id: "stuffed-pepper-skillet",
     meal: "Dinner",
-    title: "Garlic Salmon Tray Bake",
-    summary: "Salmon, green beans, potatoes, and lemon on one tray.",
-    cost: 6.6,
+    title: "Stuffed Pepper Skillet",
+    summary: "An unstuffed pepper skillet with ground beef, cauliflower rice, vegetables, and cheese.",
+    cost: 4.5,
     minutes: 30,
-    protein: 39,
+    protein: 36,
     tags: ["balanced", "family", "high-protein", "high-protein-low-carb", "gluten-free"],
-    source: "Online seafood meal prep article",
-    image: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?auto=format&fit=crop&w=700&q=80",
+    provider: "YouTube + AI",
+    source: "YouTube",
+    sourceUrl: "https://www.youtube.com/watch?v=pjWjLkQmCTw",
+    image: "https://i.ytimg.com/vi/pjWjLkQmCTw/hqdefault.jpg",
     ingredients: [
-      ["salmon fillet", 0.35, "lb", "meat"],
-      ["green beans", 1, "cup", "produce"],
-      ["broccoli", 1, "cup", "produce"],
-      ["lemon", 0.5, "each", "produce"]
+      ["lean ground beef", 5, "oz", "meat"],
+      ["bell pepper", 1, "each", "produce"],
+      ["cauliflower rice", 1, "cup", "frozen"],
+      ["diced tomatoes", 0.5, "cup", "pantry"],
+      ["onion", 0.25, "each", "produce"],
+      ["cheddar cheese", 0.25, "cup", "dairy"]
     ]
   },
   {
@@ -251,7 +250,6 @@ const starterRecipeBank = [
     protein: 24,
     tags: ["batch", "vegetarian", "vegan", "gluten-free", "balanced", "leftovers"],
     source: "Simple vegan curry blog recipe",
-    image: "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=700&q=80",
     ingredients: [
       ["red lentils", 0.5, "cup", "pantry"],
       ["coconut milk", 0.25, "can", "pantry"],
@@ -260,12 +258,16 @@ const starterRecipeBank = [
       ["rice", 0.5, "cup", "pantry"]
     ]
   }
-];
+].map((recipe) => ({
+  ...recipe,
+  image: recipe.image || starterRecipeThumbnail(recipe)
+}));
 
 const YOUTUBE_PROVIDER = "YouTube + AI";
 const YOUTUBE_RECIPE_SHARE = 0.75;
-const MIN_PROVIDER_ROTATION_CANDIDATES = 3;
-const SELECTION_POOL_SIZE = 8;
+const MIN_PROVIDER_ROTATION_CANDIDATES = 6;
+const SELECTION_POOL_SIZE = 16;
+const RECENT_RECIPE_MEMORY = 36;
 const STORAGE_KEYS = {
   favorites: "prepwise-favorites",
   history: "prepwise-plan-history",
@@ -769,7 +771,7 @@ function restoreHistoryEntry(historyId) {
 
   applyPreferences(entry.preferences);
   const prefs = getPreferences();
-  currentPlan = entry.plan;
+  currentPlan = refreshPlanAssets(entry.plan);
   currentGroceries = buildGroceries(currentPlan, prefs);
   hasBuiltPlan = true;
   rememberRecentRecipes(currentPlan);
@@ -908,6 +910,32 @@ function saveCurrentState(prefs) {
   }
 }
 
+function refreshRecipeForCurrentAssets(recipe) {
+  const bankMatch = recipeBank.find((item) => item.id === recipe.id) ||
+    starterRecipeBank.find((item) => item.id === recipe.id) ||
+    recipeBank.find((item) => item.title === recipe.title && item.meal === recipe.meal) ||
+    starterRecipeBank.find((item) => item.title === recipe.title && item.meal === recipe.meal);
+
+  if (bankMatch) {
+    return {
+      ...recipe,
+      image: bankMatch.image,
+      provider: bankMatch.provider || recipe.provider,
+      source: bankMatch.source || recipe.source,
+      sourceUrl: bankMatch.sourceUrl || recipe.sourceUrl
+    };
+  }
+
+  return {
+    ...recipe,
+    image: isTrustedRecipePhoto(recipe) ? recipe.image : starterRecipeThumbnail(recipe)
+  };
+}
+
+function refreshPlanAssets(plan) {
+  return Array.isArray(plan) ? plan.map(refreshRecipeForCurrentAssets) : [];
+}
+
 function restorePreferences() {
   const prefs = loadStoredValue(STORAGE_KEYS.preferences, null);
   if (!prefs) return null;
@@ -921,7 +949,7 @@ function restoreSavedPlan(prefs) {
   const saved = loadStoredValue(STORAGE_KEYS.plan, null);
   if (!saved || !Array.isArray(saved.plan) || saved.plan.length !== meals.length) return false;
 
-  currentPlan = saved.plan;
+  currentPlan = refreshPlanAssets(saved.plan);
   currentGroceries = buildGroceries(currentPlan, prefs);
   hasBuiltPlan = true;
   rememberRecentRecipes(currentPlan);
@@ -1001,19 +1029,34 @@ function toggleFavorite(meal) {
   renderPlan(currentPlan, getPreferences());
 }
 
-function fallbackImage(title) {
-  const safeTitle = title.replace(/&/g, "and").replace(/[<>"]/g, "");
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="700" height="450" viewBox="0 0 700 450">
-      <rect width="700" height="450" fill="#e7f0eb"/>
-      <circle cx="170" cy="150" r="72" fill="#2f7c57" opacity="0.18"/>
-      <circle cx="560" cy="315" r="110" fill="#c74e37" opacity="0.14"/>
-      <rect x="130" y="126" width="440" height="208" rx="18" fill="#ffffff" opacity="0.88"/>
-      <text x="350" y="215" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#18231f">Meal Prep</text>
-      <text x="350" y="262" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#65716c">${safeTitle}</text>
-    </svg>`;
+function recipeImage(recipe) {
+  if (isTrustedRecipePhoto(recipe)) {
+    return recipe.image;
+  }
 
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  return fallbackImage(recipe.title, recipe);
+}
+
+function isTrustedRecipePhoto(recipe = {}) {
+  const image = String(recipe.image || "");
+  const provider = String(recipe.provider || "");
+
+  if (/^\/assets\/recipe-fallbacks\/(?:breakfast|lunch|dinner)\.jpg$/i.test(image)) return true;
+  if (!/^https:\/\//i.test(image)) return false;
+  if (provider === YOUTUBE_PROVIDER) return /^https:\/\/i\.ytimg\.com\//i.test(image);
+  if (provider === "Spoonacular") return /spoonacular\.com\/recipeImages\//i.test(image);
+  if (provider === "Tasty") return /(?:buzzfeed\.com|tasty\.co)/i.test(image);
+
+  return false;
+}
+
+function starterRecipeThumbnail(recipe = {}) {
+  const meal = ["Breakfast", "Lunch", "Dinner"].includes(recipe.meal) ? recipe.meal : "Lunch";
+  return `/assets/recipe-fallbacks/${meal.toLowerCase()}.jpg`;
+}
+
+function fallbackImage(title, recipe = {}) {
+  return starterRecipeThumbnail({ ...recipe, title });
 }
 
 function getPreferences() {
@@ -1216,7 +1259,8 @@ function buildPlan(prefs) {
 function rememberRecentRecipes(plan) {
   const ids = plan.map((item) => item.id).filter(Boolean);
   previousPlanRecipeIds = new Set(ids);
-  recentRecipeIds = [...ids, ...recentRecipeIds.filter((id) => !ids.includes(id))].slice(0, 12);
+  recentRecipeIds = [...ids, ...recentRecipeIds.filter((id) => !ids.includes(id))]
+    .slice(0, RECENT_RECIPE_MEMORY);
 }
 
 function isKitchenStapleIngredient(name) {
@@ -1875,11 +1919,11 @@ function renderPlan(plan, prefs) {
   plan.forEach((item) => {
     const node = template.content.firstElementChild.cloneNode(true);
     const image = node.querySelector("img");
-    image.src = item.image || fallbackImage(item.title);
+    image.src = recipeImage(item);
     image.alt = item.title;
     image.onerror = () => {
       image.onerror = null;
-      image.src = fallbackImage(item.title);
+      image.src = fallbackImage(item.title, item);
     };
     node.querySelector(".meal-meta").innerHTML = `<span>${item.meal}</span><span>${dollars(item.cost * prefs.people * prepDays)}</span>`;
     node.querySelector("h3").textContent = item.title;
@@ -2428,7 +2472,7 @@ window.PrepWiseCloud?.subscribe?.((nextState) => {
       ?.catch((error) => console.error("Could not migrate preferences", error));
   }
   if (latestPlan?.plan?.length === meals.length) {
-    currentPlan = latestPlan.plan;
+    currentPlan = refreshPlanAssets(latestPlan.plan);
     const prefs = getPreferences();
     currentGroceries = buildGroceries(currentPlan, prefs);
     hasBuiltPlan = true;
