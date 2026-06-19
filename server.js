@@ -1551,7 +1551,7 @@ async function extractYoutubeRecipes(videos, preference) {
       {
         role: "system",
         content:
-          "Analyze each supplied YouTube video by its own public title and description, not by the creator's broader channel. Convert every clearly supported meal-prep recipe into compact JSON. A video may yield multiple recipe entries when its title or description provides distinct dishes and enough ingredient evidence for each one. Accept single-recipe videos, multi-recipe meal-prep videos, compilations, weekly prep videos, and meal plans when individual recipes are identifiable. Reject only videos that contain advice or vague ideas without enough evidence for a specific dish and ingredients. Return as many distinct supported recipes as possible; do not select only a representative sample. Never invent a dish or ingredients unrelated to the supplied video content. Each recipe must preserve its source videoId and include its Breakfast, Lunch, or Dinner meal category, a specific dish title, summary, minutes, protein, cost, tags, and ingredients. Ingredients must be an array of objects with name, amount, unit, and category. Amounts must be realistic amounts per person for one serving. category must be produce, meat, dairy, bakery, frozen, refrigerated, or pantry. minutes must be 30 or less. cost is estimated US dollars per serving. tags may include balanced, high-protein, high-protein-low-carb, low-calorie, low-carb, vegetarian, vegan, gluten-free, quick, batch, family, and leftovers."
+          "Analyze each supplied YouTube video by its own public title and description, not by the creator's broader channel. Return at most one meal-prep recipe per source video: choose the specific dish most central to the video's title and most likely to be represented by its official thumbnail. Accept single-recipe videos, multi-recipe meal-prep videos, compilations, weekly prep videos, and meal plans only when one thumbnail-representative recipe has enough ingredient evidence. Reject videos that contain advice or vague ideas without enough evidence for a specific dish and ingredients. Never invent a dish or ingredients unrelated to the supplied video content. Each recipe must preserve its source videoId and include its Breakfast, Lunch, or Dinner meal category, a specific dish title, summary, minutes, protein, cost, tags, and ingredients. Ingredients must be an array of objects with name, amount, unit, and category. Amounts must be realistic amounts per person for one serving. category must be produce, meat, dairy, bakery, frozen, refrigerated, or pantry. minutes must be 30 or less. cost is estimated US dollars per serving. tags may include balanced, high-protein, high-protein-low-carb, low-calorie, low-carb, vegetarian, vegan, gluten-free, quick, batch, family, and leftovers."
       },
       {
         role: "user",
@@ -1571,16 +1571,15 @@ async function extractYoutubeRecipes(videos, preference) {
   const parsed = JSON.parse(extractOpenAiText(response));
   const byVideoId = new Map(videos.map((video) => [video.videoId, video]));
 
-  const recipesBySourceAndTitle = new Map();
+  const recipesByVideo = new Map();
 
   (Array.isArray(parsed.recipes) ? parsed.recipes : []).forEach((recipe) => {
-    const key = `${recipe.videoId}:${String(recipe.title || "").trim().toLowerCase()}`;
-    if (recipesBySourceAndTitle.has(key)) return;
+    if (recipesByVideo.has(recipe.videoId)) return;
     const normalized = normalizeYoutubeRecipe(recipe, byVideoId.get(recipe.videoId), preference);
-    if (normalized) recipesBySourceAndTitle.set(key, normalized);
+    if (normalized) recipesByVideo.set(recipe.videoId, normalized);
   });
 
-  return [...recipesBySourceAndTitle.values()];
+  return [...recipesByVideo.values()];
 }
 
 function normalizeYoutubeRecipe(recipe, video, preference) {
@@ -1777,12 +1776,8 @@ function removeAmbiguousRecipeImages(recipes) {
     const hasConflictingTitles = new Set(
       imageMatches.map((match) => String(match.title || "").trim().toLowerCase())
     ).size > 1;
-    const sourceUrls = new Set(
-      imageMatches.map((match) => String(match.sourceUrl || "").trim()).filter(Boolean)
-    );
-    const sharedSourceVideo = sourceUrls.size === 1 && imageMatches.length > 1;
 
-    if (!isVerifiedRecipeImage(recipe) || (hasConflictingTitles && !sharedSourceVideo)) {
+    if (!isVerifiedRecipeImage(recipe) || hasConflictingTitles) {
       return { ...recipe, image: "" };
     }
 

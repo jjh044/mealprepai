@@ -8,7 +8,10 @@ const starterRecipeBank = [
     minutes: 8,
     protein: 24,
     tags: ["quick", "family", "leftovers", "balanced", "vegetarian", "gluten-free"],
-    source: "Food blog overnight oats post",
+    provider: "YouTube + AI",
+    source: "Ambitious Kitchen",
+    sourceUrl: "https://www.youtube.com/watch?v=zrqvcsAAd50",
+    image: "https://i.ytimg.com/vi/zrqvcsAAd50/hqdefault.jpg",
     ingredients: [
       ["rolled oats", 0.5, "cup", "pantry"],
       ["Greek yogurt", 0.5, "cup", "dairy"],
@@ -46,7 +49,10 @@ const starterRecipeBank = [
     minutes: 7,
     protein: 25,
     tags: ["quick", "vegetarian", "high-protein"],
-    source: "Social media cottage cheese toast trend",
+    provider: "YouTube + AI",
+    source: "Christine Pfeifer",
+    sourceUrl: "https://www.youtube.com/watch?v=dVH4kn7he7A",
+    image: "https://i.ytimg.com/vi/dVH4kn7he7A/hqdefault.jpg",
     ingredients: [
       ["whole grain bread", 2, "slices", "bakery"],
       ["cottage cheese", 0.5, "cup", "dairy"],
@@ -63,7 +69,10 @@ const starterRecipeBank = [
     minutes: 10,
     protein: 26,
     tags: ["quick", "balanced", "vegetarian", "vegan", "gluten-free", "leftovers", "high-protein"],
-    source: "Vegan meal prep blog jar recipe",
+    provider: "YouTube + AI",
+    source: "Carleigh Bodrug",
+    sourceUrl: "https://www.youtube.com/watch?v=roDomVDBmGk",
+    image: "https://i.ytimg.com/vi/roDomVDBmGk/hqdefault.jpg",
     ingredients: [
       ["chia seeds", 2, "tbsp", "pantry"],
       ["oat milk", 0.5, "cup", "refrigerated"],
@@ -80,7 +89,10 @@ const starterRecipeBank = [
     minutes: 5,
     protein: 25,
     tags: ["quick", "balanced", "vegetarian", "gluten-free", "high-protein"],
-    source: "Curated meal-prep recipe",
+    provider: "YouTube + AI",
+    source: "Jalalsamfit",
+    sourceUrl: "https://www.youtube.com/watch?v=W8eJV0CfUu0",
+    image: "https://i.ytimg.com/vi/W8eJV0CfUu0/hqdefault.jpg",
     ingredients: [
       ["Greek yogurt", 0.75, "cup", "dairy"],
       ["banana", 0.5, "each", "produce"],
@@ -120,7 +132,10 @@ const starterRecipeBank = [
     minutes: 30,
     protein: 36,
     tags: ["batch", "family", "leftovers", "high-protein", "gluten-free", "balanced"],
-    source: "Food blog turkey chili recipe",
+    provider: "YouTube + AI",
+    source: "Preppy Kitchen",
+    sourceUrl: "https://www.youtube.com/watch?v=msChF4tLnsI",
+    image: "https://i.ytimg.com/vi/msChF4tLnsI/hqdefault.jpg",
     ingredients: [
       ["ground turkey", 0.35, "lb", "meat"],
       ["black beans", 0.5, "can", "pantry"],
@@ -138,7 +153,10 @@ const starterRecipeBank = [
     minutes: 14,
     protein: 22,
     tags: ["quick", "balanced", "vegetarian", "leftovers"],
-    source: "Vegetarian food blog chickpea pita",
+    provider: "YouTube + AI",
+    source: "Fitgreenmind",
+    sourceUrl: "https://www.youtube.com/watch?v=K6pzirabRZ0",
+    image: "https://i.ytimg.com/vi/K6pzirabRZ0/hqdefault.jpg",
     ingredients: [
       ["chickpeas", 0.5, "can", "pantry"],
       ["pita bread", 1, "each", "bakery"],
@@ -156,7 +174,10 @@ const starterRecipeBank = [
     minutes: 18,
     protein: 31,
     tags: ["quick", "balanced", "family", "high-protein"],
-    source: "Online pantry recipe roundup",
+    provider: "YouTube + AI",
+    source: "Clean & Delicious",
+    sourceUrl: "https://www.youtube.com/watch?v=U4zIqtNWhYY",
+    image: "https://i.ytimg.com/vi/U4zIqtNWhYY/hqdefault.jpg",
     ingredients: [
       ["pasta", 0.5, "cup", "pantry"],
       ["canned tuna", 1, "can", "pantry"],
@@ -174,7 +195,10 @@ const starterRecipeBank = [
     minutes: 24,
     protein: 24,
     tags: ["balanced", "batch", "vegetarian", "vegan", "gluten-free", "leftovers"],
-    source: "Online vegan lunch bowl recipe",
+    provider: "YouTube + AI",
+    source: "Plant Powered with Kristina",
+    sourceUrl: "https://www.youtube.com/watch?v=jyKvy8gU7lA",
+    image: "https://i.ytimg.com/vi/jyKvy8gU7lA/hqdefault.jpg",
     ingredients: [
       ["quinoa", 0.5, "cup", "pantry"],
       ["black beans", 0.5, "can", "pantry"],
@@ -192,7 +216,10 @@ const starterRecipeBank = [
     minutes: 30,
     protein: 29,
     tags: ["batch", "family", "leftovers", "high-protein", "gluten-free"],
-    source: "Sheet-pan dinner blog recipe",
+    provider: "YouTube + AI",
+    source: "The Stay At Home Chef",
+    sourceUrl: "https://www.youtube.com/watch?v=35s0LHZ-hiE",
+    image: "https://i.ytimg.com/vi/35s0LHZ-hiE/hqdefault.jpg",
     ingredients: [
       ["chicken sausage", 0.3, "lb", "meat"],
       ["potatoes", 0.5, "lb", "produce"],
@@ -209,7 +236,10 @@ const starterRecipeBank = [
     minutes: 25,
     protein: 27,
     tags: ["balanced", "vegetarian", "vegan", "gluten-free", "leftovers", "high-protein"],
-    source: "Plant-based social cooking video",
+    provider: "YouTube + AI",
+    source: "Marley's Menu",
+    sourceUrl: "https://www.youtube.com/watch?v=O_glcmhDh28",
+    image: "https://i.ytimg.com/vi/O_glcmhDh28/hqdefault.jpg",
     ingredients: [
       ["extra firm tofu", 0.5, "block", "produce"],
       ["rice noodles", 0.5, "cup", "pantry"],
@@ -227,7 +257,10 @@ const starterRecipeBank = [
     minutes: 24,
     protein: 34,
     tags: ["quick", "family", "leftovers", "high-protein", "gluten-free"],
-    source: "Weeknight dinner blog taco bowl",
+    provider: "YouTube + AI",
+    source: "Chef Jack Ovens",
+    sourceUrl: "https://www.youtube.com/watch?v=IqgqMNJlQbk",
+    image: "https://i.ytimg.com/vi/IqgqMNJlQbk/hqdefault.jpg",
     ingredients: [
       ["ground beef", 0.3, "lb", "meat"],
       ["rice", 0.5, "cup", "pantry"],
@@ -267,7 +300,10 @@ const starterRecipeBank = [
     minutes: 30,
     protein: 24,
     tags: ["batch", "vegetarian", "vegan", "gluten-free", "balanced", "leftovers"],
-    source: "Simple vegan curry blog recipe",
+    provider: "YouTube + AI",
+    source: "Nico's Recipes",
+    sourceUrl: "https://www.youtube.com/watch?v=HJMOc0_fFco",
+    image: "https://i.ytimg.com/vi/HJMOc0_fFco/hqdefault.jpg",
     ingredients: [
       ["red lentils", 0.5, "cup", "pantry"],
       ["coconut milk", 0.25, "can", "pantry"],
@@ -1677,8 +1713,28 @@ function storeQuantityFor(item) {
 
 function mergeRecipes(recipes) {
   const existingIds = new Set(recipeBank.map((recipe) => recipe.id));
-  const additions = recipes.filter((recipe) => !existingIds.has(recipe.id));
+  const existingImages = new Set(recipeBank.map(recipeImageKey).filter(Boolean));
+  const additions = recipes.filter((recipe) => {
+    const imageKey = recipeImageKey(recipe);
+    if (existingIds.has(recipe.id) || !isTrustedRecipePhoto(recipe) || !imageKey || existingImages.has(imageKey)) {
+      return false;
+    }
+    existingIds.add(recipe.id);
+    existingImages.add(imageKey);
+    return true;
+  });
   recipeBank = [...recipeBank, ...additions];
+}
+
+function recipeImageKey(recipe = {}) {
+  try {
+    const url = new URL(String(recipe.image || ""), location.origin);
+    url.search = "";
+    url.hash = "";
+    return url.href.toLowerCase();
+  } catch {
+    return "";
+  }
 }
 
 function prioritizeProviderForSwap(recipes, useYoutube) {
@@ -1690,12 +1746,16 @@ function prioritizeProviderForSwap(recipes, useYoutube) {
 function replacementCandidates(meal, currentId, prefs, useYoutube) {
   const currentIds = new Set(currentPlan.map((recipe) => recipe.id));
   const currentTitles = new Set(currentPlan.map((recipe) => recipe.title.toLowerCase()));
+  const currentImages = new Set(
+    currentPlan.filter((recipe) => recipe.id !== currentId).map(recipeImageKey).filter(Boolean)
+  );
   const quickRecipes = recipeBank
     .filter((recipe) =>
       recipe.meal === meal &&
       recipe.id !== currentId &&
       !currentIds.has(recipe.id) &&
       !currentTitles.has(recipe.title.toLowerCase()) &&
+      !currentImages.has(recipeImageKey(recipe)) &&
       isQuickPrep(recipe)
     );
   const providerRecipes = prioritizeProviderForSwap(quickRecipes, useYoutube);

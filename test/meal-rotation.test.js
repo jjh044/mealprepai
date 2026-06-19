@@ -64,12 +64,12 @@ test("YouTube discovery builds a large varied inventory", () => {
   assert.doesNotMatch(source, /mealsWithRecipeLimit\(combined, 12\)/);
 });
 
-test("YouTube extraction supports multiple recipes from one video", () => {
+test("YouTube extraction keeps one thumbnail-matched recipe per video", () => {
   const source = fs.readFileSync("server.js", "utf8");
 
-  assert.match(source, /recipesBySourceAndTitle/);
-  assert.doesNotMatch(source, /const recipesByVideo = new Map/);
-  assert.match(source, /A video may yield multiple recipe entries/);
+  assert.match(source, /const recipesByVideo = new Map/);
+  assert.match(source, /Return at most one meal-prep recipe per source video/);
+  assert.match(source, /most likely to be represented by its official thumbnail/);
   assert.match(source, /meal: \{ type: "string", enum: \["Breakfast", "Lunch", "Dinner"\] \}/);
   assert.doesNotMatch(source, /Reject general meal-prep advice, meal plans/);
 });
@@ -84,6 +84,28 @@ test("every meal type has at least five quick starter recipes", () => {
     const quickMeals = recipes.filter((recipe) => recipe.meal === meal && recipe.minutes <= 30);
     assert.ok(quickMeals.length >= 5, `${meal} only has ${quickMeals.length} quick starter meals`);
   });
+});
+
+test("starter recipes use unique official YouTube thumbnails", () => {
+  const source = fs.readFileSync("client.js", "utf8");
+  const start = source.indexOf("const starterRecipeBank = ") + "const starterRecipeBank = ".length;
+  const end = source.indexOf("].map((recipe)", start) + 1;
+  const recipes = new Function(`return ${source.slice(start, end)};`)();
+  const images = recipes.map((recipe) => recipe.image);
+
+  assert.equal(new Set(images).size, recipes.length);
+  recipes.forEach((recipe) => {
+    assert.match(recipe.image, /^https:\/\/i\.ytimg\.com\/vi\/[\w-]+\/hqdefault\.jpg$/);
+    assert.match(recipe.sourceUrl, /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]+$/);
+  });
+});
+
+test("live recipe merging rejects missing and duplicate photos", () => {
+  const source = fs.readFileSync("client.js", "utf8");
+
+  assert.match(source, /!isTrustedRecipePhoto\(recipe\)/);
+  assert.match(source, /existingImages\.has\(imageKey\)/);
+  assert.match(source, /!currentImages\.has\(recipeImageKey\(recipe\)\)/);
 });
 
 test("meal swaps retain other providers as fallbacks", () => {
