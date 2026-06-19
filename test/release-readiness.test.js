@@ -56,3 +56,15 @@ test("restored plans refresh stale recipe thumbnails", () => {
   assert.match(client, /currentPlan = refreshPlanAssets\(entry\.plan\)/);
   assert.match(client, /currentPlan = refreshPlanAssets\(latestPlan\.plan\)/);
 });
+
+test("server fallback inventory has at least five recipes per meal type", () => {
+  const server = fs.readFileSync("server.js", "utf8");
+  const start = server.indexOf("const curatedYoutubeRecipes = [");
+  const end = server.indexOf("];", start);
+  const inventory = server.slice(start, end);
+
+  ["breakfast", "lunch", "dinner"].forEach((meal) => {
+    const matches = inventory.match(new RegExp(`id: "youtube-${meal}-`, "g")) || [];
+    assert.ok(matches.length >= 5, `${meal} fallback has only ${matches.length} recipes`);
+  });
+});

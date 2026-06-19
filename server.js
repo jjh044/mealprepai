@@ -184,6 +184,191 @@ const curatedYoutubeRecipes = [
       ["onion", 0.25, "each", "produce"],
       ["cheddar cheese", 0.25, "cup", "dairy"]
     ]
+  },
+  {
+    id: "youtube-breakfast-zrqvcsAAd50",
+    meal: "Breakfast",
+    title: "Berry Peanut Butter Oats",
+    summary: "No-fuss oats with berries, peanut butter, and Greek yogurt.",
+    cost: 2.1,
+    minutes: 8,
+    protein: 24,
+    tags: ["quick", "family", "leftovers", "balanced", "vegetarian", "gluten-free"],
+    provider: "YouTube + AI",
+    source: "Ambitious Kitchen",
+    sourceUrl: "https://www.youtube.com/watch?v=zrqvcsAAd50",
+    image: "https://i.ytimg.com/vi/zrqvcsAAd50/hqdefault.jpg",
+    ingredients: [
+      ["rolled oats", 0.5, "cup", "pantry"],
+      ["Greek yogurt", 0.5, "cup", "dairy"],
+      ["frozen berries", 0.5, "cup", "frozen"],
+      ["peanut butter", 1, "tbsp", "pantry"]
+    ]
+  },
+  {
+    id: "youtube-breakfast-dVH4kn7he7A",
+    meal: "Breakfast",
+    title: "Cottage Cheese Tomato Toast",
+    summary: "Crisp toast with cottage cheese, tomatoes, pepper, and herbs.",
+    cost: 2.35,
+    minutes: 7,
+    protein: 25,
+    tags: ["quick", "vegetarian", "high-protein"],
+    provider: "YouTube + AI",
+    source: "Christine Pfeifer",
+    sourceUrl: "https://www.youtube.com/watch?v=dVH4kn7he7A",
+    image: "https://i.ytimg.com/vi/dVH4kn7he7A/hqdefault.jpg",
+    ingredients: [
+      ["whole grain bread", 2, "slices", "bakery"],
+      ["cottage cheese", 0.5, "cup", "dairy"],
+      ["tomatoes", 0.5, "cup", "produce"],
+      ["everything seasoning", 1, "tsp", "pantry"]
+    ]
+  },
+  {
+    id: "youtube-breakfast-roDomVDBmGk",
+    meal: "Breakfast",
+    title: "Vegan Berry Chia Protein Pudding",
+    summary: "Chia seeds, oat milk, berries, and plant protein prepped in jars.",
+    cost: 2.65,
+    minutes: 10,
+    protein: 26,
+    tags: ["quick", "balanced", "vegetarian", "vegan", "gluten-free", "leftovers", "high-protein"],
+    provider: "YouTube + AI",
+    source: "Carleigh Bodrug",
+    sourceUrl: "https://www.youtube.com/watch?v=roDomVDBmGk",
+    image: "https://i.ytimg.com/vi/roDomVDBmGk/hqdefault.jpg",
+    ingredients: [
+      ["chia seeds", 2, "tbsp", "pantry"],
+      ["oat milk", 0.5, "cup", "refrigerated"],
+      ["plant protein powder", 1, "scoop", "pantry"],
+      ["frozen berries", 0.5, "cup", "frozen"]
+    ]
+  },
+  {
+    id: "youtube-lunch-msChF4tLnsI",
+    meal: "Lunch",
+    title: "Turkey Bean Chili",
+    summary: "One-pot chili built for reheating all week.",
+    cost: 3.95,
+    minutes: 30,
+    protein: 36,
+    tags: ["batch", "family", "leftovers", "high-protein", "gluten-free", "balanced"],
+    provider: "YouTube + AI",
+    source: "Preppy Kitchen",
+    sourceUrl: "https://www.youtube.com/watch?v=msChF4tLnsI",
+    image: "https://i.ytimg.com/vi/msChF4tLnsI/hqdefault.jpg",
+    ingredients: [
+      ["ground turkey", 0.35, "lb", "meat"],
+      ["black beans", 0.5, "can", "pantry"],
+      ["diced tomatoes", 0.5, "can", "pantry"],
+      ["frozen corn", 0.25, "cup", "frozen"],
+      ["chili seasoning", 1, "tbsp", "pantry"]
+    ]
+  },
+  {
+    id: "youtube-lunch-K6pzirabRZ0",
+    meal: "Lunch",
+    title: "Crunchy Chickpea Pita",
+    summary: "Mashed chickpeas, pickles, celery, yogurt, and greens.",
+    cost: 2.8,
+    minutes: 14,
+    protein: 22,
+    tags: ["quick", "balanced", "vegetarian", "leftovers"],
+    provider: "YouTube + AI",
+    source: "Fitgreenmind",
+    sourceUrl: "https://www.youtube.com/watch?v=K6pzirabRZ0",
+    image: "https://i.ytimg.com/vi/K6pzirabRZ0/hqdefault.jpg",
+    ingredients: [
+      ["chickpeas", 0.5, "can", "pantry"],
+      ["pita bread", 1, "each", "bakery"],
+      ["Greek yogurt", 0.25, "cup", "dairy"],
+      ["celery", 0.25, "cup", "produce"],
+      ["romaine", 1, "cup", "produce"]
+    ]
+  },
+  {
+    id: "youtube-lunch-jyKvy8gU7lA",
+    meal: "Lunch",
+    title: "Quinoa Black Bean Meal Prep Bowls",
+    summary: "Quinoa, black beans, corn, peppers, salsa, and avocado-lime sauce.",
+    cost: 3.1,
+    minutes: 24,
+    protein: 24,
+    tags: ["balanced", "batch", "vegetarian", "vegan", "gluten-free", "leftovers"],
+    provider: "YouTube + AI",
+    source: "Plant Powered with Kristina",
+    sourceUrl: "https://www.youtube.com/watch?v=jyKvy8gU7lA",
+    image: "https://i.ytimg.com/vi/jyKvy8gU7lA/hqdefault.jpg",
+    ingredients: [
+      ["quinoa", 0.5, "cup", "pantry"],
+      ["black beans", 0.5, "can", "pantry"],
+      ["frozen corn", 0.25, "cup", "frozen"],
+      ["bell peppers", 0.5, "each", "produce"],
+      ["salsa", 2, "tbsp", "pantry"]
+    ]
+  },
+  {
+    id: "youtube-dinner-35s0LHZ-hiE",
+    meal: "Dinner",
+    title: "Sheet Pan Sausage and Veg",
+    summary: "Sausage, potatoes, peppers, and onions roasted together.",
+    cost: 4.15,
+    minutes: 30,
+    protein: 29,
+    tags: ["batch", "family", "leftovers", "high-protein", "gluten-free"],
+    provider: "YouTube + AI",
+    source: "The Stay At Home Chef",
+    sourceUrl: "https://www.youtube.com/watch?v=35s0LHZ-hiE",
+    image: "https://i.ytimg.com/vi/35s0LHZ-hiE/hqdefault.jpg",
+    ingredients: [
+      ["chicken sausage", 0.3, "lb", "meat"],
+      ["potatoes", 0.5, "lb", "produce"],
+      ["bell peppers", 0.5, "each", "produce"],
+      ["yellow onion", 0.25, "each", "produce"]
+    ]
+  },
+  {
+    id: "youtube-dinner-O_glcmhDh28",
+    meal: "Dinner",
+    title: "Peanut Tofu Rice Noodles",
+    summary: "Crispy tofu, rice noodles, cabbage, carrots, and peanut sauce.",
+    cost: 3.75,
+    minutes: 25,
+    protein: 27,
+    tags: ["balanced", "vegetarian", "vegan", "gluten-free", "leftovers", "high-protein"],
+    provider: "YouTube + AI",
+    source: "Marley's Menu",
+    sourceUrl: "https://www.youtube.com/watch?v=O_glcmhDh28",
+    image: "https://i.ytimg.com/vi/O_glcmhDh28/hqdefault.jpg",
+    ingredients: [
+      ["extra firm tofu", 0.5, "block", "produce"],
+      ["rice noodles", 0.5, "cup", "pantry"],
+      ["shredded cabbage", 1, "cup", "produce"],
+      ["carrots", 0.5, "cup", "produce"],
+      ["peanut butter", 1, "tbsp", "pantry"]
+    ]
+  },
+  {
+    id: "youtube-dinner-HJMOc0_fFco",
+    meal: "Dinner",
+    title: "Red Lentil Coconut Curry",
+    summary: "Lentils simmered with coconut milk, tomatoes, and spinach.",
+    cost: 3.2,
+    minutes: 30,
+    protein: 24,
+    tags: ["batch", "vegetarian", "vegan", "gluten-free", "balanced", "leftovers"],
+    provider: "YouTube + AI",
+    source: "Nico's Recipes",
+    sourceUrl: "https://www.youtube.com/watch?v=HJMOc0_fFco",
+    image: "https://i.ytimg.com/vi/HJMOc0_fFco/hqdefault.jpg",
+    ingredients: [
+      ["red lentils", 0.5, "cup", "pantry"],
+      ["coconut milk", 0.25, "can", "pantry"],
+      ["diced tomatoes", 0.5, "can", "pantry"],
+      ["baby spinach", 1, "cup", "produce"],
+      ["rice", 0.5, "cup", "pantry"]
+    ]
   }
 ];
 

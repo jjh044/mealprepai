@@ -9,8 +9,9 @@
     "native:sync": "npm run build && cap sync",
     "native:assets": "capacitor-assets generate --ios --android",
     "release:check": "node scripts/check-native-release.js",
+    "smoke:production": "node scripts/smoke-production.js",
     "store:android-assets": "node scripts/generate-android-store-assets.js",
-    "check": "node --check server.js && node --check client.js && node --check subscription.js && node --check native-store.js && node --check app-store-notifications.js && node --check scripts/build-web.js && node --check scripts/generate-android-store-assets.js && node --check scripts/check-native-release.js",
+    "check": "node --check server.js && node --check client.js && node --check subscription.js && node --check native-store.js && node --check app-store-notifications.js && node --check scripts/build-web.js && node --check scripts/generate-android-store-assets.js && node --check scripts/check-native-release.js && node --check scripts/smoke-production.js",
     "typecheck": "tsc -p convex/tsconfig.json --noEmit",
     "test": "node --test"
   },

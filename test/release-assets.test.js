@@ -198,6 +198,18 @@ test("store submission documents match production account and privacy behavior",
   assert.match(read("terms.html"), /Google Play subscription/);
 });
 
+test("production beta smoke gate covers release-critical services", () => {
+  const smoke = read("scripts/smoke-production.js");
+
+  assert.match(smoke, /\/api\/health/);
+  assert.match(smoke, /\/api\/config/);
+  assert.match(smoke, /Native app CORS/);
+  assert.match(smoke, /Recipe inventory and thumbnails/);
+  assert.match(smoke, /Protected account deletion/);
+  assert.match(smoke, /Native purchase verification rejects malformed data/);
+  assert.match(read("package.json"), /"smoke:production"/);
+});
+
 test("official YouTube Data API configuration replaces YouTube138", () => {
   const root = path.join(__dirname, "..");
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");
