@@ -16,7 +16,7 @@ Completed June 11, 2026:
 - Project: `prepwiseai`
 - Development deployment: `https://upbeat-fennec-404.convex.cloud`
 - Production deployment: `https://expert-rabbit-478.convex.cloud`
-- Production Auth site URL: `https://mealprepai-two.vercel.app`
+- Production Auth site URL: `https://prepwiseai.app`
 - Production schema/functions deployed
 - Separate development and production authentication signing keys configured
 
@@ -54,7 +54,7 @@ Completed in Stripe test mode June 11, 2026:
 - Yearly test price: `$69.99`, recurring yearly
 - Customer Portal: cancellation, payment-method updates, invoice history, and cancellation reasons enabled
 - Test webhook: `we_1ThEhF91rQSWGewYEIAerZux`
-- Webhook URL: `https://mealprepai-two.vercel.app/api/billing/webhook`
+- Webhook URL: `https://prepwiseai.app/api/billing/webhook`
 - Stripe test variables configured in Vercel production
 - Production health endpoint reports billing configured
 
@@ -74,7 +74,7 @@ STRIPE_SYNC_SECRET
 Webhook endpoint:
 
 ```text
-https://mealprepai-two.vercel.app/api/billing/webhook
+https://prepwiseai.app/api/billing/webhook
 ```
 
 Subscribe it to:
@@ -97,8 +97,8 @@ Enable Stripe Customer Portal cancellation, payment-method updates, and invoice 
 Verified and redeployed June 15, 2026:
 
 - Production deployment ID: `dpl_XPPpNPoKam2UrNjmeNZPYfBNS2rh`
-- Production deployment URL: `https://mealprepai-6dcmk0ime-james-s-projects2.vercel.app`
-- Production alias: `https://mealprepai-two.vercel.app`
+- Production deployment URL: `https://prepwiseai.app`
+- Production alias: `https://prepwiseai.app`
 - Command run: `npx vercel deploy --prod --yes`
 - Health check passed at `/api/health` with Convex, OpenAI, RapidAPI, Stripe, and YouTube configured.
 - Public config check passed at `/api/config`:
@@ -111,8 +111,8 @@ Verified and redeployed June 15, 2026:
 
 Completed June 11, 2026:
 
-- Vercel project: `james-s-projects2/mealprepai`
-- Production alias: `https://mealprepai-two.vercel.app`
+- Vercel project: `james-s-projects2/prepwise`
+- Production alias: `https://prepwiseai.app`
 - `CONVEX_URL`, `APP_URL`, `STRIPE_SYNC_SECRET`, and `RATE_LIMIT_SALT` configured
 - Production deployment completed and live health checks passed
 
@@ -147,7 +147,7 @@ Completed June 11, 2026:
 - Monitored support email: `creativesolutionssupport@gmail.com`
 - Governing jurisdiction: Missouri
 - Location: Kansas City, Missouri
-- Production domain: `https://mealprepai-two.vercel.app`
+- Production domain: `https://prepwiseai.app`
 
 ## 5. Release Verification
 

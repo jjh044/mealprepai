@@ -624,8 +624,9 @@ async function verifyAppleTransaction(body) {
   if (typeof body.signedTransaction !== "string" || body.signedTransaction.length < 100) {
     throw Object.assign(new Error("A signed Apple transaction is required"), { statusCode: 400 });
   }
-  const verifier = appleSignedDataVerifier();
-  const transaction = await verifier.verifyAndDecodeTransaction(body.signedTransaction);
+  const { decoded: transaction } = await verifyAppleSignedData(
+    (verifier) => verifier.verifyAndDecodeTransaction(body.signedTransaction)
+  );
   if (!["prepwise_pro_monthly", "prepwise_pro_yearly"].includes(transaction.productId)) {
     throw Object.assign(new Error("Unknown Apple subscription product"), { statusCode: 400 });
   }
@@ -650,10 +651,14 @@ async function verifyAppleTransaction(body) {
   };
 }
 
-function appleSignedDataVerifier() {
-  const environment = String(process.env.APPLE_ENVIRONMENT || "SANDBOX").toUpperCase() === "PRODUCTION"
-    ? AppleEnvironment.PRODUCTION
-    : AppleEnvironment.SANDBOX;
+function appleVerificationEnvironments() {
+  const configured = String(process.env.APPLE_ENVIRONMENT || "AUTO").toUpperCase();
+  if (configured === "PRODUCTION") return [AppleEnvironment.PRODUCTION];
+  if (configured === "SANDBOX") return [AppleEnvironment.SANDBOX];
+  return [AppleEnvironment.PRODUCTION, AppleEnvironment.SANDBOX];
+}
+
+function appleSignedDataVerifier(environment) {
   const appAppleId = environment === AppleEnvironment.PRODUCTION
     ? Number(process.env.APPLE_APP_ID)
     : undefined;
@@ -667,6 +672,19 @@ function appleSignedDataVerifier() {
     process.env.APPLE_BUNDLE_ID || "com.prepwise.app",
     appAppleId
   );
+}
+
+async function verifyAppleSignedData(decode) {
+  let lastError;
+  for (const environment of appleVerificationEnvironments()) {
+    try {
+      const verifier = appleSignedDataVerifier(environment);
+      return { decoded: await decode(verifier), verifier };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError;
 }
 
 function appleRootCertificates() {
@@ -820,8 +838,9 @@ async function handleAppStoreNotificationRequest(req, res) {
 }
 
 async function verifyAppleNotification(signedPayload) {
-  const verifier = appleSignedDataVerifier();
-  const notification = await verifier.verifyAndDecodeNotification(signedPayload);
+  const { decoded: notification, verifier } = await verifyAppleSignedData(
+    (candidate) => candidate.verifyAndDecodeNotification(signedPayload)
+  );
   const signedTransaction = notification.data?.signedTransactionInfo;
   const transaction = signedTransaction
     ? await verifier.verifyAndDecodeTransaction(signedTransaction)

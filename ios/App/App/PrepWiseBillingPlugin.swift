@@ -22,7 +22,11 @@ public final class PrepWiseBillingPlugin: CAPPlugin, CAPBridgedPlugin {
             for await update in Transaction.updates {
                 guard let self else { return }
                 guard case .verified(let transaction) = update else { continue }
-                let result = await self.result(for: transaction, state: "success")
+                let result = await self.result(
+                    for: transaction,
+                    state: "success",
+                    signedTransaction: update.jwsRepresentation
+                )
                 self.notifyListeners("entitlementChanged", data: result)
                 await transaction.finish()
             }

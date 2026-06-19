@@ -6,8 +6,8 @@ Open `index.html` in a browser to run it with starter data.
 
 Public pages:
 
-- App: https://mealprepai-two.vercel.app
-- Partner landing page: https://mealprepai-two.vercel.app/partners
+- App: https://prepwiseai.app
+- Partner landing page: https://prepwiseai.app/partners
 
 To use live API data, create `.env` with `RAPIDAPI_KEY` and `OPENAI_API_KEY`, then run:
 

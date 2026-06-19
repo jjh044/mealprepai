@@ -38,6 +38,8 @@ Purchase and restore results must use verified StoreKit transaction data:
 }
 ```
 
+The native result also includes Apple's signed transaction JWS. The API verifies that JWS against Apple's root certificates before it persists or returns an entitlement. `APPLE_ENVIRONMENT=AUTO` accepts both TestFlight sandbox transactions and production App Store transactions; production verification also requires `APPLE_APP_ID`.
+
 Supported result states:
 
 - `success`
@@ -54,4 +56,4 @@ Supported result states:
 
 Never grant Pro from an unverified transaction. Observe `Transaction.updates`, finish verified transactions, and refresh current entitlements at launch and foreground entry.
 
-The server endpoint `/api/app-store/notifications` currently fails closed with HTTP 503. Implement Apple JWS chain and signature verification before configuring the App Store Server Notifications URL.
+Configure App Store Server Notifications V2 to send production and sandbox notifications to `/api/app-store/notifications`. The endpoint verifies the notification and embedded transaction JWS before updating Convex.

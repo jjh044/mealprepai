@@ -49,10 +49,10 @@ PrepWise Pro is available as an auto-renewing monthly or yearly subscription. Pr
 
 Replace the domain below with the final production deployment before submission.
 
-- Marketing URL: `https://prepwise.app`
-- Support URL: `https://prepwise.app/support.html`
-- Privacy Policy URL: `https://prepwise.app/privacy.html`
-- Terms URL: `https://prepwise.app/terms.html`
+- Marketing URL: `https://prepwiseai.app`
+- Support URL: `https://prepwiseai.app/support.html`
+- Privacy Policy URL: `https://prepwiseai.app/privacy.html`
+- Terms URL: `https://prepwiseai.app/terms.html`
 
 ## Subscription Products
 

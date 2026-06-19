@@ -66,12 +66,33 @@ test("native projects include first-party platform billing bridges", () => {
   assert.match(android, /purchaseToken/);
   assert.match(ios, /import StoreKit/);
   assert.match(ios, /Transaction\.currentEntitlements/);
+  assert.match(ios, /signedTransaction: update\.jwsRepresentation/);
+  assert.match(read("client.js"), /Native store entitlement is missing server verification data/);
+});
+
+test("Apple billing accepts verified sandbox and production transactions", () => {
+  const server = read("server.js");
+  assert.match(server, /APPLE_ENVIRONMENT \|\| "AUTO"/);
+  assert.match(server, /AppleEnvironment\.PRODUCTION, AppleEnvironment\.SANDBOX/);
+  assert.match(server, /verifyAndDecodeNotification/);
+  assert.match(server, /verifyAndDecodeTransaction/);
+});
+
+test("web builds package photographic recipe fallbacks", () => {
+  const buildScript = read("scripts/build-web.js");
+
+  assert.match(buildScript, /assets", "recipe-fallbacks/);
+  ["breakfast", "lunch", "dinner"].forEach((meal) => {
+    assert.equal(fs.existsSync(`assets/recipe-fallbacks/${meal}.jpg`), true);
+  });
 });
 
 test("native runtime loads before the store adapter and routes API calls remotely", () => {
   const html = read("index.html");
   assert.ok(html.indexOf("native-runtime.js") < html.indexOf("native-store.js"));
   assert.match(read("src/native-runtime.js"), /PrepWiseApiOrigin/);
+  assert.match(read("src/native-runtime.js"), /https:\/\/www\.prepwiseai\.app/);
+  assert.doesNotMatch(read("src/native-runtime.js"), /PRODUCTION_ORIGIN = "https:\/\/prepwiseai\.app"/);
   assert.match(read("client.js"), /billing\/native\/verify/);
   assert.match(read("styles.css"), /safe-area-inset-bottom/);
 });
@@ -109,7 +130,7 @@ test("creator partner page is routable and includes partnership details", () => 
   assert.match(partners, /IF THIS FEELS LIKE A FIT/i);
   assert.match(partners, /No revenue-share terms are guaranteed/i);
   assert.match(read("index.html"), /href="\/partners"/);
-  assert.match(readme, /https:\/\/mealprepai-two\.vercel\.app\/partners/);
+  assert.match(readme, /https:\/\/prepwiseai\.app\/partners/);
   assert.match(vercel, /partners\.html/);
   assert.match(vercel, /"src": "\/partners"/);
 });

@@ -6,7 +6,7 @@ import { Network } from "@capacitor/network";
 import { SplashScreen } from "@capacitor/splash-screen";
 import { StatusBar, Style } from "@capacitor/status-bar";
 
-const PRODUCTION_ORIGIN = "https://mealprepai-two.vercel.app";
+const PRODUCTION_ORIGIN = "https://www.prepwiseai.app";
 const NativeBilling = registerPlugin("PrepWiseBilling");
 const isNative = Capacitor.isNativePlatform();
 const platform = Capacitor.getPlatform();

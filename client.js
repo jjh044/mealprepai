@@ -603,7 +603,12 @@ function applyStoreResult(result) {
 }
 
 async function verifyNativeStoreResult(result) {
-  if (!result?.verification) return result;
+  if (!result?.verification) {
+    if (result?.entitlement) {
+      throw new Error("Native store entitlement is missing server verification data.");
+    }
+    return result;
+  }
   const response = await apiFetch("/api/billing/native/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
