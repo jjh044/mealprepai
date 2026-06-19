@@ -55,10 +55,23 @@ test("meal rotation uses a broad pool and remembers more than a handful of meals
 test("YouTube discovery builds a large varied inventory", () => {
   const source = fs.readFileSync("server.js", "utf8");
 
-  assert.match(source, /maxResults: "25"/);
+  assert.match(source, /maxResults: "50"/);
   assert.match(source, /youtubeMealSearches\(\)/);
-  assert.match(source, /mealsWithRecipeLimit\(combined, 12\)/);
-  assert.doesNotMatch(source, /mealsWithRecipeLimit\(combined, 2\)/);
+  assert.match(source, /YOUTUBE_RECIPES_PER_MEAL = 30/);
+  assert.match(source, /limitYoutubeVideosPerChannel/);
+  assert.match(source, /\[meal, randomized\[0\], "relevance"\]/);
+  assert.match(source, /\[meal, randomized\[1\], "date"\]/);
+  assert.doesNotMatch(source, /mealsWithRecipeLimit\(combined, 12\)/);
+});
+
+test("YouTube extraction supports multiple recipes from one video", () => {
+  const source = fs.readFileSync("server.js", "utf8");
+
+  assert.match(source, /recipesBySourceAndTitle/);
+  assert.doesNotMatch(source, /const recipesByVideo = new Map/);
+  assert.match(source, /A video may yield multiple recipe entries/);
+  assert.match(source, /meal: \{ type: "string", enum: \["Breakfast", "Lunch", "Dinner"\] \}/);
+  assert.doesNotMatch(source, /Reject general meal-prep advice, meal plans/);
 });
 
 test("every meal type has at least five quick starter recipes", () => {
