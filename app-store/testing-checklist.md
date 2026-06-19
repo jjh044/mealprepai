@@ -2,15 +2,15 @@
 
 ## Automated Checks
 
-- `node --check server.js`
-- `node --check client.js`
-- `node --check subscription.js`
-- `node --check native-store.js`
-- `node --test`
+- `npm run check`
+- `npm run release:check`
+- `npm test`
 - Validate `vercel.json`
 - Verify all public legal URLs return HTTP 200
 - Verify the 1024×1024 icon is opaque
-- Verify six screenshots are exactly 1290×2796
+- Verify six iOS screenshots are exactly 1290×2796
+- Verify six Android screenshots are exactly 1080×1920
+- Verify Google Play title, short description, and full description character limits
 
 ## iPhone Testing
 
@@ -24,6 +24,17 @@
 - Switch Control and keyboard focus where applicable
 - Reduced Motion
 - Increased Contrast
+
+## Android Testing
+
+- Small supported phone
+- Large supported phone
+- Portrait layout
+- Gesture and three-button navigation
+- TalkBack navigation and labels
+- Font and display scaling
+- Back-button behavior
+- Process restart and app resume
 
 ## Network and Backend
 
@@ -55,6 +66,17 @@
 - Interrupted purchase
 - App reinstall
 
+## Google Play Internal Testing
+
+- Monthly purchase success
+- Yearly purchase success
+- User cancellation and pending payment
+- Restore after reinstall and on another device
+- Renewal, grace period, account hold, expiration, and refund
+- Upgrade or downgrade between monthly and yearly products
+- Manage Subscription opens Google Play
+- Signed Android App Bundle installs from the internal-testing track
+
 ## TestFlight
 
 - Internal TestFlight group
@@ -66,4 +88,4 @@
 
 ## Submission Gate
 
-Do not submit until every placeholder marked `REPLACE_BEFORE_SUBMISSION` is removed, Apple JWS notification verification is enabled, cloud account deletion reaches the backend, and the App Store URLs are public.
+Do not submit until review credentials are configured privately in each store console, Apple and Google billing verification credentials are active, cloud account deletion reaches the backend, legal URLs are public, and signed builds pass TestFlight and Google Play internal testing.

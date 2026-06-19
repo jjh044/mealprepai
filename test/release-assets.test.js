@@ -167,6 +167,37 @@ test("App Store metadata stays within name and subtitle limits", () => {
   assert.ok(subtitle.length <= 30);
 });
 
+test("Google Play metadata stays within official listing limits", () => {
+  const metadata = read("app-store/google-play-metadata.md");
+  const appName = metadata.match(/App name: `([^`]+)`/)[1];
+  const shortDescription = metadata
+    .match(/## Short description\s+([\s\S]*?)\s+## Full description/)[1]
+    .trim();
+  const fullDescription = metadata
+    .match(/## Full description\s+([\s\S]*?)\s+## Subscription products/)[1]
+    .trim();
+
+  assert.ok(appName.length <= 30);
+  assert.ok(shortDescription.length <= 80);
+  assert.ok(fullDescription.length <= 4000);
+  assert.match(metadata, /Account deletion URL: `https:\/\/www\.prepwiseai\.app\/support\.html`/);
+});
+
+test("store submission documents match production account and privacy behavior", () => {
+  const reviewNotes = read("app-store/review-notes.md");
+  const appleMetadata = read("app-store/metadata.md");
+  const privacyManifest = read("ios/App/App/PrivacyInfo.xcprivacy");
+
+  assert.doesNotMatch(reviewNotes, /REPLACE_BEFORE_SUBMISSION/);
+  assert.match(reviewNotes, /Production cloud authentication is enabled/);
+  assert.match(appleMetadata, /https:\/\/www\.prepwiseai\.app\/privacy\.html/);
+  assert.match(privacyManifest, /NSPrivacyCollectedDataTypeProductInteraction/);
+  assert.match(privacyManifest, /NSPrivacyCollectedDataTypeCrashData/);
+  assert.match(privacyManifest, /NSPrivacyCollectedDataTypePerformanceData/);
+  assert.match(read("privacy.html"), /Google processes Google Play payments/);
+  assert.match(read("terms.html"), /Google Play subscription/);
+});
+
 test("official YouTube Data API configuration replaces YouTube138", () => {
   const root = path.join(__dirname, "..");
   const server = fs.readFileSync(path.join(root, "server.js"), "utf8");

@@ -33,7 +33,7 @@ PREPWISE PRO
 - Unlimited meal swaps
 - Unlimited AI prep tips and recipe instructions
 - Saved plan history
-- Subscription access across supported signed-in devices when cloud accounts launch
+- Subscription access across supported signed-in devices
 
 IMPORTANT
 
@@ -47,12 +47,10 @@ PrepWise Pro is available as an auto-renewing monthly or yearly subscription. Pr
 
 ## URLs
 
-Replace the domain below with the final production deployment before submission.
-
-- Marketing URL: `https://prepwiseai.app`
-- Support URL: `https://prepwiseai.app/support.html`
-- Privacy Policy URL: `https://prepwiseai.app/privacy.html`
-- Terms URL: `https://prepwiseai.app/terms.html`
+- Marketing URL: `https://www.prepwiseai.app`
+- Support URL: `https://www.prepwiseai.app/support.html`
+- Privacy Policy URL: `https://www.prepwiseai.app/privacy.html`
+- Terms URL: `https://www.prepwiseai.app/terms.html`
 
 ## Subscription Products
 

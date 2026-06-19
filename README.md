@@ -71,6 +71,7 @@ The `app-store/` directory now contains:
 - Opaque 1024×1024 App Store icon
 - Six 1290×2796 large-iPhone screenshots
 - App Store metadata draft
+- Google Play listing and Data safety worksheet
 - App Review notes
 - App Privacy worksheet
 - StoreKit 2 native bridge contract
@@ -78,7 +79,7 @@ The `app-store/` directory now contains:
 
 The app includes Account, subscription status, restore/manage controls, privacy policy, terms, support, sign-out, and local account-deletion surfaces.
 
-The App Store notification endpoint intentionally returns HTTP 503 until Apple signed-payload verification is implemented. Do not configure it in App Store Connect before that verifier and persistent entitlement storage are deployed.
+The App Store notification endpoint verifies Apple signed payloads before updating persistent entitlement storage. Configure the production and sandbox App Store Server Notifications V2 URLs only after the Apple App ID and root certificates are present in production.
 
 ## Production Readiness
 
