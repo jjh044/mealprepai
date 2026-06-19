@@ -60,3 +60,23 @@ test("YouTube discovery builds a large varied inventory", () => {
   assert.match(source, /mealsWithRecipeLimit\(combined, 12\)/);
   assert.doesNotMatch(source, /mealsWithRecipeLimit\(combined, 2\)/);
 });
+
+test("every meal type has at least five quick starter recipes", () => {
+  const source = fs.readFileSync("client.js", "utf8");
+  const start = source.indexOf("const starterRecipeBank = ") + "const starterRecipeBank = ".length;
+  const end = source.indexOf("].map((recipe)", start) + 1;
+  const recipes = new Function(`return ${source.slice(start, end)};`)();
+
+  ["Breakfast", "Lunch", "Dinner"].forEach((meal) => {
+    const quickMeals = recipes.filter((recipe) => recipe.meal === meal && recipe.minutes <= 30);
+    assert.ok(quickMeals.length >= 5, `${meal} only has ${quickMeals.length} quick starter meals`);
+  });
+});
+
+test("meal swaps retain other providers as fallbacks", () => {
+  const source = fs.readFileSync("client.js", "utf8");
+
+  assert.match(source, /function prioritizeProviderForSwap/);
+  assert.match(source, /return \[\.\.\.preferredProvider, \.\.\.otherProviders\];/);
+  assert.doesNotMatch(source, /preferProvider\(quickRecipes, useYoutube, false\)/);
+});

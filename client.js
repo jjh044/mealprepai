@@ -72,6 +72,24 @@ const starterRecipeBank = [
     ]
   },
   {
+    id: "greek-yogurt-breakfast-bowl",
+    meal: "Breakfast",
+    title: "Greek Yogurt Breakfast Bowl",
+    summary: "Greek yogurt, banana, berries, oats, and walnuts assembled in minutes.",
+    cost: 2.45,
+    minutes: 5,
+    protein: 25,
+    tags: ["quick", "balanced", "vegetarian", "gluten-free", "high-protein"],
+    source: "Curated meal-prep recipe",
+    ingredients: [
+      ["Greek yogurt", 0.75, "cup", "dairy"],
+      ["banana", 0.5, "each", "produce"],
+      ["frozen berries", 0.5, "cup", "frozen"],
+      ["rolled oats", 0.25, "cup", "pantry"],
+      ["walnuts", 1, "tbsp", "pantry"]
+    ]
+  },
+  {
     id: "chicken-rice",
     meal: "Lunch",
     title: "Chicken Cauliflower Rice Bowl",
@@ -99,7 +117,7 @@ const starterRecipeBank = [
     title: "Turkey Bean Chili",
     summary: "One-pot chili built for reheating all week.",
     cost: 3.95,
-    minutes: 35,
+    minutes: 30,
     protein: 36,
     tags: ["batch", "family", "leftovers", "high-protein", "gluten-free", "balanced"],
     source: "Food blog turkey chili recipe",
@@ -171,7 +189,7 @@ const starterRecipeBank = [
     title: "Sheet Pan Sausage and Veg",
     summary: "Sausage, potatoes, peppers, and onions roasted together.",
     cost: 4.15,
-    minutes: 32,
+    minutes: 30,
     protein: 29,
     tags: ["batch", "family", "leftovers", "high-protein", "gluten-free"],
     source: "Sheet-pan dinner blog recipe",
@@ -1663,6 +1681,12 @@ function mergeRecipes(recipes) {
   recipeBank = [...recipeBank, ...additions];
 }
 
+function prioritizeProviderForSwap(recipes, useYoutube) {
+  const preferredProvider = recipes.filter((recipe) => isYoutubeRecipe(recipe) === useYoutube);
+  const otherProviders = recipes.filter((recipe) => isYoutubeRecipe(recipe) !== useYoutube);
+  return [...preferredProvider, ...otherProviders];
+}
+
 function replacementCandidates(meal, currentId, prefs, useYoutube) {
   const currentIds = new Set(currentPlan.map((recipe) => recipe.id));
   const currentTitles = new Set(currentPlan.map((recipe) => recipe.title.toLowerCase()));
@@ -1674,7 +1698,7 @@ function replacementCandidates(meal, currentId, prefs, useYoutube) {
       !currentTitles.has(recipe.title.toLowerCase()) &&
       isQuickPrep(recipe)
     );
-  const providerRecipes = preferProvider(quickRecipes, useYoutube, false);
+  const providerRecipes = prioritizeProviderForSwap(quickRecipes, useYoutube);
   const preferredRecipes = providerRecipes
     .filter((recipe) => matchesPreference(recipe, prefs.preference));
   const candidates = preferredRecipes.length > 0 ? preferredRecipes : providerRecipes;
