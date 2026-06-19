@@ -11,3 +11,7 @@ ios/App/App/public/
 .vercel/
 .DS_Store
 *.log
+*.jks
+*.keystore
+*.p12
+*.mobileprovision

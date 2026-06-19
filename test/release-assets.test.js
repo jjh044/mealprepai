@@ -78,6 +78,19 @@ test("Apple billing accepts verified sandbox and production transactions", () =>
   assert.match(server, /verifyAndDecodeTransaction/);
 });
 
+test("native release configuration keeps signing secrets external", () => {
+  const gradle = read("android/app/build.gradle");
+  const manifest = read("android/app/src/main/AndroidManifest.xml");
+  const ignore = read(".gitignore");
+
+  assert.match(gradle, /PREPWISE_ANDROID_KEYSTORE_PATH/);
+  assert.match(gradle, /PREPWISE_ANDROID_KEYSTORE_PASSWORD/);
+  assert.match(manifest, /android:allowBackup="false"/);
+  assert.match(manifest, /android:usesCleartextTraffic="false"/);
+  assert.match(ignore, /\*\.jks/);
+  assert.match(ignore, /\*\.p12/);
+});
+
 test("web builds package photographic recipe fallbacks", () => {
   const buildScript = read("scripts/build-web.js");
 
