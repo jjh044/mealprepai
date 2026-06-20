@@ -2673,3 +2673,447 @@ button:active:not(:disabled) {
     border: 2px solid ButtonText;
   }
 }
+
+/* Kitchen reference theme -------------------------------------------------
+   Keeps the existing PrepWise information architecture and behavior while
+   adopting the warm, editorial recipe-dashboard language from the reference. */
+:root {
+  --ink: #302f2a;
+  --muted: #756f64;
+  --line: #e3dccf;
+  --panel: #fffdfa;
+  --wash: #eee1bd;
+  --leaf: #8b8c68;
+  --leaf-dark: #5f6248;
+  --tomato: #bd6041;
+  --orange: #c96d4b;
+  --peach: #f3e5cf;
+  --blue: #6f8d96;
+  --shadow: 0 12px 28px rgba(75, 61, 39, 0.1);
+}
+
+body {
+  background-color: #36332d;
+  background-image:
+    linear-gradient(rgba(42, 40, 35, 0.34), rgba(42, 40, 35, 0.42)),
+    url("assets/meal-collage-bg.png");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.app-shell,
+.native-app .app-shell {
+  width: min(1180px, calc(100% - 40px));
+  padding-top: 18px;
+}
+
+.top-bar {
+  min-height: 64px;
+  margin-bottom: 18px;
+  padding: 8px 12px;
+  background: rgba(255, 253, 249, 0.96);
+  border: 1px solid rgba(220, 211, 197, 0.94);
+  border-radius: 10px;
+  box-shadow: 0 8px 22px rgba(83, 68, 43, 0.08);
+  backdrop-filter: blur(12px);
+}
+
+.brand-row {
+  gap: 10px;
+}
+
+.brand-mark {
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.brand-row .eyebrow {
+  display: none;
+}
+
+.brand-row h1 {
+  font-size: 1.12rem;
+  letter-spacing: -0.02em;
+}
+
+.steps {
+  gap: 2px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.step {
+  min-height: 42px;
+  padding-inline: 14px;
+  color: #5f5b53;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  font-size: 0.88rem;
+}
+
+.step:hover:not(:disabled) {
+  color: var(--tomato);
+  background: #f8eee4;
+  box-shadow: none;
+  transform: none;
+}
+
+.step.is-active {
+  color: #fff;
+  background: var(--tomato);
+  border: 0;
+  box-shadow: 0 5px 12px rgba(156, 73, 45, 0.2);
+}
+
+.subscription-button {
+  min-width: 108px;
+  min-height: 44px;
+  color: #fff;
+  text-align: center;
+  background: var(--tomato);
+  border: 0;
+  border-radius: 7px;
+}
+
+.subscription-button small,
+.is-pro .subscription-button small {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.usage-banner {
+  margin-top: -6px;
+  background: rgba(255, 251, 244, 0.78);
+  border-color: rgba(221, 207, 184, 0.9);
+  border-radius: 8px;
+}
+
+.page.is-active {
+  padding: 26px;
+  background: rgba(255, 253, 249, 0.92);
+  border: 1px solid rgba(225, 216, 202, 0.96);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+}
+
+#setup.page.is-active {
+  padding: 24px;
+  background: rgba(255, 253, 249, 0.88);
+  border: 1px solid rgba(225, 216, 202, 0.96);
+  box-shadow: var(--shadow);
+}
+
+.intro {
+  margin: 0 auto 20px;
+}
+
+.intro .food-friends {
+  min-height: 78px;
+  margin-bottom: 8px;
+  font-size: clamp(2.8rem, 6vw, 4.2rem);
+  filter: drop-shadow(0 7px 8px rgba(104, 74, 35, 0.1));
+}
+
+.intro .start-message {
+  color: var(--ink);
+  font-size: clamp(2rem, 5vw, 3.35rem);
+  letter-spacing: -0.045em;
+}
+
+.eyebrow,
+.meal-meta {
+  color: var(--tomato);
+}
+
+.setup-card {
+  max-width: 760px;
+  padding: 28px;
+  background: #fffaf2;
+  border: 1px solid #eadcc9;
+  border-radius: 10px;
+  box-shadow: 0 10px 24px rgba(76, 61, 40, 0.08);
+}
+
+.setup-card input,
+.zip-control input,
+.segmented label {
+  border-color: #dfd4c5;
+  border-radius: 7px;
+}
+
+.segmented label {
+  background: #fff;
+  box-shadow: none;
+}
+
+.segmented label::before {
+  display: none;
+}
+
+.segmented input:checked + label {
+  color: #fff;
+  background: var(--tomato);
+  box-shadow: none;
+}
+
+.stepper button {
+  border-color: #dfd4c5;
+  border-radius: 7px;
+  box-shadow: none;
+}
+
+.primary-action,
+.usage-banner button {
+  color: #fff;
+  background: var(--tomato);
+  border: 1px solid var(--tomato);
+  border-radius: 7px;
+  box-shadow: 0 6px 13px rgba(166, 76, 47, 0.18);
+}
+
+.primary-action:hover,
+.usage-banner button:hover {
+  background: #a94f34;
+  border-color: #a94f34;
+  box-shadow: 0 8px 16px rgba(166, 76, 47, 0.23);
+}
+
+.ghost-action,
+.swap-meal-action,
+.favorite-action,
+.plan-history-card button,
+.instacart-detail-action {
+  color: #6b5547;
+  background: #fff;
+  border: 1px solid #ded4c7;
+  border-radius: 7px;
+}
+
+.page-heading {
+  align-items: end;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid #e5ddd1;
+}
+
+.page-heading .primary-page-title,
+.page-heading h2 {
+  color: var(--ink);
+  font-size: clamp(1.8rem, 4vw, 2.7rem);
+  letter-spacing: -0.04em;
+}
+
+.page-heading .primary-page-title::after {
+  content: none;
+}
+
+.meal-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.meal-card,
+.grocery-group,
+.store-card,
+.account-card,
+.plan-history-panel,
+.prep-tips-panel,
+.subscription-option,
+.instacart-product {
+  background: #fffdfa;
+  border: 1px solid #e1d8cc;
+  border-radius: 9px;
+  box-shadow: 0 9px 20px rgba(75, 61, 40, 0.08);
+}
+
+.meal-card {
+  position: relative;
+  border-radius: 9px;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.meal-card:hover {
+  box-shadow: 0 14px 28px rgba(75, 61, 40, 0.14);
+  transform: translateY(-3px);
+}
+
+.meal-card img {
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: #eadfcf;
+}
+
+.meal-body {
+  padding: 16px;
+}
+
+.meal-card h3 {
+  margin-top: 7px;
+  font-size: 1.18rem;
+}
+
+.meal-card h4 {
+  color: #59544b;
+  letter-spacing: 0.04em;
+}
+
+.favorite-action[aria-pressed="true"] {
+  background: var(--tomato);
+  border-color: var(--tomato);
+}
+
+.chip {
+  color: #635f49;
+  background: #f1eddf;
+  border: 1px solid #e3ddca;
+  border-radius: 5px;
+}
+
+.source-link {
+  color: var(--tomato);
+}
+
+.prep-tips-panel {
+  background: #f8efe1;
+}
+
+#prep-tips-content article {
+  border-color: #e2d6c4;
+  border-radius: 7px;
+}
+
+.grocery-list {
+  max-width: 860px;
+}
+
+.grocery-group {
+  padding: 18px 20px;
+}
+
+.grocery-items li {
+  min-height: 54px;
+  border-radius: 6px;
+}
+
+.grocery-items li:hover {
+  background: #faf1e6;
+}
+
+.grocery-check {
+  border-color: #b9b2a7;
+  border-radius: 4px;
+}
+
+.grocery-items li[aria-checked="true"] .grocery-check {
+  background: var(--leaf-dark);
+  border-color: var(--leaf-dark);
+}
+
+.account-card a {
+  color: #6b5547;
+  background: #f8f1e7;
+  border-color: #e5dacb;
+  border-radius: 7px;
+}
+
+.paywall-card,
+.auth-card {
+  background: #fffaf2;
+  border-color: #ded1bf;
+  border-radius: 10px;
+}
+
+.subscription-option:hover {
+  border-color: var(--tomato);
+}
+
+@media (max-width: 900px) {
+  .top-bar {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+
+  .brand-row {
+    flex: 1 1 auto;
+  }
+
+  .steps {
+    order: 3;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .step {
+    flex: 1 0 auto;
+  }
+
+  .meal-grid,
+  .account-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .app-shell,
+  .native-app .app-shell {
+    width: min(100% - 16px, 1180px);
+  }
+
+  .top-bar {
+    border-radius: 8px;
+  }
+
+  .brand-mark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .subscription-button {
+    min-width: 96px;
+  }
+
+  .steps {
+    padding-top: 7px;
+    border-top: 1px solid #ebe3d8;
+  }
+
+  .page.is-active,
+  #setup.page.is-active {
+    padding: 18px 14px;
+    border-radius: 8px;
+  }
+
+  .setup-card {
+    padding: 20px 16px;
+    border-radius: 8px;
+  }
+
+  .meal-grid,
+  .account-grid,
+  #prep-tips-content {
+    grid-template-columns: 1fr;
+  }
+
+  .meal-card {
+    border-radius: 8px;
+  }
+
+  .page-heading {
+    align-items: start;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meal-card {
+    transition: none;
+  }
+}
