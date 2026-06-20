@@ -2069,7 +2069,8 @@ function renderGroceries(groceries) {
             : "";
 
           return `
-            <li>
+            <li tabindex="0" role="checkbox" aria-checked="false">
+              <span class="grocery-check" aria-hidden="true"></span>
               <span><span class="grocery-item-name">${item.name}</span>${nutritionText}</span>
               <strong>${storeQuantityFor(item)}</strong>
             </li>
@@ -2079,6 +2080,20 @@ function renderGroceries(groceries) {
       return `<article class="grocery-group"><h3>${titleCase(category)}</h3><ul class="grocery-items">${lis}</ul></article>`;
     })
     .join("");
+
+  groceryList.querySelectorAll(".grocery-items li").forEach((item) => {
+    const toggle = () => {
+      const checked = item.getAttribute("aria-checked") === "true";
+      item.setAttribute("aria-checked", String(!checked));
+    };
+    item.addEventListener("click", toggle);
+    item.addEventListener("keydown", (event) => {
+      if (event.key === " " || event.key === "Enter") {
+        event.preventDefault();
+        toggle();
+      }
+    });
+  });
 }
 
 function escapeHtml(value) {
@@ -2388,6 +2403,25 @@ document.querySelectorAll(".step").forEach((button) => {
 document.querySelectorAll("[data-page-link]").forEach((button) => {
   button.addEventListener("click", () => {
     showPage(button.dataset.pageLink);
+  });
+});
+
+const budgetOutput = document.querySelector("#budget-output");
+const budgetInput = document.querySelector("#budget");
+const peopleInput = document.querySelector("#people");
+const syncBudgetOutput = () => {
+  budgetOutput.textContent = `$${budgetInput.value}`;
+  const progress = ((Number(budgetInput.value) - Number(budgetInput.min)) / (Number(budgetInput.max) - Number(budgetInput.min))) * 100;
+  budgetInput.style.setProperty("--range-progress", `${progress}%`);
+};
+budgetInput.addEventListener("input", syncBudgetOutput);
+syncBudgetOutput();
+
+document.querySelectorAll("[data-step-people]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const next = Math.max(Number(peopleInput.min), Math.min(Number(peopleInput.max), Number(peopleInput.value) + Number(button.dataset.stepPeople)));
+    peopleInput.value = String(next);
+    peopleInput.dispatchEvent(new Event("change", { bubbles: true }));
   });
 });
 

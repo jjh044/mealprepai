@@ -3,8 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fff8e9" />
     <title>PrepWise Meal Prep</title>
-    <link rel="stylesheet" href="styles.css?v=20260615-setup-layout" />
+    <link rel="stylesheet" href="styles.css?v=20260620-playful-2" />
   </head>
   <body>
     <div id="network-banner" class="network-banner" role="status" aria-live="polite" hidden></div>
@@ -34,21 +35,23 @@
 
       <section id="setup" class="page is-active" aria-label="Meal prep setup">
         <div class="intro">
-          <p class="eyebrow">Start here</p>
-          <p class="start-message">Meal Prep Without Thinking</p>
+          <div class="food-friends" aria-hidden="true">
+            <span>🥑</span><span>🥕</span><span>🍞</span>
+          </div>
+          <p class="eyebrow">Your week, made delicious</p>
+          <p class="start-message">Stop wondering what to cook</p>
+          <p>Tell us what works for your table and we’ll handle the planning.</p>
         </div>
 
         <form id="planner-form" class="setup-card">
-          <label>
-            Weekly budget
-            <span class="money-field">
-              <span>$</span>
-              <input id="budget" name="budget" type="number" min="35" max="350" value="125" required />
-            </span>
+          <label class="setup-field budget-control">
+            <span class="field-heading">Weekly budget <output id="budget-output" for="budget">$125</output></span>
+            <input id="budget" name="budget" type="range" min="35" max="350" step="5" value="125" required />
+            <span class="range-scale" aria-hidden="true"><span>$35</span><span>$350</span></span>
           </label>
 
-          <label>
-            ZIP code
+          <label class="setup-field zip-control">
+            <span class="field-heading">ZIP code <span class="field-hint">for nearby estimates</span></span>
             <input
               id="zip"
               name="zip"
@@ -62,13 +65,17 @@
             />
           </label>
 
-          <label>
-            Number of people
-            <input id="people" name="people" type="number" min="1" max="8" value="2" required />
+          <label class="setup-field people-control">
+            <span class="field-heading">Number of people</span>
+            <span class="stepper">
+              <button type="button" data-step-people="-1" aria-label="Remove one person">−</button>
+              <input id="people" name="people" type="number" min="1" max="8" value="2" required />
+              <button type="button" data-step-people="1" aria-label="Add one person">+</button>
+            </span>
           </label>
 
           <fieldset>
-            <legend>Food preference</legend>
+            <legend>Food preferences</legend>
             <div class="segmented">
               <input type="radio" name="preference" id="pref-balanced" value="balanced" checked />
               <label for="pref-balanced">Balanced</label>
@@ -89,7 +96,7 @@
             </div>
           </fieldset>
 
-          <button class="primary-action" type="submit">Build meal prep</button>
+          <button class="primary-action" type="submit">Create my meal plan <span aria-hidden="true">→</span></button>
         </form>
 
         <section id="plan-history-panel" class="plan-history-panel" hidden>
