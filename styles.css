@@ -2695,9 +2695,9 @@ button:active:not(:disabled) {
 body {
   background-color: #36332d;
   background-image:
-    linear-gradient(rgba(42, 40, 35, 0.34), rgba(42, 40, 35, 0.42)),
-    url("assets/meal-collage-bg.png");
-  background-position: center;
+    linear-gradient(rgba(42, 40, 35, 0.4), rgba(42, 40, 35, 0.48)),
+    url("assets/youtube-meal-bg.png");
+  background-position: center top;
   background-size: cover;
   background-repeat: no-repeat;
   background-attachment: fixed;
