@@ -44,7 +44,7 @@ test("processes data returned by a signed-payload verifier", async () => {
       notificationUUID: "uuid-1",
       notificationType: "REFUND",
       transaction: {
-        productId: "prepwise_pro_monthly",
+        productId: "prepwise_pro_month_v2",
         originalTransactionId: "1000000002"
       }
     })

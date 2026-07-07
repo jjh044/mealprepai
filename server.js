@@ -812,7 +812,7 @@ async function verifyAppleTransaction(body) {
   const { decoded: transaction } = await verifyAppleSignedData(
     (verifier) => verifier.verifyAndDecodeTransaction(body.signedTransaction)
   );
-  if (!["prepwise_pro_monthly", "prepwise_pro_yearly"].includes(transaction.productId)) {
+  if (!["prepwise_pro_month_v2", "prepwise_pro_yearly"].includes(transaction.productId)) {
     throw Object.assign(new Error("Unknown Apple subscription product"), { statusCode: 400 });
   }
   if (!transaction.originalTransactionId) {
@@ -903,7 +903,7 @@ async function verifyGooglePlayPurchase(body) {
   }
   const purchase = await response.json();
   const lineItem = purchase.lineItems?.[0];
-  if (!lineItem || !["prepwise_pro_monthly", "prepwise_pro_yearly"].includes(lineItem.productId)) {
+  if (!lineItem || !["prepwise_pro_month_v2", "prepwise_pro_yearly"].includes(lineItem.productId)) {
     throw Object.assign(new Error("Unknown Google Play subscription product"), { statusCode: 400 });
   }
   const states = {

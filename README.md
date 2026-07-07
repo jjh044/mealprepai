@@ -56,7 +56,7 @@ Google Places is used only for nearby store discovery. Basket prices are app est
 
 ## Subscription Model
 
-- Subscription group products: `prepwise_pro_monthly` and `prepwise_pro_yearly`
+- Subscription group products: `prepwise_pro_month_v2` and `prepwise_pro_yearly`
 - Free weekly limits: 2 meal plans, 3 meal swaps, and 1 AI-assist package
 - Pro entitlement: unlimited plans, swaps, and AI prep help
 - Signed-in users store preferences and plan history in Convex for cross-device access

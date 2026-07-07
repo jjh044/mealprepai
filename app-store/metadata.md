@@ -41,6 +41,12 @@ Nutrition, allergens, ingredients, costs, availability, and store totals are est
 
 PrepWise Pro is available as an auto-renewing monthly or yearly subscription. Prices and any trial terms are shown before purchase. Manage or cancel through your Apple Account subscription settings.
 
+Privacy Policy: https://www.prepwiseai.app/privacy.html
+
+Terms of Use: https://www.prepwiseai.app/terms.html
+
+Apple Standard EULA: https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+
 ## Keywords
 
 `meal prep,meal planner,grocery list,budget meals,recipes,weekly meals,food planner`
@@ -51,12 +57,13 @@ PrepWise Pro is available as an auto-renewing monthly or yearly subscription. Pr
 - Support URL: `https://www.prepwiseai.app/support.html`
 - Privacy Policy URL: `https://www.prepwiseai.app/privacy.html`
 - Terms URL: `https://www.prepwiseai.app/terms.html`
+- Standard Apple EULA URL: `https://www.apple.com/legal/internet-services/itunes/dev/stdeula/`
 
 ## Subscription Products
 
 Subscription group: `PrepWise Pro`
 
-- `prepwise_pro_monthly`
+- `prepwise_pro_month_v2`
   - Reference name: `PrepWise Pro Monthly`
   - Duration: 1 month
   - Level: 1

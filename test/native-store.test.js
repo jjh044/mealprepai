@@ -55,11 +55,11 @@ test("purchase, restore, and manage calls are delegated to the native bridge", a
     }
   });
 
-  assert.equal((await adapter.purchase("prepwise_pro_monthly")).state, "pending");
+  assert.equal((await adapter.purchase("prepwise_pro_month_v2")).state, "pending");
   assert.equal((await adapter.restore()).state, "restored");
   assert.equal((await adapter.manageSubscriptions()).state, "opened");
   assert.deepEqual(calls, [
-    ["purchase", "prepwise_pro_monthly"],
+    ["purchase", "prepwise_pro_month_v2"],
     ["restore"],
     ["manage"]
   ]);

@@ -12,11 +12,13 @@ After sign-in, choose a weekly budget, household size, ZIP code, and food prefer
 ## Subscription Testing
 
 - Subscription group: `PrepWise Pro`
-- Monthly product: `prepwise_pro_monthly`
+- Monthly product: `prepwise_pro_month_v2`
 - Yearly product: `prepwise_pro_yearly`
 - Paid features: unlimited plan builds, swaps, AI prep guidance, and saved history
 - Restore Purchases is available from both the paywall and Account screen
 - Manage Subscription opens Apple's subscription-management interface in the native iOS build
+- The paywall and Account screen include functional Privacy Policy and Terms of Use links
+- The App Store Description includes the Terms of Use URL and standard Apple EULA URL
 
 The web build uses Stripe and does not grant App Store entitlement. The iOS build uses StoreKit 2 and grants Pro only after server verification of Apple's signed transaction.
 

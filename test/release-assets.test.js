@@ -191,6 +191,9 @@ test("store submission documents match production account and privacy behavior",
   assert.doesNotMatch(reviewNotes, /REPLACE_BEFORE_SUBMISSION/);
   assert.match(reviewNotes, /Production cloud authentication is enabled/);
   assert.match(appleMetadata, /https:\/\/www\.prepwiseai\.app\/privacy\.html/);
+  assert.match(appleMetadata, /Terms of Use: https:\/\/www\.prepwiseai\.app\/terms\.html/);
+  assert.match(appleMetadata, /Apple Standard EULA: https:\/\/www\.apple\.com\/legal\/internet-services\/itunes\/dev\/stdeula\//);
+  assert.match(reviewNotes, /App Store Description includes the Terms of Use URL and standard Apple EULA URL/);
   assert.match(privacyManifest, /NSPrivacyCollectedDataTypeProductInteraction/);
   assert.match(privacyManifest, /NSPrivacyCollectedDataTypeCrashData/);
   assert.match(privacyManifest, /NSPrivacyCollectedDataTypePerformanceData/);

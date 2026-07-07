@@ -1,5 +1,5 @@
 (function initPrepWiseNativeStore(globalScope) {
-  const PRODUCT_IDS = ["prepwise_pro_monthly", "prepwise_pro_yearly"];
+  const PRODUCT_IDS = ["prepwise_pro_month_v2", "prepwise_pro_yearly"];
 
   function unavailableProducts() {
     return PRODUCT_IDS.map((id) => ({

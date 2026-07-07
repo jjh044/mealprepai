@@ -46,7 +46,7 @@ PrepWise Pro is available as an auto-renewing monthly or yearly subscription. Pr
 
 ## Subscription products
 
-- `prepwise_pro_monthly`: monthly auto-renewing subscription
+- `prepwise_pro_month_v2`: monthly auto-renewing subscription
 - `prepwise_pro_yearly`: yearly auto-renewing subscription
 
 Use one active base plan for each product and load localized pricing from Google Play Billing at runtime.

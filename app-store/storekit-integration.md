@@ -3,7 +3,7 @@
 The web UI expects a native object at `window.PrepWiseNativeStore` with these asynchronous methods:
 
 ```js
-loadProducts(["prepwise_pro_monthly", "prepwise_pro_yearly"])
+loadProducts(["prepwise_pro_month_v2", "prepwise_pro_yearly"])
 purchase(productId)
 restore()
 manageSubscriptions()

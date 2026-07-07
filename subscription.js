@@ -1,7 +1,7 @@
 (function initPrepWiseSubscription(globalScope) {
   const PRODUCTS = Object.freeze({
     monthly: Object.freeze({
-      id: "prepwise_pro_monthly",
+      id: "prepwise_pro_month_v2",
       name: "PrepWise Pro Monthly",
       period: "month",
       level: 1

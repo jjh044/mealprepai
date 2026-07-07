@@ -19,7 +19,7 @@ npm test
 2. Set `JAVA_HOME` to Android Studio's JBR directory if Gradle cannot find Java.
 3. Open `android/` in Android Studio.
 4. Create both subscriptions in Google Play Console:
-   - `prepwise_pro_monthly`
+   - `prepwise_pro_month_v2`
    - `prepwise_pro_yearly`
 5. Create a Google Play service account with Android Publisher access.
 6. Add the production service-account JSON to Vercel as
@@ -34,7 +34,7 @@ Play listing assets are in `app-store/android/`.
 1. Open `ios/App/App.xcodeproj` on a Mac with Xcode 26.
 2. Select the Apple Developer team and confirm bundle ID `com.prepwise.app`.
 3. Create both subscriptions in App Store Connect:
-   - `prepwise_pro_monthly`
+   - `prepwise_pro_month_v2`
    - `prepwise_pro_yearly`
 4. Download Apple's current root certificates from Apple PKI.
 5. DER-encode and Base64-encode the certificates, then store the JSON array in
