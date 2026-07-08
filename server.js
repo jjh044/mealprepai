@@ -1286,32 +1286,51 @@ async function handleStoresRequest(requestUrl, res) {
     return;
   }
 
-  const nearby = await rapidApiPostToHost(
-    GOOGLE_PLACES_NEW_RAPIDAPI_HOST,
-    "/v1/places:searchNearby",
-    {
-      languageCode: "en",
-      regionCode: "US",
-      includedTypes: ["supermarket"],
-      maxResultCount: 20,
-      locationRestriction: {
-        circle: {
-          center: {
-            latitude: location.lat,
-            longitude: location.lng
-          },
-          radius: 8000
+  let nearbyPlaces = [];
+  try {
+    const nearby = await rapidApiPostToHost(
+      GOOGLE_PLACES_NEW_RAPIDAPI_HOST,
+      "/v1/places:searchNearby",
+      {
+        languageCode: "en",
+        regionCode: "US",
+        includedTypes: ["supermarket"],
+        maxResultCount: 20,
+        locationRestriction: {
+          circle: {
+            center: {
+              latitude: location.lat,
+              longitude: location.lng
+            },
+            radius: 8000
+          }
         }
+      },
+      30000,
+      {
+        "X-Goog-FieldMask":
+          "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.currentOpeningHours,places.types,places.primaryType"
       }
-    },
-    30000,
-    {
-      "X-Goog-FieldMask":
-        "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.currentOpeningHours,places.types,places.primaryType"
-    }
-  );
+    );
+    nearbyPlaces = nearby.places || [];
+  } catch (error) {
+    console.warn("Google Places v2 nearby search failed; using legacy nearby search", error.message);
+  }
 
-  const stores = dedupeStoreBrands((nearby.places || [])
+  if (!nearbyPlaces.length) {
+    const legacyNearby = await rapidApiGetFromHost(
+      GOOGLE_PLACES_RAPIDAPI_HOST,
+      `/maps/api/place/nearbysearch/json?${new URLSearchParams({
+        location: `${location.lat},${location.lng}`,
+        radius: "8000",
+        type: "supermarket",
+        language: "en"
+      })}`
+    );
+    nearbyPlaces = legacyNearby.results || [];
+  }
+
+  const stores = dedupeStoreBrands(nearbyPlaces
     .filter(isGroceryStore)
     .map((place, index) => normalizeStore(place, location, index)))
     .slice(0, 8);

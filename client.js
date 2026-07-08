@@ -329,7 +329,6 @@ const STORAGE_KEYS = {
   preferences: "prepwise-preferences"
 };
 const DEFAULT_REQUEST_TIMEOUT_MS = 15000;
-const SLOW_REQUEST_TIMEOUT_MS = 55000;
 const subscriptionManager = window.PrepWiseSubscription.createSubscriptionManager({
   storage: window.localStorage
 });
@@ -360,9 +359,6 @@ const copyButton = document.querySelector("#copy-list");
 const recipeSourceStatus = document.querySelector("#recipe-source-status");
 const prepTipsPanel = document.querySelector("#prep-tips-panel");
 const prepTipsContent = document.querySelector("#prep-tips-content");
-const instacartPanel = document.querySelector(".instacart-panel");
-const loadInstacartProductsButton = document.querySelector("#load-instacart-products");
-const instacartProducts = document.querySelector("#instacart-products");
 const subscriptionButton = document.querySelector("#subscription-button");
 const subscriptionLabel = document.querySelector("#subscription-label");
 const subscriptionDetail = document.querySelector("#subscription-detail");
@@ -438,12 +434,6 @@ function isDevBillingBypassEnabled() {
   return appConfig.devBillingBypass === true;
 }
 
-function applyProductionConfigUi() {
-  if (instacartPanel) {
-    instacartPanel.hidden = appConfig.instacartProductsEnabled !== true;
-  }
-}
-
 async function loadAppConfig() {
   if (appConfigPromise) return appConfigPromise;
   appConfigPromise = fetch(`${window.PrepWiseApiOrigin || ""}/api/config`)
@@ -454,7 +444,6 @@ async function loadAppConfig() {
       if (isDevBillingBypassEnabled() && !storeAdapter.isNative && !subscriptionManager.isPro()) {
         subscriptionManager.activateDemo(window.PrepWiseSubscription.PRODUCTS.yearly.id);
       }
-      applyProductionConfigUi();
       updateSubscriptionUi();
       return appConfig;
     })
@@ -470,10 +459,8 @@ window.addEventListener("prepwise:config", (event) => {
   if (isDevBillingBypassEnabled() && !storeAdapter.isNative && !subscriptionManager.isPro()) {
     subscriptionManager.activateDemo(window.PrepWiseSubscription.PRODUCTS.yearly.id);
   }
-  applyProductionConfigUi();
   updateSubscriptionUi();
 });
-applyProductionConfigUi();
 loadAppConfig();
 
 function updateSubscriptionUi() {
@@ -2210,98 +2197,6 @@ async function renderStores(plan, prefs) {
     .join("");
 }
 
-function renderInstacartProducts(products) {
-  if (!instacartProducts) return;
-
-  if (!Array.isArray(products) || products.length === 0) {
-    instacartProducts.innerHTML = `<p class="empty-state">No Instacart products returned.</p>`;
-    return;
-  }
-
-  instacartProducts.innerHTML = products
-    .map((product, index) => `
-      <article class="instacart-product">
-        <a href="${escapeHtml(product.url)}" target="_blank" rel="noreferrer">
-          ${product.image ? `<img src="${escapeHtml(product.image)}" alt="${escapeHtml(product.name)}" />` : ""}
-          <span>
-            <strong>${escapeHtml(product.name)}</strong>
-            <small>${escapeHtml([product.size, product.price].filter(Boolean).join(" - ") || "View on Instacart")}</small>
-          </span>
-        </a>
-        <button class="instacart-detail-action" type="button" data-product-index="${index}">Load details</button>
-        <div class="instacart-detail" data-product-detail="${index}"></div>
-      </article>
-    `)
-    .join("");
-
-  instacartProducts.querySelectorAll(".instacart-detail-action").forEach((button) => {
-    button.addEventListener("click", () => loadInstacartProductDetail(products[Number(button.dataset.productIndex)], button));
-  });
-}
-
-async function loadInstacartProductDetail(product, button) {
-  if (!product?.url || !instacartProducts) return;
-
-  const detail = instacartProducts.querySelector(`[data-product-detail="${button.dataset.productIndex}"]`);
-  button.disabled = true;
-  button.textContent = "Loading details...";
-  if (detail) {
-    detail.innerHTML = `<p class="empty-state">Instacart is fetching this product. This can take a minute.</p>`;
-  }
-
-  try {
-    const response = await apiFetch("/api/instacart/product", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ url: product.url })
-    }, SLOW_REQUEST_TIMEOUT_MS);
-
-    const data = await response.json();
-    if (detail) {
-      detail.innerHTML = `
-        <dl>
-          ${data.brand ? `<div><dt>Brand</dt><dd>${escapeHtml(data.brand)}</dd></div>` : ""}
-          ${data.price ? `<div><dt>Price</dt><dd>${escapeHtml(data.price)}</dd></div>` : ""}
-          ${data.category ? `<div><dt>Category</dt><dd>${escapeHtml(data.category)}</dd></div>` : ""}
-          ${data.productInfo ? `<div><dt>Info</dt><dd>${escapeHtml(data.productInfo)}</dd></div>` : ""}
-        </dl>
-      `;
-    }
-    button.textContent = "Refresh details";
-  } catch (error) {
-    console.error(error);
-    if (detail) {
-      detail.innerHTML = `<p class="empty-state">Product details could not be loaded.</p>`;
-    }
-    button.textContent = "Try details again";
-  } finally {
-    button.disabled = false;
-  }
-}
-
-async function loadInstacartProducts() {
-  if (!loadInstacartProductsButton || !instacartProducts) return;
-
-  loadInstacartProductsButton.disabled = true;
-  loadInstacartProductsButton.textContent = "Loading Instacart...";
-  instacartProducts.innerHTML = `<p class="empty-state">Instacart is fetching live product listings. This can take a minute.</p>`;
-
-  try {
-    const response = await apiFetch("/api/instacart/products", {}, SLOW_REQUEST_TIMEOUT_MS);
-
-    renderInstacartProducts(await response.json());
-    loadInstacartProductsButton.textContent = "Refresh Instacart products";
-  } catch (error) {
-    console.error(error);
-    instacartProducts.innerHTML = `<p class="empty-state">Instacart products could not be loaded.</p>`;
-    loadInstacartProductsButton.textContent = "Try Instacart again";
-  } finally {
-    loadInstacartProductsButton.disabled = false;
-  }
-}
-
 function formatAmount(amount) {
   const rounded = Math.round(amount * 4) / 4;
   return Number.isInteger(rounded) ? String(rounded) : String(rounded.toFixed(2)).replace(/0$/, "");
@@ -2450,10 +2345,6 @@ copyButton.addEventListener("click", async () => {
     copyButton.textContent = "Copy list";
   }, 1400);
 });
-
-if (loadInstacartProductsButton) {
-  loadInstacartProductsButton.addEventListener("click", loadInstacartProducts);
-}
 
 subscriptionButton.addEventListener("click", () => {
   const status = cloudState.authenticated && cloudState.data && !isDevBillingBypassEnabled()
