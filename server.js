@@ -1451,22 +1451,50 @@ async function geocodeUsZip(zip) {
   let lastGeocode = null;
 
   for (const params of attempts) {
-    const geocode = await rapidApiGetFromHost(
-      GOOGLE_PLACES_RAPIDAPI_HOST,
-      `/maps/api/geocode/json?${params}`
-    );
-    lastGeocode = geocode;
-    if (geocode.status === "OK" && geocode.results?.[0]?.geometry?.location) {
-      return geocode;
+    try {
+      const geocode = await rapidApiGetFromHost(
+        GOOGLE_PLACES_RAPIDAPI_HOST,
+        `/maps/api/geocode/json?${params}`
+      );
+      lastGeocode = geocode;
+      if (geocode.status === "OK" && geocode.results?.[0]?.geometry?.location) {
+        return geocode;
+      }
+    } catch (error) {
+      console.warn("RapidAPI ZIP geocode failed", error.message);
     }
   }
 
-  return lastGeocode || { status: "ZERO_RESULTS", results: [] };
+  return await geocodeUsZipFallback(zip) || lastGeocode || { status: "ZERO_RESULTS", results: [] };
+}
+
+async function geocodeUsZipFallback(zip) {
+  try {
+    const response = await fetch(`https://api.zippopotam.us/us/${encodeURIComponent(zip)}`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const place = Array.isArray(data.places) ? data.places[0] : null;
+    const lat = Number(place?.latitude);
+    const lng = Number(place?.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+    return {
+      status: "OK",
+      results: [{
+        formatted_address: `${place["place name"] || zip}, ${place["state abbreviation"] || ""} ${zip}`.trim(),
+        geometry: { location: { lat, lng } }
+      }]
+    };
+  } catch (error) {
+    console.warn("Fallback ZIP geocode failed", error.message);
+    return null;
+  }
 }
 
 async function fetchNearbyGroceryPlaces(zip, location) {
   const providers = [
     () => fetchGooglePlacesV2Nearby(location),
+    () => fetchGooglePlacesV2TextSearch(zip),
     () => fetchGooglePlacesLegacyNearby(location),
     () => fetchGooglePlacesLegacyTextSearch(zip)
   ];
@@ -1516,6 +1544,26 @@ async function fetchGooglePlacesV2Nearby(location) {
   );
 
   return nearby.places || [];
+}
+
+async function fetchGooglePlacesV2TextSearch(zip) {
+  const search = await rapidApiPostToHost(
+    GOOGLE_PLACES_NEW_RAPIDAPI_HOST,
+    "/v1/places:searchText",
+    {
+      textQuery: `grocery stores near ${zip}`,
+      languageCode: "en",
+      regionCode: "US",
+      maxResultCount: 20
+    },
+    30000,
+    {
+      "X-Goog-FieldMask":
+        "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.currentOpeningHours,places.types,places.primaryType"
+    }
+  );
+
+  return search.places || [];
 }
 
 async function fetchGooglePlacesLegacyNearby(location) {
