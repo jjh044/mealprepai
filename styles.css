@@ -615,7 +615,13 @@ fieldset {
 
 .segmented input {
   position: absolute;
+  width: 1px;
+  min-height: 0;
+  height: 1px;
+  margin: 0;
+  padding: 0;
   opacity: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -2390,9 +2396,51 @@ button:active:not(:disabled) {
   font-size: 1.04rem;
 }
 
-.setup-card .primary-action span {
+.setup-card .primary-action .button-arrow {
   margin-left: 10px;
   font-size: 1.3rem;
+}
+
+.primary-action.is-loading,
+.primary-action:disabled {
+  cursor: wait;
+  opacity: 0.78;
+  transform: none;
+}
+
+.primary-action.is-loading::before {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.46);
+  border-top-color: #fff;
+  border-radius: 999px;
+  animation: planSpin 850ms linear infinite;
+}
+
+.plan-loading-status {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  margin: -2px 0 0;
+  color: var(--tomato);
+  font-size: 0.92rem;
+  font-weight: 850;
+  text-align: center;
+}
+
+.plan-loading-status[hidden] {
+  display: none;
+}
+
+@keyframes planSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .ghost-action,
@@ -3065,7 +3113,10 @@ body {
 @media (max-width: 600px) {
   .app-shell,
   .native-app .app-shell {
-    width: min(100% - 16px, 1180px);
+    width: 100%;
+    max-width: 100%;
+    padding-right: max(8px, env(safe-area-inset-right));
+    padding-left: max(8px, env(safe-area-inset-left));
   }
 
   .top-bar {
@@ -3082,8 +3133,17 @@ body {
   }
 
   .steps {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     padding-top: 7px;
+    overflow-x: clip;
     border-top: 1px solid #ebe3d8;
+  }
+
+  .step {
+    min-width: 0;
+    padding-inline: 6px;
+    white-space: normal;
   }
 
   .page.is-active,

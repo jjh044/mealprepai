@@ -344,6 +344,10 @@ const meals = ["Breakfast", "Lunch", "Dinner"];
 const prepDays = 5;
 
 const form = document.querySelector("#planner-form");
+const createPlanButton = document.querySelector("#create-plan-button");
+const createPlanButtonLabel = createPlanButton?.querySelector(".button-label");
+const createPlanButtonArrow = createPlanButton?.querySelector(".button-arrow");
+const planLoadingStatus = document.querySelector("#plan-loading-status");
 const mealGrid = document.querySelector("#meal-grid");
 const groceryList = document.querySelector("#grocery-list");
 const storeList = document.querySelector("#store-list");
@@ -383,6 +387,7 @@ let favoriteMeals = loadFavorites();
 let lastRecipePreference = "";
 let activeRenderId = 0;
 let hasBuiltPlan = false;
+let isCreatingPlan = false;
 let ingredientNutrition = new Map();
 let activeTipsId = 0;
 let activeStoresId = 0;
@@ -2199,6 +2204,27 @@ function titleCase(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function setCreatePlanLoading(isLoading) {
+  isCreatingPlan = isLoading;
+  if (createPlanButton) {
+    createPlanButton.disabled = isLoading;
+    createPlanButton.classList.toggle("is-loading", isLoading);
+    createPlanButton.setAttribute("aria-busy", String(isLoading));
+  }
+  if (createPlanButtonLabel) {
+    createPlanButtonLabel.textContent = isLoading ? "Building your meal plan" : "Create my meal plan";
+  }
+  if (createPlanButtonArrow) {
+    createPlanButtonArrow.hidden = isLoading;
+  }
+  if (planLoadingStatus) {
+    planLoadingStatus.hidden = !isLoading;
+    planLoadingStatus.textContent = isLoading
+      ? "Working on your meals now. This can take a moment."
+      : "";
+  }
+}
+
 async function rerender(options = {}) {
   const renderId = ++activeRenderId;
   const prefs = getPreferences();
@@ -2315,6 +2341,7 @@ document.querySelectorAll("[data-step-people]").forEach((button) => {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
+  if (isCreatingPlan) return;
   if (!form.reportValidity()) return;
   const prefs = getPreferences();
   track("meal_plan_requested", {
@@ -2322,8 +2349,13 @@ form.addEventListener("submit", async (event) => {
     household_size: prefs.people,
     preference: prefs.preference,
   });
-  const built = await rerender({ loadRecipes: true });
-  if (built) showPage("meals");
+  setCreatePlanLoading(true);
+  try {
+    const built = await rerender({ loadRecipes: true });
+    if (built) showPage("meals");
+  } finally {
+    setCreatePlanLoading(false);
+  }
 });
 
 copyButton.addEventListener("click", async () => {

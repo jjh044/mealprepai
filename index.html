@@ -96,7 +96,13 @@
             </div>
           </fieldset>
 
-          <button class="primary-action" type="submit">Create my meal plan <span aria-hidden="true">→</span></button>
+          <button id="create-plan-button" class="primary-action" type="submit">
+            <span class="button-label">Create my meal plan</span>
+            <span class="button-arrow" aria-hidden="true">→</span>
+          </button>
+          <p id="plan-loading-status" class="plan-loading-status" role="status" aria-live="polite" hidden>
+            Building your meal plan...
+          </p>
         </form>
 
         <section id="plan-history-panel" class="plan-history-panel" hidden>
