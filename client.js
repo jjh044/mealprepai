@@ -335,6 +335,20 @@ const subscriptionManager = window.PrepWiseSubscription.createSubscriptionManage
 const storeAdapter = window.PrepWiseStore.createStoreAdapter();
 document.body.classList.toggle("storekit-native", storeAdapter.isNative);
 if (!storeAdapter.isNative) subscriptionManager.clearDemo();
+
+function applyTestingUrlActions() {
+  const params = new URLSearchParams(window.location.search);
+  if (!params.has("resetTesting")) return;
+
+  localStorage.removeItem(window.PrepWiseSubscription.STORAGE_KEYS.usage);
+  params.delete("resetTesting");
+
+  const nextQuery = params.toString();
+  const nextUrl = `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ""}${window.location.hash || "#setup"}`;
+  window.history.replaceState(window.history.state, "", nextUrl);
+}
+
+applyTestingUrlActions();
 let appConfig = window.PrepWiseAppConfig || {};
 let appConfigPromise = null;
 
