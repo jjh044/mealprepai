@@ -36,6 +36,8 @@ test("cost comparison never renders fake store address fallbacks", () => {
   assert.match(server, /\$\{zip\}, USA/);
   assert.match(server, /No nearby grocery stores with verified addresses/);
   assert.match(server, /fetchGooglePlacesV2TextSearch/);
+  assert.match(server, /fetchOpenStreetMapGroceryPlaces/);
+  assert.match(server, /nominatim\.openstreetmap\.org/);
   assert.match(server, /fetchGooglePlacesLegacyTextSearch/);
   assert.match(server, /grocery stores near/);
   assert.doesNotMatch(server, /fallbackStorePayload/);

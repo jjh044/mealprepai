@@ -1495,6 +1495,7 @@ async function fetchNearbyGroceryPlaces(zip, location) {
   const providers = [
     () => fetchGooglePlacesV2Nearby(location),
     () => fetchGooglePlacesV2TextSearch(zip),
+    () => fetchOpenStreetMapGroceryPlaces(location),
     () => fetchGooglePlacesLegacyNearby(location),
     () => fetchGooglePlacesLegacyTextSearch(zip)
   ];
@@ -1564,6 +1565,61 @@ async function fetchGooglePlacesV2TextSearch(zip) {
   );
 
   return search.places || [];
+}
+
+async function fetchOpenStreetMapGroceryPlaces(location) {
+  const lat = Number(location.lat);
+  const lng = Number(location.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
+
+  const viewbox = [
+    (lng - 0.1).toFixed(4),
+    (lat + 0.1).toFixed(4),
+    (lng + 0.1).toFixed(4),
+    (lat - 0.1).toFixed(4)
+  ].join(",");
+  const url = new URL("https://nominatim.openstreetmap.org/search");
+  url.search = new URLSearchParams({
+    format: "jsonv2",
+    q: "supermarket",
+    limit: "12",
+    addressdetails: "1",
+    bounded: "1",
+    viewbox
+  }).toString();
+
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "PrepWise/1.0 (creativesolutionssupport@gmail.com)",
+      Accept: "application/json"
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`OpenStreetMap returned ${response.status}`);
+  }
+
+  const results = await response.json();
+  return (Array.isArray(results) ? results : []).map((place, index) => ({
+    id: `osm-${place.osm_type || "place"}-${place.osm_id || index}`,
+    name: place.name || place.address?.shop || "Nearby grocery store",
+    formattedAddress: place.display_name || formatOsmAddress(place.address),
+    location: {
+      latitude: Number(place.lat),
+      longitude: Number(place.lon)
+    },
+    rating: null,
+    userRatingCount: 0,
+    types: ["supermarket"]
+  }));
+}
+
+function formatOsmAddress(address = {}) {
+  return [
+    [address.house_number, address.road].filter(Boolean).join(" "),
+    address.city || address.town || address.village,
+    address.state,
+    address.postcode
+  ].filter(Boolean).join(", ");
 }
 
 async function fetchGooglePlacesLegacyNearby(location) {
