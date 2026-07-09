@@ -2675,7 +2675,7 @@ function normalizeStore(place, origin, index) {
     ratingsTotal: place.user_ratings_total || place.userRatingCount || 0,
     openNow: place.opening_hours?.open_now ?? place.currentOpeningHours?.openNow ?? null,
     multiplier: estimateStoreMultiplier(name, index),
-    coverage: "Google Places store location only, price estimate"
+    coverage: place.coverage || "Map store location only, price estimate"
   };
 }
 

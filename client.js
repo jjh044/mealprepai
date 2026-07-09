@@ -2173,7 +2173,7 @@ async function renderStores(plan, prefs) {
       }))
       .sort((a, b) => a.total - b.total);
 
-    storeContext.textContent = `${nearby.location?.label || `ZIP ${prefs.zip}`} - Google Places finds nearby store addresses only. Basket totals are app estimates, not Google Maps prices.`;
+    storeContext.textContent = `${nearby.location?.label || `ZIP ${prefs.zip}`} - Map providers find nearby store addresses only. Basket totals are app estimates, not live store prices.`;
     storeList.innerHTML = ranked
       .map((store, index) => {
         const savings = ranked[ranked.length - 1].total - store.total;
