@@ -25,6 +25,12 @@ const requestBuckets = new Map();
 const routeBuckets = new Map();
 loadLocalEnv();
 
+function envHost(name, fallback) {
+  const raw = String(process.env[name] || "").trim();
+  if (!raw) return fallback;
+  return raw.replace(/^['"]+|['"]+$/g, "");
+}
+
 if (process.env.SENTRY_DSN) {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
@@ -36,17 +42,17 @@ if (process.env.SENTRY_DSN) {
 }
 
 const RAPIDAPI_HOST =
-  process.env.RAPIDAPI_SPOONACULAR_HOST || "spoonacular-recipe-food-nutrition-v1.p.rapidapi.com";
+  envHost("RAPIDAPI_SPOONACULAR_HOST", "spoonacular-recipe-food-nutrition-v1.p.rapidapi.com");
 const EDAMAM_RAPIDAPI_HOST =
-  process.env.RAPIDAPI_EDAMAM_HOST || "edamam-food-and-grocery-database.p.rapidapi.com";
+  envHost("RAPIDAPI_EDAMAM_HOST", "edamam-food-and-grocery-database.p.rapidapi.com");
 const INSTACART_RAPIDAPI_HOST =
-  process.env.RAPIDAPI_INSTACART_HOST || "instacart-api1.p.rapidapi.com";
+  envHost("RAPIDAPI_INSTACART_HOST", "instacart-api1.p.rapidapi.com");
 const GOOGLE_PLACES_RAPIDAPI_HOST =
-  process.env.RAPIDAPI_GOOGLE_PLACES_HOST || "google-map-places.p.rapidapi.com";
+  envHost("RAPIDAPI_GOOGLE_PLACES_HOST", "google-map-places.p.rapidapi.com");
 const GOOGLE_PLACES_NEW_RAPIDAPI_HOST =
-  process.env.RAPIDAPI_GOOGLE_PLACES_NEW_HOST || "google-map-places-new-v2.p.rapidapi.com";
+  envHost("RAPIDAPI_GOOGLE_PLACES_NEW_HOST", "google-map-places-new-v2.p.rapidapi.com");
 const TASTY_RAPIDAPI_HOST =
-  process.env.RAPIDAPI_TASTY_HOST || "tasty.p.rapidapi.com";
+  envHost("RAPIDAPI_TASTY_HOST", "tasty.p.rapidapi.com");
 const ingredientCache = new Map();
 const instacartCache = new Map();
 const instacartProductCache = new Map();

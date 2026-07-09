@@ -28,6 +28,9 @@ test("cost comparison never renders fake store address fallbacks", () => {
   assert.doesNotMatch(client, /fallbackStores/);
   assert.doesNotMatch(client, /showing starter estimates/);
   assert.match(client, /store\.address/);
+  assert.match(server, /function envHost/);
+  assert.match(server, /raw\.replace/);
+  assert.match(server, /envHost\("RAPIDAPI_GOOGLE_PLACES_HOST"/);
   assert.match(server, /postal_code:\$\{zip\}\|country:US/);
   assert.match(server, /\$\{zip\}, USA/);
   assert.match(server, /No nearby grocery stores with verified addresses/);
