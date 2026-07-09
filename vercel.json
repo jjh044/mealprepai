@@ -50,6 +50,10 @@
       "use": "@vercel/static"
     },
     {
+      "src": "assets/**",
+      "use": "@vercel/static"
+    },
+    {
       "src": "api/[...path].js",
       "use": "@vercel/node",
       "config": {
@@ -61,6 +65,10 @@
     {
       "src": "/api/(.*)",
       "dest": "/api/[...path].js"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
     },
     {
       "src": "/styles.css",
