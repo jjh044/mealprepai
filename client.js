@@ -340,13 +340,6 @@ let appConfigPromise = null;
 
 let recipeBank = [...starterRecipeBank];
 
-const fallbackStores = [
-  { name: "Kroger", address: "Address unavailable until nearby stores load", distance: "1.4 mi", multiplier: 0.98, coverage: "price estimate, no live retailer pricing" },
-  { name: "ALDI", address: "Address unavailable until nearby stores load", distance: "2.1 mi", multiplier: 0.9, coverage: "price estimate, no live retailer pricing" },
-  { name: "Target Grocery", address: "Address unavailable until nearby stores load", distance: "2.6 mi", multiplier: 1.05, coverage: "price estimate, no live retailer pricing" },
-  { name: "Whole Foods", address: "Address unavailable until nearby stores load", distance: "3.0 mi", multiplier: 1.24, coverage: "price estimate, no live retailer pricing" }
-];
-
 const meals = ["Breakfast", "Lunch", "Dinner"];
 const prepDays = 5;
 
@@ -2127,74 +2120,74 @@ async function loadNearbyStores(zip) {
   }
 
   const response = await apiFetch(`/api/stores?zip=${encodeURIComponent(zip)}`);
+  const body = await response.json();
 
-  return response.json();
+  if (!response.ok) {
+    throw new Error(body?.error || "Nearby stores could not be loaded");
+  }
+
+  return body;
 }
 
 async function renderStores(plan, prefs) {
   const storesId = ++activeStoresId;
   const baseCost = plan.reduce((sum, meal) => sum + meal.cost * prefs.people * prepDays, 0);
-  let storeSource = {
-    context: `ZIP ${prefs.zip} - showing starter estimates until nearby stores load.`,
-    stores: fallbackStores
-  };
 
-  storeContext.textContent = storeSource.context;
+  storeContext.textContent = `ZIP ${prefs.zip} - loading nearby grocery store addresses.`;
   storeList.innerHTML = `<p class="empty-state">Finding nearby grocery stores...</p>`;
 
   try {
     const nearby = await loadNearbyStores(prefs.zip);
     if (storesId !== activeStoresId) return;
 
-    if (nearby?.stores?.length) {
-      storeSource = {
-        context: `${nearby.location?.label || `ZIP ${prefs.zip}`} - Google Places finds nearby stores only. Basket totals are app estimates, not Google Maps prices.`,
-        stores: nearby.stores
-      };
-    } else {
-      storeSource.context = `ZIP ${prefs.zip} - no nearby grocery stores returned, showing starter estimates.`;
+    const stores = (nearby?.stores || []).filter((store) => store.address);
+    if (!stores.length) {
+      storeContext.textContent = `ZIP ${prefs.zip} - no nearby grocery stores with verified addresses were returned.`;
+      storeList.innerHTML = `<p class="empty-state">No nearby store addresses are available right now. Try another ZIP code or check back after the live store lookup is configured.</p>`;
+      return;
     }
+
+    const ranked = stores
+      .map((store) => ({
+        ...store,
+        total: baseCost * store.multiplier
+      }))
+      .sort((a, b) => a.total - b.total);
+
+    storeContext.textContent = `${nearby.location?.label || `ZIP ${prefs.zip}`} - Google Places finds nearby store addresses only. Basket totals are app estimates, not Google Maps prices.`;
+    storeList.innerHTML = ranked
+      .map((store, index) => {
+        const savings = ranked[ranked.length - 1].total - store.total;
+        const details = [
+          store.distance,
+          store.address,
+          store.rating ? `${store.rating} stars` : "",
+          store.openNow === true ? "open now" : store.openNow === false ? "closed now" : "",
+          store.coverage
+        ].filter(Boolean).map(escapeHtml).join(" - ");
+
+        return `
+          <article class="store-card">
+            <div>
+              <h3>${escapeHtml(store.name)}</h3>
+              <p class="store-address">${escapeHtml(store.address)}</p>
+              <p>${details}</p>
+              <span class="badge ${index === 0 ? "best" : ""}">${index === 0 ? "Best basket" : `${dollars(savings)} vs highest`}</span>
+            </div>
+            <div class="store-price">
+              <strong>${dollars(store.total)}</strong>
+              <span>estimated 5-day basket</span>
+            </div>
+          </article>
+        `;
+      })
+      .join("");
   } catch (error) {
     console.error(error);
     if (storesId !== activeStoresId) return;
-    storeSource.context = `ZIP ${prefs.zip} - nearby stores could not be loaded, showing starter estimates.`;
+    storeContext.textContent = `ZIP ${prefs.zip} - nearby store addresses could not be loaded.`;
+    storeList.innerHTML = `<p class="empty-state">${escapeHtml(error.message || "Nearby store addresses could not be loaded.")}</p>`;
   }
-
-  const ranked = storeSource.stores
-    .map((store) => ({
-      ...store,
-      total: baseCost * store.multiplier
-    }))
-    .sort((a, b) => a.total - b.total);
-
-  storeContext.textContent = storeSource.context;
-  storeList.innerHTML = ranked
-    .map((store, index) => {
-      const savings = ranked[ranked.length - 1].total - store.total;
-      const details = [
-        store.distance,
-        store.address,
-        store.rating ? `${store.rating} stars` : "",
-        store.openNow === true ? "open now" : store.openNow === false ? "closed now" : "",
-        store.coverage
-      ].filter(Boolean).map(escapeHtml).join(" - ");
-
-      return `
-        <article class="store-card">
-          <div>
-            <h3>${escapeHtml(store.name)}</h3>
-            <p class="store-address">${escapeHtml(store.address || "Address unavailable")}</p>
-            <p>${details}</p>
-            <span class="badge ${index === 0 ? "best" : ""}">${index === 0 ? "Best basket" : `${dollars(savings)} vs highest`}</span>
-          </div>
-          <div class="store-price">
-            <strong>${dollars(store.total)}</strong>
-            <span>estimated 5-day basket</span>
-          </div>
-        </article>
-      `;
-    })
-    .join("");
 }
 
 function formatAmount(amount) {

@@ -20,6 +20,18 @@ test("production-facing source status avoids starter and temporary wording", () 
   assert.match(client, /Using curated recipe data/);
 });
 
+test("cost comparison never renders fake store address fallbacks", () => {
+  const client = fs.readFileSync("client.js", "utf8");
+  const server = fs.readFileSync("server.js", "utf8");
+
+  assert.doesNotMatch(client, /Address unavailable/);
+  assert.doesNotMatch(client, /fallbackStores/);
+  assert.doesNotMatch(client, /showing starter estimates/);
+  assert.match(client, /store\.address/);
+  assert.match(server, /No nearby grocery stores with verified addresses/);
+  assert.doesNotMatch(server, /fallbackStorePayload/);
+});
+
 test("curated recipes cannot render unverified stock photos", () => {
   const client = fs.readFileSync("client.js", "utf8");
   const server = fs.readFileSync("server.js", "utf8");
@@ -67,4 +79,13 @@ test("server fallback inventory has at least five recipes per meal type", () => 
     const matches = inventory.match(new RegExp(`id: "youtube-${meal}-`, "g")) || [];
     assert.ok(matches.length >= 5, `${meal} fallback has only ${matches.length} recipes`);
   });
+});
+
+test("server recipe discovery includes air fryer meal-prep variety", () => {
+  const server = fs.readFileSync("server.js", "utf8");
+
+  assert.match(server, /Air Fryer Egg White Bites/);
+  assert.match(server, /Air Fryer Chicken Rice Bowls/);
+  assert.match(server, /Air Fryer Salmon Sweet Potato Bowls/);
+  assert.match(server, /air fryer dinner meal prep recipes/);
 });

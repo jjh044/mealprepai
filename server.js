@@ -15,6 +15,8 @@ const {
 const { processSignedNotification } = require("./app-store-notifications");
 
 const PORT = Number(process.env.PORT || 3000);
+const HOST = process.env.HOST || "127.0.0.1";
+const PORT_FALLBACK_LIMIT = Number(process.env.PORT_FALLBACK_LIMIT || 10);
 const ROOT = __dirname;
 const MAX_JSON_BODY_BYTES = 64 * 1024;
 const RATE_LIMIT_WINDOW_MS = 60 * 1000;
@@ -369,6 +371,115 @@ const curatedYoutubeRecipes = [
       ["baby spinach", 1, "cup", "produce"],
       ["rice", 0.5, "cup", "pantry"]
     ]
+  },
+  {
+    id: "youtube-breakfast-air-fryer-egg-bites",
+    meal: "Breakfast",
+    title: "Air Fryer Egg White Bites",
+    summary: "Egg whites, cottage cheese, spinach, peppers, and feta cooked in silicone cups.",
+    cost: 2.6,
+    minutes: 18,
+    protein: 28,
+    tags: ["quick", "batch", "leftovers", "high-protein", "high-protein-low-carb", "low-carb", "gluten-free", "vegetarian"],
+    provider: "PrepWise curated",
+    source: "PrepWise kitchen",
+    sourceUrl: "",
+    image: "",
+    ingredients: [
+      ["egg whites", 0.75, "cup", "dairy"],
+      ["cottage cheese", 0.25, "cup", "dairy"],
+      ["baby spinach", 0.5, "cup", "produce"],
+      ["bell pepper", 0.25, "each", "produce"],
+      ["feta cheese", 1, "tbsp", "dairy"]
+    ]
+  },
+  {
+    id: "youtube-lunch-air-fryer-chicken-rice-bowls",
+    meal: "Lunch",
+    title: "Air Fryer Chicken Rice Bowls",
+    summary: "Crispy air-fryer chicken, rice, broccoli, carrots, and yogurt ranch sauce.",
+    cost: 4.35,
+    minutes: 28,
+    protein: 43,
+    tags: ["quick", "batch", "family", "leftovers", "balanced", "high-protein"],
+    provider: "PrepWise curated",
+    source: "PrepWise kitchen",
+    sourceUrl: "",
+    image: "",
+    ingredients: [
+      ["chicken breast", 5, "oz", "meat"],
+      ["rice", 0.5, "cup", "pantry"],
+      ["broccoli florets", 1, "cup", "produce"],
+      ["carrots", 0.5, "cup", "produce"],
+      ["Greek yogurt", 0.25, "cup", "dairy"],
+      ["ranch seasoning", 1, "tsp", "pantry"]
+    ]
+  },
+  {
+    id: "youtube-lunch-air-fryer-tofu-power-bowls",
+    meal: "Lunch",
+    title: "Air Fryer Tofu Power Bowls",
+    summary: "Crispy tofu with quinoa, edamame, cabbage, carrots, and sesame sauce.",
+    cost: 3.55,
+    minutes: 26,
+    protein: 30,
+    tags: ["balanced", "batch", "vegetarian", "vegan", "gluten-free", "leftovers", "high-protein"],
+    provider: "PrepWise curated",
+    source: "PrepWise kitchen",
+    sourceUrl: "",
+    image: "",
+    ingredients: [
+      ["extra firm tofu", 0.5, "block", "produce"],
+      ["quinoa", 0.5, "cup", "pantry"],
+      ["shelled edamame", 0.5, "cup", "frozen"],
+      ["shredded cabbage", 1, "cup", "produce"],
+      ["carrots", 0.5, "cup", "produce"],
+      ["sesame dressing", 1, "tbsp", "refrigerated"]
+    ]
+  },
+  {
+    id: "youtube-dinner-air-fryer-salmon-sweet-potato",
+    meal: "Dinner",
+    title: "Air Fryer Salmon Sweet Potato Bowls",
+    summary: "Air-fryer salmon with sweet potatoes, green beans, spinach, and lemon yogurt sauce.",
+    cost: 5.65,
+    minutes: 30,
+    protein: 39,
+    tags: ["quick", "batch", "leftovers", "balanced", "high-protein", "gluten-free"],
+    provider: "PrepWise curated",
+    source: "PrepWise kitchen",
+    sourceUrl: "",
+    image: "",
+    ingredients: [
+      ["salmon fillet", 5, "oz", "meat"],
+      ["sweet potato", 0.5, "lb", "produce"],
+      ["green beans", 1, "cup", "produce"],
+      ["baby spinach", 1, "cup", "produce"],
+      ["Greek yogurt", 0.25, "cup", "dairy"],
+      ["lemon", 0.25, "each", "produce"]
+    ]
+  },
+  {
+    id: "youtube-dinner-air-fryer-turkey-meatballs",
+    meal: "Dinner",
+    title: "Air Fryer Turkey Meatball Pasta",
+    summary: "Lean turkey meatballs, marinara, pasta, zucchini, and Parmesan for easy reheats.",
+    cost: 4.4,
+    minutes: 30,
+    protein: 38,
+    tags: ["batch", "family", "leftovers", "balanced", "high-protein"],
+    provider: "PrepWise curated",
+    source: "PrepWise kitchen",
+    sourceUrl: "",
+    image: "",
+    ingredients: [
+      ["ground turkey", 0.35, "lb", "meat"],
+      ["pasta", 2, "oz", "pantry"],
+      ["marinara sauce", 0.5, "cup", "pantry"],
+      ["zucchini", 0.5, "each", "produce"],
+      ["Parmesan cheese", 1, "tbsp", "dairy"],
+      ["Italian seasoning", 1, "tsp", "pantry"]
+    ]
   }
 ];
 
@@ -560,7 +671,7 @@ async function handleRequest(req, res) {
         await handleStoresRequest(requestUrl, res);
       } catch (error) {
         reportServerError(error, requestUrl.pathname, requestId);
-        sendJson(res, 200, fallbackStorePayload(requestUrl));
+        sendJson(res, 502, { error: "Nearby store addresses could not be loaded" });
       }
       return;
     }
@@ -578,12 +689,27 @@ async function handleRequest(req, res) {
 if (require.main === module) {
   const server = http.createServer(handleRequest);
 
-  server.listen(PORT, () => {
-    console.log(`PrepWise running at http://localhost:${PORT}`);
-  });
+  listenWithPortFallback(server, PORT);
 }
 
 module.exports = handleRequest;
+
+function listenWithPortFallback(server, port, attempts = 0) {
+  server.once("error", (error) => {
+    if (error.code === "EADDRINUSE" && !process.env.PORT && attempts < PORT_FALLBACK_LIMIT) {
+      const nextPort = port + 1;
+      console.warn(`Port ${port} is already in use. Trying http://${HOST}:${nextPort}...`);
+      listenWithPortFallback(server, nextPort, attempts + 1);
+      return;
+    }
+
+    throw error;
+  });
+
+  server.listen(port, HOST, () => {
+    console.log(`PrepWise running at http://${HOST}:${port}`);
+  });
+}
 
 function reportServerError(error, route, requestId, method) {
   console.error(error);
@@ -1266,7 +1392,7 @@ async function handleStoresRequest(requestUrl, res) {
   }
 
   if (!process.env.RAPIDAPI_KEY) {
-    sendJson(res, 200, fallbackStorePayload(requestUrl));
+    sendJson(res, 503, { error: "Nearby store lookup is not configured" });
     return;
   }
 
@@ -1332,8 +1458,15 @@ async function handleStoresRequest(requestUrl, res) {
 
   const stores = dedupeStoreBrands(nearbyPlaces
     .filter(isGroceryStore)
-    .map((place, index) => normalizeStore(place, location, index)))
+    .map((place, index) => normalizeStore(place, location, index))
+    .filter((store) => store.address))
     .slice(0, 8);
+
+  if (!stores.length) {
+    sendJson(res, 404, { error: "No nearby grocery stores with verified addresses were found" });
+    return;
+  }
+
   const payload = {
     zip,
     location: {
@@ -1393,16 +1526,6 @@ function fallbackMealInstructions(meals) {
       storage: "Store in airtight containers in the refrigerator.",
       reheating: "Reheat until hot, adding a splash of water or sauce if needed."
     }))
-  };
-}
-
-function fallbackStorePayload(requestUrl) {
-  const zip = String(requestUrl.searchParams.get("zip") || "").trim();
-
-  return {
-    zip,
-    location: null,
-    stores: []
   };
 }
 
@@ -1665,17 +1788,23 @@ function youtubeMealSearches() {
     Breakfast: [
       "meal prep breakfast recipes",
       "make ahead breakfast meal prep recipes",
-      "healthy breakfast meal prep recipe"
+      "healthy breakfast meal prep recipe",
+      "air fryer breakfast meal prep egg bites"
     ],
     Lunch: [
       "meal prep lunch recipes",
       "weekly lunch meal prep recipes",
-      "healthy lunch meal prep recipe"
+      "healthy lunch meal prep recipe",
+      "air fryer chicken meal prep bowls",
+      "air fryer tofu meal prep bowls"
     ],
     Dinner: [
       "meal prep dinner recipes",
       "weekly dinner meal prep recipes",
-      "healthy dinner meal prep recipe"
+      "healthy dinner meal prep recipe",
+      "air fryer dinner meal prep recipes",
+      "air fryer salmon meal prep bowls",
+      "sheet pan meal prep dinner recipes"
     ]
   };
 
@@ -1920,7 +2049,7 @@ function isYoutubeMealMatch(video, meal) {
   const patterns = {
     Breakfast: /\b(breakfast|overnight oats?|oatmeal|egg|omelet|pancake|waffle|smoothie|chia pudding|breakfast burrito)\b/,
     Lunch: /\b(lunch|lunchbox|midday|meal prep|grain bowl|salad|wrap|sandwich)\b/,
-    Dinner: /\b(dinner|supper|weeknight|one pot|sheet pan|skillet|casserole)\b/
+    Dinner: /\b(dinner|supper|weeknight|one pot|sheet pan|skillet|casserole|air fryer|bowl)\b/
   };
 
   return patterns[meal]?.test(text) || false;
@@ -1928,7 +2057,7 @@ function isYoutubeMealMatch(video, meal) {
 
 function isSpecificYoutubeRecipeCandidate(video) {
   const text = `${video.title || ""} ${video.descriptionSnippet || ""}`.toLowerCase();
-  return /\b(recipe|recipes|meal prep|weekly prep|make ahead|batch cook|oats?|oatmeal|eggs?|omelet|pancakes?|waffles?|smoothie|burrito|sandwich|wrap|salad|soup|chili|curry|chicken|turkey|beef|pork|salmon|shrimp|fish|pasta|noodles?|rice|quinoa|tacos?|pizza|casserole|stir[- ]?fry)\b/.test(text);
+  return /\b(recipe|recipes|meal prep|weekly prep|make ahead|batch cook|air fryer|sheet pan|bowls?|oats?|oatmeal|eggs?|omelet|pancakes?|waffles?|smoothie|burrito|sandwich|wrap|salad|soup|chili|curry|chicken|turkey|beef|pork|salmon|shrimp|fish|pasta|noodles?|rice|quinoa|tacos?|pizza|casserole|stir[- ]?fry)\b/.test(text);
 }
 
 function isSpecificRecipeTitle(title) {
@@ -1939,7 +2068,7 @@ function isSpecificRecipeTitle(title) {
 
 function isLikelyYoutubeRecipeVideo(video) {
   const text = `${video.title || ""} ${video.descriptionSnippet || ""}`.toLowerCase();
-  return /\b(recipe|recipes|meal prep|weekly prep|batch cook|cook|breakfast|lunch|dinner|oats?|eggs?|chicken|beef|pasta|rice|salad|soup)\b/.test(text);
+  return /\b(recipe|recipes|meal prep|weekly prep|batch cook|cook|air fryer|sheet pan|bowls?|breakfast|lunch|dinner|oats?|eggs?|chicken|beef|pasta|rice|salad|soup)\b/.test(text);
 }
 
 function mealsWithRecipeLimit(recipes, limit) {

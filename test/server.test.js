@@ -154,6 +154,26 @@ test("store endpoint rejects invalid ZIP codes", async () => {
   });
 });
 
+test("store endpoint does not fall back to fake store cards", async () => {
+  const originalRapidApiKey = process.env.RAPIDAPI_KEY;
+  delete process.env.RAPIDAPI_KEY;
+
+  try {
+    await withServer(async (baseUrl) => {
+      for (const zip of ["64154", "60614", "10001", "90210"]) {
+        const response = await fetch(`${baseUrl}/api/stores?zip=${zip}`);
+        const body = await response.json();
+
+        assert.equal(response.status, 503);
+        assert.match(body.error, /store lookup is not configured/);
+        assert.equal("stores" in body, false);
+      }
+    });
+  } finally {
+    if (originalRapidApiKey) process.env.RAPIDAPI_KEY = originalRapidApiKey;
+  }
+});
+
 test("recipe responses stay within the provider cache allowance", async () => {
   const originalRapidApiKey = process.env.RAPIDAPI_KEY;
   const originalYoutubeKey = process.env.YOUTUBE_API_KEY;
