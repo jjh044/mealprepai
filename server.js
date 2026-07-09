@@ -1401,10 +1401,7 @@ async function handleStoresRequest(requestUrl, res) {
     return;
   }
 
-  const geocode = await rapidApiGetFromHost(
-    GOOGLE_PLACES_RAPIDAPI_HOST,
-    `/maps/api/geocode/json?${new URLSearchParams({ address: zip, language: "en" })}`
-  );
+  const geocode = await geocodeUsZip(zip);
   const location = geocode.results?.[0]?.geometry?.location;
 
   if (geocode.status !== "OK" || !location) {
@@ -1412,49 +1409,7 @@ async function handleStoresRequest(requestUrl, res) {
     return;
   }
 
-  let nearbyPlaces = [];
-  try {
-    const nearby = await rapidApiPostToHost(
-      GOOGLE_PLACES_NEW_RAPIDAPI_HOST,
-      "/v1/places:searchNearby",
-      {
-        languageCode: "en",
-        regionCode: "US",
-        includedTypes: ["supermarket"],
-        maxResultCount: 20,
-        locationRestriction: {
-          circle: {
-            center: {
-              latitude: location.lat,
-              longitude: location.lng
-            },
-            radius: 8000
-          }
-        }
-      },
-      30000,
-      {
-        "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.currentOpeningHours,places.types,places.primaryType"
-      }
-    );
-    nearbyPlaces = nearby.places || [];
-  } catch (error) {
-    console.warn("Google Places v2 nearby search failed; using legacy nearby search", error.message);
-  }
-
-  if (!nearbyPlaces.length) {
-    const legacyNearby = await rapidApiGetFromHost(
-      GOOGLE_PLACES_RAPIDAPI_HOST,
-      `/maps/api/place/nearbysearch/json?${new URLSearchParams({
-        location: `${location.lat},${location.lng}`,
-        radius: "8000",
-        type: "supermarket",
-        language: "en"
-      })}`
-    );
-    nearbyPlaces = legacyNearby.results || [];
-  }
+  const nearbyPlaces = await fetchNearbyGroceryPlaces(zip, location);
 
   const stores = dedupeStoreBrands(nearbyPlaces
     .filter(isGroceryStore)
@@ -1479,6 +1434,109 @@ async function handleStoresRequest(requestUrl, res) {
 
   storeCache.set(zip, payload);
   sendJson(res, 200, payload);
+}
+
+async function geocodeUsZip(zip) {
+  const attempts = [
+    new URLSearchParams({ components: `postal_code:${zip}|country:US`, language: "en" }),
+    new URLSearchParams({ address: `${zip}, USA`, language: "en" }),
+    new URLSearchParams({ address: zip, language: "en" })
+  ];
+  let lastGeocode = null;
+
+  for (const params of attempts) {
+    const geocode = await rapidApiGetFromHost(
+      GOOGLE_PLACES_RAPIDAPI_HOST,
+      `/maps/api/geocode/json?${params}`
+    );
+    lastGeocode = geocode;
+    if (geocode.status === "OK" && geocode.results?.[0]?.geometry?.location) {
+      return geocode;
+    }
+  }
+
+  return lastGeocode || { status: "ZERO_RESULTS", results: [] };
+}
+
+async function fetchNearbyGroceryPlaces(zip, location) {
+  const providers = [
+    () => fetchGooglePlacesV2Nearby(location),
+    () => fetchGooglePlacesLegacyNearby(location),
+    () => fetchGooglePlacesLegacyTextSearch(zip)
+  ];
+  const errors = [];
+
+  for (const provider of providers) {
+    try {
+      const places = await provider();
+      if (places.length) return places;
+    } catch (error) {
+      errors.push(error.message);
+      console.warn("Nearby grocery provider failed", error.message);
+    }
+  }
+
+  if (errors.length) {
+    throw new Error(`Nearby store provider failed: ${errors.join(" | ")}`);
+  }
+
+  return [];
+}
+
+async function fetchGooglePlacesV2Nearby(location) {
+  const nearby = await rapidApiPostToHost(
+    GOOGLE_PLACES_NEW_RAPIDAPI_HOST,
+    "/v1/places:searchNearby",
+    {
+      languageCode: "en",
+      regionCode: "US",
+      includedTypes: ["supermarket"],
+      maxResultCount: 20,
+      locationRestriction: {
+        circle: {
+          center: {
+            latitude: location.lat,
+            longitude: location.lng
+          },
+          radius: 8000
+        }
+      }
+    },
+    30000,
+    {
+      "X-Goog-FieldMask":
+        "places.id,places.displayName,places.formattedAddress,places.location,places.rating,places.userRatingCount,places.currentOpeningHours,places.types,places.primaryType"
+    }
+  );
+
+  return nearby.places || [];
+}
+
+async function fetchGooglePlacesLegacyNearby(location) {
+  const nearby = await rapidApiGetFromHost(
+    GOOGLE_PLACES_RAPIDAPI_HOST,
+    `/maps/api/place/nearbysearch/json?${new URLSearchParams({
+      location: `${location.lat},${location.lng}`,
+      radius: "8000",
+      type: "supermarket",
+      language: "en"
+    })}`
+  );
+
+  return nearby.results || [];
+}
+
+async function fetchGooglePlacesLegacyTextSearch(zip) {
+  const search = await rapidApiGetFromHost(
+    GOOGLE_PLACES_RAPIDAPI_HOST,
+    `/maps/api/place/textsearch/json?${new URLSearchParams({
+      query: `grocery stores near ${zip}`,
+      region: "us",
+      language: "en"
+    })}`
+  );
+
+  return search.results || [];
 }
 
 function fallbackIngredients(ingredients) {
