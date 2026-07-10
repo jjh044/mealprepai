@@ -579,6 +579,21 @@ input {
   outline: none;
 }
 
+.setup-card input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+.setup-card textarea,
+.setup-card select,
+.auth-card input,
+.auth-card textarea,
+.auth-card select {
+  font-size: 16px;
+}
+
+input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+textarea,
+select {
+  font-size: 16px;
+}
+
 input:focus {
   border-color: var(--leaf);
   box-shadow: 0 0 0 3px rgba(47, 124, 87, 0.14);

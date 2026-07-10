@@ -177,6 +177,7 @@ test("free plan badge shows limits without opening subscription choices", () => 
   assert.match(client, /subscriptionButton\.addEventListener\("click"/);
   assert.match(client, /usageBanner\.scrollIntoView/);
   assert.match(styles, /html\s*\{\s*overflow-x:\s*clip;/);
+  assert.match(styles, /input:not\(\[type="range"\]\):not\(\[type="checkbox"\]\):not\(\[type="radio"\]\),[\s\S]*textarea,[\s\S]*select,[\s\S]*font-size: 16px;/);
   assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.steps\s*\{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[\s\S]*overflow-x: clip;/);
   assert.doesNotMatch(
     client,
