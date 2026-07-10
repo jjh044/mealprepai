@@ -1,4 +1,12 @@
 :root {
+  overflow-x: clip;
+}
+
+html {
+  overflow-x: clip;
+}
+
+:root {
   color-scheme: light;
   --ink: #18231f;
   --muted: #65716c;
@@ -19,7 +27,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  overflow-x: hidden;
+  width: 100%;
+  overflow-x: clip;
   color: var(--ink);
   background: var(--wash);
   font-family:
@@ -3096,11 +3105,14 @@ body {
 
   .steps {
     order: 3;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     width: 100%;
-    overflow-x: auto;
+    overflow-x: clip;
   }
 
   .step {
+    min-width: 0;
     flex: 1 0 auto;
   }
 

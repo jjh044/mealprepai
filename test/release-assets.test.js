@@ -171,10 +171,13 @@ test("account signup surfaces expected auth errors without opaque Convex failure
 test("free plan badge shows limits without opening subscription choices", () => {
   const html = read("index.html");
   const client = read("client.js");
+  const styles = read("styles.css");
 
   assert.match(html, /<small id="subscription-detail">Weekly limits<\/small>/);
   assert.match(client, /subscriptionButton\.addEventListener\("click"/);
   assert.match(client, /usageBanner\.scrollIntoView/);
+  assert.match(styles, /html\s*\{\s*overflow-x:\s*clip;/);
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*\.steps\s*\{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[\s\S]*overflow-x: clip;/);
   assert.doesNotMatch(
     client,
     /status\.isPro[\s\S]{0,140}Free includes weekly meal planning[\s\S]{0,80}openPaywall/
