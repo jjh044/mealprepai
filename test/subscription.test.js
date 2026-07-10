@@ -32,6 +32,10 @@ test("free usage is limited and resets in a new week", () => {
   assert.equal(manager.remaining("plans"), FREE_LIMITS.plans);
 });
 
+test("guest and signed-in free plan limits stay aligned", () => {
+  assert.equal(FREE_LIMITS.plans, 2);
+});
+
 test("Pro products remove all usage limits", () => {
   const manager = createSubscriptionManager({
     storage: memoryStorage(),

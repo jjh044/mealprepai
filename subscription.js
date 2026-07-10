@@ -15,7 +15,7 @@
   });
 
   const FREE_LIMITS = Object.freeze({
-    plans: 1,
+    plans: 2,
     swaps: 3,
     ai: 1
   });

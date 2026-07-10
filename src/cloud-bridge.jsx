@@ -42,6 +42,33 @@ function reportError(error, context = {}) {
   window.PrepWiseTelemetry?.captureException?.(error, context);
 }
 
+function authValidationMessage(mode, email, password) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Enter a valid email address.";
+  if (!password) return "Enter your password.";
+  if (mode === "signUp" && password.length < 10) {
+    return "Password must be at least 10 characters.";
+  }
+  return "";
+}
+
+function authErrorMessage(error, mode) {
+  const message = String(error?.data || error?.message || "");
+  if (/valid email/i.test(message)) return "Enter a valid email address.";
+  if (/password must|invalid password/i.test(message)) {
+    return "Password must be at least 10 characters.";
+  }
+  if (/invalid credentials/i.test(message)) return "Email or password is incorrect.";
+  if (/already exists/i.test(message)) {
+    return "An account already exists for this email. Sign in instead.";
+  }
+  if (/server error|called by client|internal/i.test(message)) {
+    return mode === "signUp"
+      ? "We could not create the account. Check your email and password, then try again."
+      : "We could not sign you in. Check your email and password, then try again.";
+  }
+  return message || "Authentication failed. Please try again.";
+}
+
 function Bridge() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const token = useAuthToken();
@@ -103,20 +130,29 @@ function Bridge() {
     setBusy(true);
     setAuthError("");
     const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") || "").trim().toLowerCase();
+    const password = String(form.get("password") || "");
     const flow = authMode === "signUp" ? "sign_up" : "sign_in";
+    const validationError = authValidationMessage(authMode, email, password);
+    if (validationError) {
+      setAuthError(validationError);
+      setBusy(false);
+      track(`${flow}_failed`, { reason: "validation_error" });
+      return;
+    }
     track(`${flow}_submitted`);
     try {
       await signIn("password", {
         flow: authMode === "signUp" ? "signUp" : "signIn",
-        email: String(form.get("email") || "").trim().toLowerCase(),
-        password: String(form.get("password") || ""),
+        email,
+        password,
       });
       track(`${flow}_completed`);
       setAuthMode(null);
     } catch (error) {
       track(`${flow}_failed`, { reason: "authentication_error" });
       reportError(error, { action: flow });
-      setAuthError(error?.message || "Authentication failed");
+      setAuthError(authErrorMessage(error, authMode));
     } finally {
       setBusy(false);
     }

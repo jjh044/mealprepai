@@ -155,6 +155,32 @@ test("production HTML loads the analytics and error-monitoring bundle", () => {
   assert.match(read("privacy.html"), /Sentry/);
 });
 
+test("account signup surfaces expected auth errors without opaque Convex failures", () => {
+  const auth = read("convex/auth.ts");
+  const bridge = read("src/cloud-bridge.jsx");
+
+  assert.match(auth, /ConvexError/);
+  assert.match(auth, /Enter a valid email address/);
+  assert.match(auth, /Password must be at least 10 characters/);
+  assert.match(bridge, /authValidationMessage/);
+  assert.match(bridge, /authErrorMessage/);
+  assert.match(bridge, /An account already exists for this email\. Sign in instead\./);
+  assert.match(bridge, /We could not create the account/);
+});
+
+test("free plan badge shows limits without opening subscription choices", () => {
+  const html = read("index.html");
+  const client = read("client.js");
+
+  assert.match(html, /<small id="subscription-detail">Weekly limits<\/small>/);
+  assert.match(client, /subscriptionButton\.addEventListener\("click"/);
+  assert.match(client, /usageBanner\.scrollIntoView/);
+  assert.doesNotMatch(
+    client,
+    /status\.isPro[\s\S]{0,140}Free includes weekly meal planning[\s\S]{0,80}openPaywall/
+  );
+});
+
 test("App Store metadata stays within name and subtitle limits", () => {
   const metadata = fs.readFileSync(
     path.join(__dirname, "..", "app-store", "metadata.md"),

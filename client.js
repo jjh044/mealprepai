@@ -481,7 +481,7 @@ function updateSubscriptionUi() {
     const subscription = status.subscription;
     document.body.classList.toggle("is-pro", status.isPro);
     subscriptionLabel.textContent = status.isPro ? "PrepWise Pro" : "Free plan";
-    subscriptionDetail.textContent = status.isPro ? "Unlimited access" : "View limits";
+    subscriptionDetail.textContent = status.isPro ? "Unlimited access" : "Weekly limits";
     accountProfileStatus.textContent = status.user.email || "Signed-in account";
     accountSubscriptionStatus.textContent = status.isPro ? `PrepWise Pro (${subscription?.status || "active"})` : "Free";
     accountRenewalStatus.textContent = subscription?.currentPeriodEnd
@@ -509,7 +509,7 @@ function updateSubscriptionUi() {
   const status = subscriptionManager.status();
   document.body.classList.toggle("is-pro", status.isPro);
   subscriptionLabel.textContent = status.isPro ? "PrepWise Pro" : "Free plan";
-  subscriptionDetail.textContent = status.isPro ? "Unlimited access" : "View limits";
+  subscriptionDetail.textContent = status.isPro ? "Unlimited access" : "Weekly limits";
   manageDemoSubscriptionButton.hidden = status.entitlement.source !== "local-demo";
   accountSubscriptionStatus.textContent = status.isPro
     ? `PrepWise Pro (${status.entitlement.state || "active"})`
@@ -2389,11 +2389,12 @@ subscriptionButton.addEventListener("click", () => {
   const status = cloudState.authenticated && cloudState.data && !isDevBillingBypassEnabled()
     ? { isPro: cloudState.data.isPro }
     : subscriptionManager.status();
-  openPaywall(
-    status.isPro
-      ? "Your PrepWise Pro subscription is active."
-      : "Free includes weekly meal planning, swaps, and AI assistance."
-  );
+  if (status.isPro) {
+    openPaywall("Your PrepWise Pro subscription is active.");
+    return;
+  }
+  usageBanner.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  usageBanner.focus?.({ preventScroll: true });
 });
 
 document.querySelectorAll("[data-subscription-product]").forEach((button) => {
