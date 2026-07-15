@@ -860,15 +860,22 @@ fieldset {
   justify-content: space-between;
   gap: 16px;
   align-items: center;
+  min-width: 0;
 }
 
 .partner-brand {
   display: inline-flex;
   gap: 12px;
   align-items: center;
+  min-width: 0;
   color: var(--ink);
   font-weight: 900;
   text-decoration: none;
+}
+
+.partner-brand span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .partner-hero-grid {
@@ -894,14 +901,14 @@ fieldset {
   font-size: clamp(1.35rem, 3.4vw, 2.45rem);
   line-height: 0.98;
   text-align: center;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .partner-hero-eyebrow {
   font-size: clamp(1rem, 2.4vw, 2rem);
   line-height: 1.05;
   text-align: center;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .partner-hero-copy p:not(.eyebrow),
@@ -931,6 +938,19 @@ fieldset {
 .partner-nav a,
 .partner-cta a {
   text-decoration: none;
+}
+
+.partner-actions .partner-app-action {
+  color: white;
+  background: var(--leaf);
+  border-color: var(--leaf);
+  box-shadow: 0 10px 22px rgba(47, 124, 87, 0.18);
+}
+
+.partner-actions .partner-app-action:hover,
+.partner-actions .partner-app-action:focus-visible {
+  background: var(--leaf-dark);
+  border-color: var(--leaf-dark);
 }
 
 .partner-snapshot {
@@ -966,6 +986,7 @@ fieldset {
 .partner-snapshot strong {
   font-size: 1.35rem;
   line-height: 1.18;
+  overflow-wrap: anywhere;
 }
 
 .partner-section,
@@ -996,7 +1017,7 @@ fieldset {
   display: block;
   width: 100%;
   text-align: center;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .accent-title {
@@ -1085,7 +1106,7 @@ fieldset {
   font-weight: 850;
   line-height: 1.35;
   text-align: left;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .partner-number-list span {
@@ -1122,6 +1143,7 @@ fieldset {
   font-weight: 850;
   line-height: 1.25;
   text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .partner-fit-list {
@@ -1138,6 +1160,7 @@ fieldset {
   border: 1px solid #d8e4db;
   border-radius: 999px;
   font-weight: 850;
+  overflow-wrap: anywhere;
 }
 
 .partner-cta {
@@ -1150,6 +1173,7 @@ fieldset {
 .partner-cta h2 {
   max-width: 880px;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .partner-cta p:not(.eyebrow) {
@@ -1917,8 +1941,8 @@ fieldset {
   }
 
   .partner-hero-copy h1 {
-    font-size: clamp(0.68rem, 3.25vw, 1.35rem);
-    line-height: 1.05;
+    font-size: 1.9rem;
+    line-height: 1;
   }
 
   .partner-hero-eyebrow {
@@ -1944,8 +1968,7 @@ fieldset {
     gap: 10px;
     padding: 11px;
     font-size: 0.78rem;
-    white-space: normal;
-    overflow-wrap: normal;
+    overflow-wrap: anywhere;
   }
 
   .partner-number-list .long-step {
