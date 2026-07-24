@@ -23,8 +23,8 @@ function installBillingBridge() {
     async loadProducts(productIds) {
       return normalizeProducts(await NativeBilling.loadProducts({ productIds }));
     },
-    purchase(productId) {
-      return NativeBilling.purchase({ productId });
+    purchase(productId, context = {}) {
+      return NativeBilling.purchase({ productId, ...context });
     },
     restore() {
       return NativeBilling.restore();

@@ -67,6 +67,8 @@ test("native projects include first-party platform billing bridges", () => {
   assert.match(ios, /import StoreKit/);
   assert.match(ios, /Transaction\.currentEntitlements/);
   assert.match(ios, /signedTransaction: update\.jwsRepresentation/);
+  assert.match(ios, /\.appAccountToken/);
+  assert.match(read("client.js"), /billing\/native\/context/);
   assert.match(read("client.js"), /Native store entitlement is missing server verification data/);
 });
 
@@ -76,6 +78,8 @@ test("Apple billing accepts verified sandbox and production transactions", () =>
   assert.match(server, /AppleEnvironment\.PRODUCTION, AppleEnvironment\.SANDBOX/);
   assert.match(server, /verifyAndDecodeNotification/);
   assert.match(server, /verifyAndDecodeTransaction/);
+  assert.match(server, /api\/revenuecat\/webhook/);
+  assert.match(read(".env.example"), /REVENUECAT_WEBHOOK_SECRET/);
 });
 
 test("native release configuration keeps signing secrets external", () => {

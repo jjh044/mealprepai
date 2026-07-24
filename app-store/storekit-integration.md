@@ -4,7 +4,7 @@ The web UI expects a native object at `window.PrepWiseNativeStore` with these as
 
 ```js
 loadProducts(["prepwise_pro_month_v2", "prepwise_pro_yearly"])
-purchase(productId)
+purchase(productId, { appAccountToken, revenueCatAppUserId })
 restore()
 manageSubscriptions()
 ```
@@ -39,6 +39,10 @@ Purchase and restore results must use verified StoreKit transaction data:
 ```
 
 The native result also includes Apple's signed transaction JWS. The API verifies that JWS against Apple's root certificates before it persists or returns an entitlement. `APPLE_ENVIRONMENT=AUTO` accepts both TestFlight sandbox transactions and production App Store transactions; production verification also requires `APPLE_APP_ID`.
+
+Before starting a native purchase, the web UI calls `/api/billing/native/context` with the signed-in user's referral payload. The endpoint returns a stable Apple `appAccountToken` UUID and a RevenueCat app user ID, stores them on the PrepWise profile, and preserves the first valid referral code. iOS purchases must pass the `appAccountToken` to StoreKit with `Product.PurchaseOption.appAccountToken` so App Store renewal transactions can continue carrying the PrepWise account association.
+
+If RevenueCat is enabled, configure its webhook to call `/api/revenuecat/webhook` with the `REVENUECAT_WEBHOOK_SECRET` as a bearer token or `x-revenuecat-secret` header. RevenueCat events are matched back to Convex by app user ID, Apple original transaction ID, or app account token; the existing subscription referral code remains the commission attribution source.
 
 Supported result states:
 

@@ -586,6 +586,16 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (requestUrl.pathname === "/api/billing/native/context") {
+      await handleNativeBillingContextRequest(req, res);
+      return;
+    }
+
+    if (requestUrl.pathname === "/api/revenuecat/webhook") {
+      await handleRevenueCatWebhookRequest(req, res);
+      return;
+    }
+
     if (requestUrl.pathname === "/api/referrals/click") {
       await handleReferralClickRequest(req, res);
       return;
@@ -951,16 +961,21 @@ async function handleNativeBillingVerificationRequest(req, res) {
     return;
   }
 
-  await authenticatedConvexClient(req).mutation(anyApi.billing.applyNativeSubscription, {
+  const nativeSubscriptionPayload = {
     syncSecret: process.env.NATIVE_BILLING_SYNC_SECRET,
     platform: verified.platform,
     productId: verified.productId,
     originalTransactionId: verified.originalTransactionId,
-    purchaseTokenHash: verified.purchaseTokenHash,
     ...(referral?.code ? { referralCode: referral.code } : {}),
     status: verified.status,
     currentPeriodEnd: verified.currentPeriodEnd
-  });
+  };
+  if (verified.purchaseTokenHash) nativeSubscriptionPayload.purchaseTokenHash = verified.purchaseTokenHash;
+  const appAccountToken = verified.appAccountToken || sanitizeUuid(body.appAccountToken);
+  const revenueCatAppUserId = sanitizeIdentifier(body.revenueCatAppUserId);
+  if (appAccountToken) nativeSubscriptionPayload.appAccountToken = appAccountToken;
+  if (revenueCatAppUserId) nativeSubscriptionPayload.revenueCatAppUserId = revenueCatAppUserId;
+  await authenticatedConvexClient(req).mutation(anyApi.billing.applyNativeSubscription, nativeSubscriptionPayload);
   sendJson(res, 200, {
     state: verified.state,
     entitlement: {
@@ -973,6 +988,55 @@ async function handleNativeBillingVerificationRequest(req, res) {
       source: `${verified.platform}-server-verified`
     }
   });
+}
+
+async function handleNativeBillingContextRequest(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+  const body = await readJsonBody(req);
+  const referral = sanitizeReferralPayload(body.referral);
+  const convex = authenticatedConvexClient(req);
+  const identity = await convex.query(anyApi.app.billingIdentity, {});
+  const appAccountToken = sanitizeUuid(identity.appAccountToken) || crypto.randomUUID();
+  const revenueCatAppUserId = sanitizeIdentifier(identity.revenueCatAppUserId) || String(identity.userId);
+  const context = await convex.mutation(anyApi.app.ensureNativeBillingContext, {
+    appAccountToken,
+    revenueCatAppUserId,
+    ...(referral ? { referral: { ...referral, provider: referral.provider || "native-attribution" } } : {})
+  });
+  sendJson(res, 200, {
+    appAccountToken: context.appAccountToken,
+    revenueCatAppUserId: context.revenueCatAppUserId,
+    referralCode: context.referralCode
+  });
+}
+
+async function handleRevenueCatWebhookRequest(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+  if (!process.env.REVENUECAT_WEBHOOK_SECRET) {
+    sendJson(res, 503, { error: "RevenueCat webhook sync is not configured" });
+    return;
+  }
+  const auth = String(req.headers.authorization || "");
+  const bearer = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+  const headerSecret = String(req.headers["x-revenuecat-secret"] || "");
+  if (![bearer, headerSecret].includes(process.env.REVENUECAT_WEBHOOK_SECRET)) {
+    sendJson(res, 401, { error: "Unauthorized RevenueCat webhook" });
+    return;
+  }
+
+  const body = await readJsonBody(req);
+  const event = normalizeRevenueCatEvent(body);
+  await systemConvexClient().mutation(anyApi.billing.applyRevenueCatEvent, {
+    syncSecret: process.env.REVENUECAT_WEBHOOK_SECRET,
+    ...event
+  });
+  sendJson(res, 200, { received: true });
 }
 
 async function handleReferralClickRequest(req, res) {
@@ -1038,6 +1102,7 @@ async function verifyAppleTransaction(body) {
     platform: "ios",
     productId: transaction.productId,
     originalTransactionId: transaction.originalTransactionId,
+    appAccountToken: transaction.appAccountToken,
     status,
     state: status === "active" ? "success" : status,
     currentPeriodEnd
@@ -3182,8 +3247,9 @@ function authenticatedConvexClient(req) {
 }
 
 function systemConvexClient() {
-  if (!process.env.CONVEX_URL || !process.env.STRIPE_SYNC_SECRET) {
-    const error = new Error("Convex billing synchronization is not configured");
+  if (!process.env.CONVEX_URL ||
+      !(process.env.STRIPE_SYNC_SECRET || process.env.NATIVE_BILLING_SYNC_SECRET || process.env.REVENUECAT_WEBHOOK_SECRET)) {
+    const error = new Error("Convex server synchronization is not configured");
     error.statusCode = 503;
     throw error;
   }
@@ -3244,7 +3310,70 @@ function sanitizeReferralPayload(value) {
     code,
     sourceParam: String(value?.sourceParam || "via").slice(0, 24),
     landingPath: String(value?.landingPath || "").slice(0, 240),
-    capturedAt: Number(value?.capturedAt) || Date.now()
+    capturedAt: Number(value?.capturedAt) || Date.now(),
+    provider: String(value?.provider || "direct").slice(0, 40),
+    clickId: String(value?.clickId || value?.linkClickId || "").slice(0, 120),
+    campaign: String(value?.campaign || "").slice(0, 120)
+  };
+}
+
+function sanitizeIdentifier(value, maxLength = 120) {
+  const text = String(value || "").trim();
+  if (!text) return undefined;
+  return text.replace(/[^\w:.-]/g, "").slice(0, maxLength) || undefined;
+}
+
+function sanitizeUuid(value) {
+  const text = String(value || "").trim().toLowerCase();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(text)
+    ? text
+    : undefined;
+}
+
+function normalizeRevenueCatEvent(body) {
+  const event = body?.event || body || {};
+  const aliases = Array.isArray(event.aliases) ? event.aliases : [];
+  const subscriberAttributes = event.subscriber_attributes || event.subscriberAttributes || {};
+  const referralCode = sanitizeReferralCode(
+    event.referral_code ||
+    event.referralCode ||
+    subscriberAttributes.referral_code?.value ||
+    subscriberAttributes.referral_creator?.value
+  );
+  const statusByType = {
+    INITIAL_PURCHASE: "active",
+    NON_RENEWING_PURCHASE: "active",
+    RENEWAL: "active",
+    PRODUCT_CHANGE: "active",
+    UNCANCELLATION: "active",
+    CANCELLATION: "active",
+    EXPIRATION: "expired",
+    BILLING_ISSUE: "billing_retry",
+    SUBSCRIPTION_PAUSED: "paused",
+    REFUND: "refunded",
+    TRANSFER: "active",
+  };
+  const eventType = String(event.type || "UNKNOWN").toUpperCase();
+  const expirationMs = Number(event.expiration_at_ms || event.expirationAtMs || 0);
+  const appUserId = sanitizeIdentifier(event.app_user_id || event.appUserId || aliases[0]);
+  const originalTransactionId = sanitizeIdentifier(
+    event.original_transaction_id ||
+    event.originalTransactionId ||
+    event.original_app_user_id
+  );
+
+  return {
+    eventId: sanitizeIdentifier(event.id || event.event_id || crypto.randomUUID(), 160),
+    eventType,
+    ...(appUserId ? { appUserId } : {}),
+    ...(event.product_id || event.productId ? { productId: String(event.product_id || event.productId).slice(0, 120) } : {}),
+    ...(originalTransactionId ? { originalTransactionId } : {}),
+    ...(sanitizeUuid(event.app_account_token || event.appAccountToken) ? { appAccountToken: sanitizeUuid(event.app_account_token || event.appAccountToken) } : {}),
+    ...(event.price_id || event.priceId ? { priceId: String(event.price_id || event.priceId).slice(0, 120) } : {}),
+    ...(referralCode ? { referralCode } : {}),
+    status: statusByType[eventType] || String(event.status || "active").slice(0, 40),
+    ...(expirationMs > 0 ? { currentPeriodEnd: expirationMs } : {}),
+    cancelAtPeriodEnd: ["CANCELLATION", "EXPIRATION", "REFUND"].includes(eventType)
   };
 }
 

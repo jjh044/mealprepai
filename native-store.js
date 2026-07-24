@@ -26,10 +26,10 @@
       });
     }
 
-    async function purchase(productId) {
+    async function purchase(productId, context = {}) {
       if (!PRODUCT_IDS.includes(productId)) throw new Error("Unknown product");
       if (!nativeStore?.purchase) return { state: "unavailable" };
-      return nativeStore.purchase(productId);
+      return nativeStore.purchase(productId, context);
     }
 
     async function restore() {

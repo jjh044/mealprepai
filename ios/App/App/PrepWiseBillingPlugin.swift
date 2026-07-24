@@ -55,10 +55,12 @@ public final class PrepWiseBillingPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("Load the subscription product before purchasing it")
             return
         }
+        let appAccountToken = call.getString("appAccountToken").flatMap { UUID(uuidString: $0) }
 
         Task {
             do {
-                switch try await product.purchase() {
+                let options: Set<Product.PurchaseOption> = appAccountToken.map { [.appAccountToken($0)] } ?? []
+                switch try await product.purchase(options: options) {
                 case .success(let verification):
                     guard case .verified(let transaction) = verification else {
                         call.reject("The App Store transaction could not be verified")

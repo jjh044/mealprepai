@@ -7,15 +7,22 @@ export default defineSchema({
   profiles: defineTable({
     userId: v.id("users"),
     stripeCustomerId: v.optional(v.string()),
+    appAccountToken: v.optional(v.string()),
+    revenueCatAppUserId: v.optional(v.string()),
     referralCode: v.optional(v.string()),
     referralSourceParam: v.optional(v.string()),
     referralLandingPath: v.optional(v.string()),
     referralCapturedAt: v.optional(v.number()),
+    referralProvider: v.optional(v.string()),
+    referralClickId: v.optional(v.string()),
+    referralCampaign: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_user", ["userId"])
     .index("by_stripe_customer", ["stripeCustomerId"])
+    .index("by_app_account_token", ["appAccountToken"])
+    .index("by_revenue_cat_app_user", ["revenueCatAppUserId"])
     .index("by_referral_code", ["referralCode"]),
   preferences: defineTable({
     userId: v.id("users"),
@@ -48,6 +55,8 @@ export default defineSchema({
     purchaseTokenHash: v.optional(v.string()),
     stripeCustomerId: v.optional(v.string()),
     stripeSubscriptionId: v.optional(v.string()),
+    appAccountToken: v.optional(v.string()),
+    revenueCatAppUserId: v.optional(v.string()),
     priceId: v.optional(v.string()),
     referralCode: v.optional(v.string()),
     status: v.string(),
@@ -58,6 +67,8 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_customer", ["stripeCustomerId"])
     .index("by_subscription", ["stripeSubscriptionId"])
+    .index("by_app_account_token", ["appAccountToken"])
+    .index("by_revenue_cat_app_user", ["revenueCatAppUserId"])
     .index("by_original_transaction", ["originalTransactionId"])
     .index("by_purchase_token_hash", ["purchaseTokenHash"]),
   stripeEvents: defineTable({
@@ -74,4 +85,11 @@ export default defineSchema({
   })
     .index("by_code_and_created", ["code", "createdAt"])
     .index("by_created", ["createdAt"]),
+  revenueCatEvents: defineTable({
+    eventId: v.string(),
+    eventType: v.string(),
+    appUserId: v.optional(v.string()),
+    originalTransactionId: v.optional(v.string()),
+    processedAt: v.number(),
+  }).index("by_event", ["eventId"]),
 });

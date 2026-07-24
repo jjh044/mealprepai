@@ -443,6 +443,7 @@ function referralPayload() {
 function referralCode() {
   return referralPayload()?.code || null;
 }
+let nativeBillingContext = null;
 let cloudState = window.PrepWiseCloud?.getState?.() || {
   ready: false,
   authenticated: false,
@@ -623,9 +624,25 @@ async function verifyNativeStoreResult(result) {
   const response = await apiFetch("/api/billing/native/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...result.verification, referral: referralPayload() })
+    body: JSON.stringify({
+      ...result.verification,
+      appAccountToken: nativeBillingContext?.appAccountToken,
+      revenueCatAppUserId: nativeBillingContext?.revenueCatAppUserId,
+      referral: referralPayload()
+    })
   });
   return response.json();
+}
+
+async function loadNativeBillingContext() {
+  if (nativeBillingContext?.appAccountToken) return nativeBillingContext;
+  const response = await apiFetch("/api/billing/native/context", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ referral: referralPayload() })
+  });
+  nativeBillingContext = await response.json();
+  return nativeBillingContext;
 }
 
 async function purchaseProduct(productId) {
@@ -674,7 +691,8 @@ async function purchaseProduct(productId) {
   }
   purchaseStatus.textContent = `Confirming purchase with ${storeAdapter.platform === "android" ? "Google Play" : "Apple"}...`;
   try {
-    applyStoreResult(await verifyNativeStoreResult(await storeAdapter.purchase(productId)));
+    const context = await loadNativeBillingContext();
+    applyStoreResult(await verifyNativeStoreResult(await storeAdapter.purchase(productId, context)));
   } catch (error) {
     console.error(error);
     purchaseStatus.textContent = "The purchase was not activated because server verification failed.";

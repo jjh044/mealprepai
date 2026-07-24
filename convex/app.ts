@@ -46,6 +46,33 @@ function normalizeReferralCode(value: string) {
   return code.length >= 2 ? code : "";
 }
 
+function referralFields(referral: any, now: number, existingCode?: string) {
+  const referralCode = normalizeReferralCode(referral?.code || "");
+  if (!referralCode || existingCode) return {};
+  const fields: any = {
+    referralCode,
+    referralSourceParam: String(referral?.sourceParam || "via").slice(0, 24),
+    referralLandingPath: String(referral?.landingPath || "").slice(0, 240),
+    referralCapturedAt: Number(referral?.capturedAt) || now,
+    referralProvider: String(referral?.provider || "direct").slice(0, 40),
+  };
+  const clickId = String(referral?.clickId || "").slice(0, 120);
+  const campaign = String(referral?.campaign || "").slice(0, 120);
+  if (clickId) fields.referralClickId = clickId;
+  if (campaign) fields.referralCampaign = campaign;
+  return fields;
+}
+
+const referralArg = v.object({
+  code: v.string(),
+  sourceParam: v.optional(v.string()),
+  landingPath: v.optional(v.string()),
+  capturedAt: v.optional(v.number()),
+  provider: v.optional(v.string()),
+  clickId: v.optional(v.string()),
+  campaign: v.optional(v.string()),
+});
+
 export const bootstrap = query({
   args: {},
   handler: async (ctx) => {
@@ -177,12 +204,7 @@ export const consumeFeature = mutation({
 export const setStripeCustomer = mutation({
   args: {
     stripeCustomerId: v.string(),
-    referral: v.optional(v.object({
-      code: v.string(),
-      sourceParam: v.optional(v.string()),
-      landingPath: v.optional(v.string()),
-      capturedAt: v.optional(v.number()),
-    })),
+    referral: v.optional(referralArg),
   },
   handler: async (ctx, { stripeCustomerId, referral }) => {
     const userId = await requireUserId(ctx);
@@ -191,22 +213,14 @@ export const setStripeCustomer = mutation({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
     const now = Date.now();
-    const referralCode = normalizeReferralCode(referral?.code || "");
-    const referralFields = referralCode && !profile?.referralCode
-      ? {
-          referralCode,
-          referralSourceParam: String(referral?.sourceParam || "via").slice(0, 24),
-          referralLandingPath: String(referral?.landingPath || "").slice(0, 240),
-          referralCapturedAt: Number(referral?.capturedAt) || now,
-        }
-      : {};
+    const fields = referralFields(referral, now, profile?.referralCode);
     if (profile) {
-      await ctx.db.patch(profile._id, { stripeCustomerId, ...referralFields, updatedAt: now });
+      await ctx.db.patch(profile._id, { stripeCustomerId, ...fields, updatedAt: now });
     } else {
       await ctx.db.insert("profiles", {
         userId,
         stripeCustomerId,
-        ...referralFields,
+        ...fields,
         createdAt: now,
         updatedAt: now,
       });
@@ -216,12 +230,7 @@ export const setStripeCustomer = mutation({
 });
 
 export const claimReferral = mutation({
-  args: {
-    code: v.string(),
-    sourceParam: v.optional(v.string()),
-    landingPath: v.optional(v.string()),
-    capturedAt: v.optional(v.number()),
-  },
+  args: referralArg,
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
     const code = normalizeReferralCode(args.code);
@@ -239,11 +248,49 @@ export const claimReferral = mutation({
       referralSourceParam: String(args.sourceParam || "via").slice(0, 24),
       referralLandingPath: String(args.landingPath || "").slice(0, 240),
       referralCapturedAt: Number(args.capturedAt) || now,
+      referralProvider: String(args.provider || "direct").slice(0, 40),
       updatedAt: now,
     };
+    const clickId = String(args.clickId || "").slice(0, 120);
+    const campaign = String(args.campaign || "").slice(0, 120);
+    if (clickId) (value as any).referralClickId = clickId;
+    if (campaign) (value as any).referralCampaign = campaign;
     if (profile) await ctx.db.patch(profile._id, value);
     else await ctx.db.insert("profiles", { ...value, createdAt: now });
     return { claimed: true, referralCode: code };
+  },
+});
+
+export const ensureNativeBillingContext = mutation({
+  args: {
+    appAccountToken: v.string(),
+    revenueCatAppUserId: v.optional(v.string()),
+    referral: v.optional(referralArg),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(args.appAccountToken)) {
+      throw new Error("Invalid app account token");
+    }
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    const now = Date.now();
+    const fields = {
+      appAccountToken: profile?.appAccountToken || args.appAccountToken,
+      ...(args.revenueCatAppUserId ? { revenueCatAppUserId: String(args.revenueCatAppUserId).slice(0, 120) } : {}),
+      ...referralFields(args.referral, now, profile?.referralCode),
+      updatedAt: now,
+    };
+    if (profile) await ctx.db.patch(profile._id, fields);
+    else await ctx.db.insert("profiles", { userId, ...fields, createdAt: now });
+    return {
+      userId,
+      appAccountToken: profile?.appAccountToken || args.appAccountToken,
+      revenueCatAppUserId: args.revenueCatAppUserId || profile?.revenueCatAppUserId || String(userId),
+      referralCode: profile?.referralCode || normalizeReferralCode(args.referral?.code || "") || null,
+    };
   },
 });
 
@@ -260,6 +307,8 @@ export const billingIdentity = query({
       userId,
       email: user?.email || "",
       stripeCustomerId: profile?.stripeCustomerId || null,
+      appAccountToken: profile?.appAccountToken || null,
+      revenueCatAppUserId: profile?.revenueCatAppUserId || null,
       referralCode: profile?.referralCode || null,
     };
   },
