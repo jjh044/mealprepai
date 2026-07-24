@@ -89,11 +89,29 @@ Creator may use PrepWise's name, app screenshots, approved links, and approved b
 
 Creator may not modify PrepWise logos, imply ownership of PrepWise, or suggest that PrepWise sponsors unrelated products, services, or claims without written permission.
 
-## 10. No Guaranteed Results
+## 10. Content License for Marketing and Paid Advertising
+
+During the term of this Agreement, Creator grants PrepWise a non-exclusive, worldwide, royalty-free license to use, reproduce, edit, crop, resize, caption, and distribute content created by Creator that promotes PrepWise for PrepWise marketing and advertising purposes.
+
+This includes use across digital platforms and paid advertising channels, including Facebook, Instagram, TikTok, YouTube, and similar services.
+
+PrepWise may make reasonable edits to Creator's content, provided the overall message and endorsement are not materially changed.
+
+Creator understands that paid advertising campaigns funded by PrepWise may use PrepWise's own tracking links, landing pages, or campaign tracking methods rather than Creator's referral link, because PrepWise is responsible for the cost and risk of those advertising campaigns.
+
+Whenever reasonably practical, PrepWise will keep Creator's name, username, logo, or other branding in the advertisement to help support Creator's visibility and recognition.
+
+PrepWise may, at its sole discretion, offer performance-based bonuses for paid advertising campaigns that use Creator's content. Any bonus amount, eligibility requirement, or performance milestone, including subscription or customer acquisition goals, must be communicated to Creator in writing before becoming effective.
+
+Unless otherwise agreed in writing, any performance-based bonus is separate from and in addition to any referral commissions earned under this Agreement.
+
+The rights granted under this section automatically end when this Agreement is terminated, except that PrepWise may continue running advertising campaigns that are already live for up to 30 days after termination solely to allow an orderly wind-down of active campaigns.
+
+## 11. No Guaranteed Results
 
 PrepWise does not guarantee that Creator will earn any specific amount. Earnings depend on tracked referrals, active paid subscriptions, refunds, cancellations, platform fees, taxes, and other adjustments.
 
-## 11. Entire Agreement
+## 12. Entire Agreement
 
 This Agreement is the complete agreement between PrepWise and Creator for this referral partnership and replaces any prior discussions about the same subject. Any changes must be agreed to in writing by both parties.
 
