@@ -148,5 +148,11 @@
         </p>
       </section>
     </main>
+    <script src="referral.js"></script>
+    <script>
+      document.querySelectorAll('a[href="index.html"]').forEach((link) => {
+        link.setAttribute("href", window.PrepWiseReferral.appendReferralToUrl("index.html", window.localStorage));
+      });
+    </script>
   </body>
 </html>

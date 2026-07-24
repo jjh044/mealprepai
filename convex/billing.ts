@@ -10,6 +10,7 @@ export const applyStripeEvent = mutation({
     customerId: v.string(),
     subscriptionId: v.optional(v.string()),
     priceId: v.optional(v.string()),
+    referralCode: v.optional(v.string()),
     status: v.string(),
     currentPeriodEnd: v.optional(v.number()),
     cancelAtPeriodEnd: v.boolean(),
@@ -26,7 +27,7 @@ export const applyStripeEvent = mutation({
 
     const profile = await ctx.db
       .query("profiles")
-      .filter((q) => q.eq(q.field("stripeCustomerId"), args.customerId))
+      .withIndex("by_stripe_customer", (q) => q.eq("stripeCustomerId", args.customerId))
       .unique();
     const existing = await ctx.db
       .query("subscriptions")
@@ -40,6 +41,7 @@ export const applyStripeEvent = mutation({
       stripeCustomerId: args.customerId,
       stripeSubscriptionId: args.subscriptionId,
       priceId: args.priceId,
+      referralCode: args.referralCode || profile?.referralCode,
       status: args.status,
       currentPeriodEnd: args.currentPeriodEnd,
       cancelAtPeriodEnd: args.cancelAtPeriodEnd,
@@ -63,6 +65,7 @@ export const applyNativeSubscription = mutation({
     productId: v.string(),
     originalTransactionId: v.string(),
     purchaseTokenHash: v.optional(v.string()),
+    referralCode: v.optional(v.string()),
     status: v.string(),
     currentPeriodEnd: v.optional(v.number()),
   },
@@ -78,6 +81,10 @@ export const applyNativeSubscription = mutation({
       .query("subscriptions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
     const value = {
       userId,
       platform: args.platform,
@@ -85,6 +92,7 @@ export const applyNativeSubscription = mutation({
       originalTransactionId: args.originalTransactionId,
       purchaseTokenHash: args.purchaseTokenHash,
       priceId: args.productId,
+      referralCode: args.referralCode || profile?.referralCode,
       status: args.status,
       currentPeriodEnd: args.currentPeriodEnd,
       cancelAtPeriodEnd: false,

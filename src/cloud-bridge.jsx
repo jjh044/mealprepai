@@ -29,6 +29,7 @@ window.PrepWiseCloud = {
   savePreferences: (preferences) => operations?.savePreferences(preferences),
   savePlan: (plan, preferences) => operations?.savePlan({ plan, preferences }),
   consumeFeature: (feature) => operations?.consumeFeature({ feature }),
+  claimReferral: (referral) => operations?.claimReferral(referral),
   deleteAccount: () => operations?.deleteAccount(),
   getToken: () => operations?.getToken(),
   refresh: () => operations?.refresh(),
@@ -77,6 +78,7 @@ function Bridge() {
   const savePreferences = useMutation(anyApi.app.savePreferences);
   const savePlan = useMutation(anyApi.app.savePlan);
   const consumeFeature = useMutation(anyApi.app.consumeFeature);
+  const claimReferral = useMutation(anyApi.app.claimReferral);
   const deleteAccount = useMutation(anyApi.app.deleteMyAccount);
   const [authMode, setAuthMode] = useState(null);
   const [authError, setAuthError] = useState("");
@@ -117,6 +119,7 @@ function Bridge() {
     savePreferences,
     savePlan,
     consumeFeature,
+    claimReferral,
     async deleteAccount() {
       await deleteAccount({});
       await signOut();

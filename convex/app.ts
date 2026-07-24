@@ -37,6 +37,15 @@ function isPro(subscription: any) {
   return Boolean(subscription && ACTIVE_SUBSCRIPTION_STATES.has(subscription.status));
 }
 
+function normalizeReferralCode(value: string) {
+  const code = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "")
+    .slice(0, 64);
+  return code.length >= 2 ? code : "";
+}
+
 export const bootstrap = query({
   args: {},
   handler: async (ctx) => {
@@ -57,11 +66,16 @@ export const bootstrap = query({
       .withIndex("by_user_period", (q) => q.eq("userId", userId).eq("period", period))
       .unique();
     const subscription = await subscriptionForUser(ctx, userId);
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
     const pro = isPro(subscription);
     const counts = usage || { plans: 0, swaps: 0, ai: 0 };
 
     return {
       user: { id: userId, email: user?.email || "" },
+      profile,
       preferences,
       plans,
       subscription,
@@ -161,20 +175,75 @@ export const consumeFeature = mutation({
 });
 
 export const setStripeCustomer = mutation({
-  args: { stripeCustomerId: v.string() },
-  handler: async (ctx, { stripeCustomerId }) => {
+  args: {
+    stripeCustomerId: v.string(),
+    referral: v.optional(v.object({
+      code: v.string(),
+      sourceParam: v.optional(v.string()),
+      landingPath: v.optional(v.string()),
+      capturedAt: v.optional(v.number()),
+    })),
+  },
+  handler: async (ctx, { stripeCustomerId, referral }) => {
     const userId = await requireUserId(ctx);
     const profile = await ctx.db
       .query("profiles")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
     const now = Date.now();
+    const referralCode = normalizeReferralCode(referral?.code || "");
+    const referralFields = referralCode && !profile?.referralCode
+      ? {
+          referralCode,
+          referralSourceParam: String(referral?.sourceParam || "via").slice(0, 24),
+          referralLandingPath: String(referral?.landingPath || "").slice(0, 240),
+          referralCapturedAt: Number(referral?.capturedAt) || now,
+        }
+      : {};
     if (profile) {
-      await ctx.db.patch(profile._id, { stripeCustomerId, updatedAt: now });
+      await ctx.db.patch(profile._id, { stripeCustomerId, ...referralFields, updatedAt: now });
     } else {
-      await ctx.db.insert("profiles", { userId, stripeCustomerId, createdAt: now, updatedAt: now });
+      await ctx.db.insert("profiles", {
+        userId,
+        stripeCustomerId,
+        ...referralFields,
+        createdAt: now,
+        updatedAt: now,
+      });
     }
     return { userId };
+  },
+});
+
+export const claimReferral = mutation({
+  args: {
+    code: v.string(),
+    sourceParam: v.optional(v.string()),
+    landingPath: v.optional(v.string()),
+    capturedAt: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUserId(ctx);
+    const code = normalizeReferralCode(args.code);
+    if (!code) throw new Error("Invalid referral code");
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .unique();
+    if (profile?.referralCode) return { claimed: false, referralCode: profile.referralCode };
+
+    const now = Date.now();
+    const value = {
+      userId,
+      referralCode: code,
+      referralSourceParam: String(args.sourceParam || "via").slice(0, 24),
+      referralLandingPath: String(args.landingPath || "").slice(0, 240),
+      referralCapturedAt: Number(args.capturedAt) || now,
+      updatedAt: now,
+    };
+    if (profile) await ctx.db.patch(profile._id, value);
+    else await ctx.db.insert("profiles", { ...value, createdAt: now });
+    return { claimed: true, referralCode: code };
   },
 });
 
@@ -187,7 +256,12 @@ export const billingIdentity = query({
       .query("profiles")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
-    return { userId, email: user?.email || "", stripeCustomerId: profile?.stripeCustomerId || null };
+    return {
+      userId,
+      email: user?.email || "",
+      stripeCustomerId: profile?.stripeCustomerId || null,
+      referralCode: profile?.referralCode || null,
+    };
   },
 });
 

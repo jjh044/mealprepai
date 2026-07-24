@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PrepWise Partner Information Sheet</title>
+    <style>
+      :root {
+        --ink: #302f2a;
+        --muted: #756f64;
+        --line: #e3dccf;
+        --paper: #fffdfa;
+        --wash: #fff8e9;
+        --leaf: #65a547;
+        --leaf-dark: #477c32;
+        --tomato: #bd6041;
+        --orange: #c96d4b;
+        --peach: #f3e5cf;
+        --shadow: 0 18px 44px rgba(75, 61, 39, 0.16);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 14% 8%, rgba(101, 165, 71, 0.16), transparent 28%),
+          radial-gradient(circle at 86% 18%, rgba(201, 109, 75, 0.16), transparent 30%),
+          linear-gradient(145deg, #fffdf5 0%, var(--wash) 54%, #f4ead7 100%);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.58;
+      }
+
+      .page {
+        width: min(920px, calc(100% - 32px));
+        margin: 32px auto;
+        padding: clamp(24px, 5vw, 48px);
+        background: rgba(255, 253, 250, 0.96);
+        border: 1px solid rgba(227, 220, 207, 0.9);
+        border-radius: 28px;
+        box-shadow: var(--shadow);
+      }
+
+      header {
+        text-align: center;
+        padding-bottom: 28px;
+        border-bottom: 2px solid var(--line);
+      }
+
+      .logo {
+        width: 112px;
+        height: 112px;
+        display: block;
+        margin: 0 auto 18px;
+        border-radius: 28px;
+        box-shadow: 0 12px 28px rgba(71, 124, 50, 0.22);
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        color: var(--tomato);
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+      }
+
+      h1 {
+        margin: 0;
+        color: var(--leaf-dark);
+        font-size: clamp(2.15rem, 6vw, 3.8rem);
+        line-height: 1;
+        letter-spacing: 0;
+      }
+
+      .subtitle {
+        max-width: 680px;
+        margin: 16px auto 0;
+        color: var(--muted);
+        font-size: 1.08rem;
+      }
+
+      section {
+        padding: 28px 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      section:last-child {
+        border-bottom: 0;
+        padding-bottom: 0;
+      }
+
+      h2 {
+        margin: 0 0 12px;
+        color: var(--tomato);
+        font-size: 1.35rem;
+        font-weight: 900;
+        line-height: 1.15;
+      }
+
+      p {
+        margin: 0 0 14px;
+      }
+
+      p:last-child {
+        margin-bottom: 0;
+      }
+
+      ul {
+        display: grid;
+        gap: 8px;
+        margin: 14px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      li {
+        position: relative;
+        padding-left: 28px;
+        color: var(--ink);
+      }
+
+      li::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 0.72em;
+        width: 10px;
+        height: 10px;
+        background: var(--leaf);
+        border-radius: 50%;
+        box-shadow: 0 0 0 4px rgba(101, 165, 71, 0.16);
+      }
+
+      .highlight {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+        padding: 20px;
+        background: linear-gradient(135deg, #f1f8e9, #fff4e4);
+        border: 1px solid #dce9cf;
+        border-radius: 18px;
+      }
+
+      .bold-note {
+        color: var(--leaf-dark);
+        font-weight: 900;
+      }
+
+      .share-rate {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: fit-content;
+        padding: 8px 16px;
+        color: #fff;
+        background: linear-gradient(135deg, var(--leaf), var(--leaf-dark));
+        border-radius: 999px;
+        font-size: 1.22rem;
+        font-weight: 900;
+      }
+
+      .equation {
+        margin: 0;
+        padding: 12px 14px;
+        color: var(--ink);
+        background: rgba(255, 253, 250, 0.82);
+        border: 1px solid #d4e8c4;
+        border-radius: 12px;
+        font-weight: 900;
+      }
+
+      .strong-close {
+        font-weight: 900;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .pill {
+        padding: 12px 14px;
+        color: var(--leaf-dark);
+        background: #f1f8e9;
+        border: 1px solid #d4e8c4;
+        border-radius: 14px;
+        font-weight: 800;
+      }
+
+      .next-step {
+        padding: 24px;
+        color: #fff;
+        background: linear-gradient(135deg, var(--leaf-dark), #365f2a);
+        border-radius: 22px;
+      }
+
+      .next-step h2,
+      .next-step p {
+        color: #fff;
+      }
+
+      .next-step .agreement-list li {
+        color: var(--orange);
+        font-weight: 900;
+      }
+
+      .next-step h2 {
+        margin-bottom: 10px;
+      }
+
+      .email {
+        padding: 20px;
+        background: #fff8ed;
+        border: 1px solid #f0d8bb;
+        border-radius: 18px;
+      }
+
+      .email strong {
+        color: var(--tomato);
+      }
+
+      a {
+        color: var(--leaf-dark);
+        font-weight: 900;
+      }
+
+      @media (max-width: 680px) {
+        .page {
+          width: min(100% - 20px, 920px);
+          margin: 10px auto;
+          border-radius: 18px;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media print {
+        body {
+          background: #fff;
+        }
+
+        .page {
+          width: 100%;
+          margin: 0;
+          padding: 24px;
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+        }
+
+        section {
+          break-inside: avoid;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header>
+        <img class="logo" src="assets/icon-only.png" alt="PrepWise app logo" />
+        <p class="eyebrow">Creator Partnership Program</p>
+        <h1>PrepWise Partner Information Sheet</h1>
+      </header>
+
+      <section>
+        <h2>Welcome!</h2>
+        <p>Thank you for your interest in partnering with PrepWise.</p>
+        <p>
+          PrepWise was built to make meal planning simple, affordable, and less stressful. Instead of spending hours
+          searching for recipes, users can quickly discover meals, build grocery lists, estimate grocery costs, and stay
+          within their food budget all in one place.
+        </p>
+        <p>Our goal is to help people eat better while saving both time and money.</p>
+      </section>
+
+      <section>
+        <h2>Why We're Looking for Creators</h2>
+        <p>We believe the best recommendations come from people who genuinely use and enjoy products.</p>
+        <p>
+          Rather than paying for one-time sponsored posts, we want to build long-term partnerships with creators whose
+          audiences can truly benefit from PrepWise.
+        </p>
+        <p>
+          If your content focuses on meal prep, grocery budgeting, healthy eating, family meals, fitness nutrition, or
+          everyday cooking, we think this could be a great fit.
+        </p>
+      </section>
+
+      <section>
+        <h2>How the Partnership Works</h2>
+        <p>When you become a PrepWise Partner, you'll receive:</p>
+        <ul>
+          <li>Your own unique referral link</li>
+          <li>Revenue sharing for every qualifying subscription purchased through your link</li>
+          <li>Access to new features and updates as they're released</li>
+          <li>A direct line of communication with our team</li>
+        </ul>
+        <p class="bold-note">
+          There are no quotas or required posting schedules. We simply ask that any content featuring PrepWise is honest
+          and authentic to your audience.
+        </p>
+      </section>
+
+      <section>
+        <h2>Revenue Share</h2>
+        <p>
+          As a PrepWise Partner, you'll receive 20% of revenue based on PrepWise Meal Planner's net subscription revenue
+          from qualifying customers who subscribe through your unique referral link.
+        </p>
+        <div class="highlight">
+          <strong>Revenue Share</strong>
+          <span class="share-rate">20%</span>
+          <p>
+            Net subscription revenue means the subscription amount PrepWise receives after app store platform fees,
+            payment processing fees, taxes, refunds, chargebacks, and similar adjustments.
+          </p>
+          <p class="equation">
+            Partners should expect to receive roughly $1.70 per qualifying subscription after platform fees, subject to
+            final subscription price, taxes, refunds, and other adjustments.
+          </p>
+          <p>Your referral link allows us to track subscriptions and attribute them to you.</p>
+        </div>
+      </section>
+
+      <section>
+        <h2>Payments</h2>
+        <ul>
+          <li>Payments are issued monthly.</li>
+          <li>Earnings are tracked through your referral link.</li>
+          <li>A minimum payout threshold may apply.</li>
+          <li>Additional payment details will be included in the partnership agreement.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>What We'd Love to See</h2>
+        <p>We encourage creators to feature PrepWise naturally within the content they already create.</p>
+        <div class="grid" aria-label="Content examples">
+          <div class="pill">Weekly meal prep videos</div>
+          <div class="pill">Grocery hauls</div>
+          <div class="pill">Budget grocery shopping</div>
+          <div class="pill">What I Eat in a Day</div>
+          <div class="pill">Family meal planning</div>
+          <div class="pill">Healthy eating routines</div>
+          <div class="pill">Busy weeknight meal prep</div>
+          <div class="pill">Fitness meal prep</div>
+          <div class="pill">Saving money on groceries</div>
+        </div>
+        <p>Your authentic experience is far more valuable than a scripted advertisement.</p>
+      </section>
+
+      <section>
+        <h2>About PrepWise</h2>
+        <p>PrepWise helps users:</p>
+        <ul>
+          <li>Discover meal ideas quickly</li>
+          <li>Build personalized meal plans</li>
+          <li>Automatically generate grocery lists</li>
+          <li>Estimate grocery costs before shopping</li>
+          <li>Stay within a grocery budget</li>
+          <li>Spend less time planning meals</li>
+        </ul>
+      </section>
+
+      <section class="next-step">
+        <h2>What Happens Next?</h2>
+        <p>If you'd like to move forward, we'll send over a simple partnership agreement outlining:</p>
+        <ul class="agreement-list">
+          <li>Revenue share percentage</li>
+          <li>Payment schedule</li>
+          <li>Referral tracking</li>
+          <li>Partnership terms</li>
+          <li>Content guidelines</li>
+          <li>Termination policy</li>
+        </ul>
+        <p>Once that's complete, we'll provide your referral link so you can begin sharing PrepWise with your audience.</p>
+      </section>
+
+      <section>
+        <h2>Questions?</h2>
+        <p class="strong-close">We're always happy to answer questions before you decide to partner with us.</p>
+        <p class="strong-close">
+          Thank you again for considering PrepWise. We're excited about the possibility of working together and helping
+          more people simplify meal planning while staying on budget.
+        </p>
+      </section>
+
+    </main>
+  </body>
+</html>

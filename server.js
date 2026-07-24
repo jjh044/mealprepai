@@ -586,6 +586,11 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (requestUrl.pathname === "/api/referrals/click") {
+      await handleReferralClickRequest(req, res);
+      return;
+    }
+
     if (requestUrl.pathname === "/api/account/delete") {
       await handleAccountDeletionRequest(req, res);
       return;
@@ -682,6 +687,11 @@ async function handleRequest(req, res) {
       return;
     }
 
+    if (requestUrl.pathname.startsWith("/r/")) {
+      await handleReferralRedirect(req, res, requestUrl);
+      return;
+    }
+
     serveStatic(requestUrl.pathname, res);
   } catch (error) {
     reportServerError(error, String(req.url || "").split("?")[0], requestId, req.method);
@@ -775,23 +785,46 @@ async function handleStripeCheckoutRequest(req, res, requestUrl) {
   requireBillingConfiguration();
   const body = await readJsonBody(req);
   const plan = body.plan === "yearly" ? "yearly" : "monthly";
+  const referral = sanitizeReferralPayload(body.referral);
+  const referralCode = referral?.code || "";
   const priceId = plan === "yearly"
     ? process.env.STRIPE_YEARLY_PRICE_ID
     : process.env.STRIPE_MONTHLY_PRICE_ID;
   const convex = authenticatedConvexClient(req);
   const identity = await convex.query(anyApi.app.billingIdentity, {});
+  if (referralCode && identity.referralCode !== referralCode) {
+    await convex.mutation(anyApi.app.claimReferral, referral);
+  }
   const stripe = stripeClient();
   let customerId = identity.stripeCustomerId;
   if (!customerId) {
     const customer = await stripe.customers.create({
       email: identity.email || undefined,
-      metadata: { convexUserId: String(identity.userId) }
+      metadata: {
+        convexUserId: String(identity.userId),
+        ...(referralCode ? { prepwiseReferralCode: referralCode } : {})
+      }
     });
     customerId = customer.id;
-    await convex.mutation(anyApi.app.setStripeCustomer, { stripeCustomerId: customerId });
+    await convex.mutation(anyApi.app.setStripeCustomer, {
+      stripeCustomerId: customerId,
+      ...(referral ? { referral } : {})
+    });
+  } else if (referralCode) {
+    await stripe.customers.update(customerId, {
+      metadata: { prepwiseReferralCode: referralCode }
+    });
   }
 
   const origin = publicAppOrigin(requestUrl);
+  const metadata = {
+    convexUserId: String(identity.userId),
+    ...(referralCode ? { prepwiseReferralCode: referralCode } : {})
+  };
+  const subscriptionData = {
+    metadata,
+    ...(plan === "monthly" ? { trial_period_days: 7 } : {})
+  };
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
@@ -799,7 +832,8 @@ async function handleStripeCheckoutRequest(req, res, requestUrl) {
     allow_promotion_codes: true,
     billing_address_collection: "auto",
     client_reference_id: String(identity.userId),
-    subscription_data: plan === "monthly" ? { trial_period_days: 7 } : undefined,
+    metadata,
+    subscription_data: subscriptionData,
     success_url: `${origin}/?billing=success`,
     cancel_url: `${origin}/?billing=cancelled`
   });
@@ -864,6 +898,7 @@ async function syncStripeSubscription(event, subscription) {
     : subscription.customer.id;
   const firstItem = subscription.items?.data?.[0];
   const currentPeriodEnd = subscription.current_period_end || firstItem?.current_period_end;
+  const referralCode = sanitizeReferralCode(subscription.metadata?.prepwiseReferralCode);
   await systemConvexClient().mutation(anyApi.billing.applyStripeEvent, {
     syncSecret: process.env.STRIPE_SYNC_SECRET,
     eventId: event.id,
@@ -871,6 +906,7 @@ async function syncStripeSubscription(event, subscription) {
     customerId,
     subscriptionId: subscription.id,
     priceId: firstItem?.price?.id,
+    ...(referralCode ? { referralCode } : {}),
     status: subscription.status,
     currentPeriodEnd: currentPeriodEnd
       ? currentPeriodEnd * 1000
@@ -904,6 +940,7 @@ async function handleNativeBillingVerificationRequest(req, res) {
   }
 
   const body = await readJsonBody(req);
+  const referral = sanitizeReferralPayload(body.referral);
   const verified = body.platform === "ios"
     ? await verifyAppleTransaction(body)
     : body.platform === "android"
@@ -920,6 +957,7 @@ async function handleNativeBillingVerificationRequest(req, res) {
     productId: verified.productId,
     originalTransactionId: verified.originalTransactionId,
     purchaseTokenHash: verified.purchaseTokenHash,
+    ...(referral?.code ? { referralCode: referral.code } : {}),
     status: verified.status,
     currentPeriodEnd: verified.currentPeriodEnd
   });
@@ -935,6 +973,44 @@ async function handleNativeBillingVerificationRequest(req, res) {
       source: `${verified.platform}-server-verified`
     }
   });
+}
+
+async function handleReferralClickRequest(req, res) {
+  if (req.method !== "POST") {
+    sendJson(res, 405, { error: "Method not allowed" });
+    return;
+  }
+  const body = await readJsonBody(req);
+  const code = sanitizeReferralCode(body.code);
+  if (!code) {
+    sendJson(res, 400, { error: "Invalid referral code" });
+    return;
+  }
+  await recordReferralClick(req, {
+    code,
+    landingPath: String(body.landingPath || "/").slice(0, 240)
+  });
+  sendJson(res, 200, { recorded: true });
+}
+
+async function handleReferralRedirect(req, res, requestUrl) {
+  const code = sanitizeReferralCode(decodeURIComponent(requestUrl.pathname.slice(3)));
+  if (!code) {
+    res.writeHead(302, { Location: "/" });
+    res.end();
+    return;
+  }
+  await recordReferralClick(req, {
+    code,
+    landingPath: `/r/${code}`
+  });
+  const target = new URL("/", publicAppOrigin(requestUrl));
+  target.searchParams.set("via", code);
+  res.writeHead(302, {
+    Location: target.pathname + target.search,
+    "Cache-Control": "no-store"
+  });
+  res.end();
 }
 
 async function verifyAppleTransaction(body) {
@@ -3150,4 +3226,46 @@ function publicAppOrigin(requestUrl) {
   const configured = String(process.env.APP_URL || "").replace(/\/+$/, "");
   if (configured) return configured;
   return requestUrl.origin;
+}
+
+function sanitizeReferralCode(value) {
+  const code = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "")
+    .slice(0, 64);
+  return code.length >= 2 ? code : "";
+}
+
+function sanitizeReferralPayload(value) {
+  const code = sanitizeReferralCode(value?.code);
+  if (!code) return null;
+  return {
+    code,
+    sourceParam: String(value?.sourceParam || "via").slice(0, 24),
+    landingPath: String(value?.landingPath || "").slice(0, 240),
+    capturedAt: Number(value?.capturedAt) || Date.now()
+  };
+}
+
+function hashReferralValue(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return undefined;
+  return crypto.createHash("sha256").update(raw).digest("hex");
+}
+
+async function recordReferralClick(req, click) {
+  try {
+    await systemConvexClient().mutation(anyApi.referrals.recordClick, {
+      syncSecret: process.env.STRIPE_SYNC_SECRET,
+      code: click.code,
+      landingPath: click.landingPath,
+      ipHash: hashReferralValue(req.headers["x-forwarded-for"] || req.socket?.remoteAddress),
+      userAgentHash: hashReferralValue(req.headers["user-agent"])
+    });
+  } catch (error) {
+    if (process.env.APP_ENV !== "production") {
+      console.warn("Referral click was not persisted", error.message);
+    }
+  }
 }

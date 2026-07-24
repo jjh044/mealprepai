@@ -431,6 +431,18 @@ function track(event, properties = {}) {
 function reportError(error, context = {}) {
   window.PrepWiseTelemetry?.captureException?.(error, context);
 }
+
+function referralPayload() {
+  try {
+    return window.PrepWiseReferral?.referralRequestPayload?.(window.localStorage) || null;
+  } catch {
+    return null;
+  }
+}
+
+function referralCode() {
+  return referralPayload()?.code || null;
+}
 let cloudState = window.PrepWiseCloud?.getState?.() || {
   ready: false,
   authenticated: false,
@@ -611,7 +623,7 @@ async function verifyNativeStoreResult(result) {
   const response = await apiFetch("/api/billing/native/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(result.verification)
+    body: JSON.stringify({ ...result.verification, referral: referralPayload() })
   });
   return response.json();
 }
@@ -637,11 +649,11 @@ async function purchaseProduct(productId) {
     purchaseStatus.textContent = "Opening secure Stripe checkout...";
     try {
       const plan = productId === "prepwise_pro_yearly" ? "yearly" : "monthly";
-      track("stripe_checkout_started", { plan, product_id: productId });
+      track("stripe_checkout_started", { plan, product_id: productId, referral_code: referralCode() });
       const response = await apiFetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan })
+        body: JSON.stringify({ plan, referral: referralPayload() })
       });
       const result = await response.json();
       window.location.assign(result.url);
@@ -2515,7 +2527,13 @@ window.PrepWiseCloud?.subscribe?.((nextState) => {
   track("authenticated_session_started", {
     account_type: nextState.data.isPro ? "pro" : "free",
     has_saved_plan: Boolean(nextState.data.plans?.length),
+    referral_code: referralCode(),
   });
+  const referral = referralPayload();
+  if (referral?.code && nextState.data.profile?.referralCode !== referral.code) {
+    window.PrepWiseCloud.claimReferral(referral)
+      ?.catch((error) => console.error("Could not claim referral", error));
+  }
 
   const cloudPreferences = nextState.data.preferences;
   const latestPlan = nextState.data.plans?.[0];
