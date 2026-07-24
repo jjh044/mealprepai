@@ -37,6 +37,8 @@ There are no quotas or required posting schedules. We simply ask that any conten
 
 As a PrepWise Partner, you'll earn a percentage of qualifying subscription revenue from customers who subscribe through your unique referral link.
 
+This is recurring revenue share. When someone signs up through your referral link and remains an active paid subscriber, you can continue receiving partner payments tied to that customer's eligible subscription revenue rather than only receiving a one-time payment.
+
 **Revenue Share:** 20%
 
 Your referral link allows us to track subscriptions and attribute them to you.
@@ -47,7 +49,6 @@ Your referral link allows us to track subscriptions and attribute them to you.
 
 - Payments are issued monthly.
 - Earnings are tracked through your referral link.
-- A minimum payout threshold may apply.
 - Additional payment details will be included in the partnership agreement.
 
 ---

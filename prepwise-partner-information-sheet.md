@@ -16,11 +16,13 @@ Each approved creator partner receives a unique referral link or creator code.
 
 When someone signs up for a paid PrepWise subscription through that link or code, the creator earns a percentage of the subscription revenue tied to that customer.
 
+This is intended to be recurring revenue share: when a referred customer remains an active paid subscriber, the creator can continue receiving partner payments tied to that customer's eligible subscription revenue rather than only receiving a one-time payment.
+
 For founding partners, the current proposed structure is:
 
 - 20% revenue share on referred paid subscriptions
 - Tracking through a unique partner link or creator code
-- Payouts based on confirmed paid subscription revenue
+- Payouts based on confirmed paid subscription revenue from referred customers
 - No upfront fee or required ad spend from the creator
 - No customer support, app development, or billing setup required from the creator
 
