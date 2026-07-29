@@ -45,10 +45,22 @@
 
         <form id="planner-form" class="setup-card">
           <label class="setup-field budget-control">
-            <span class="field-heading">Weekly budget <output id="budget-output" for="budget">$125</output></span>
+            <span class="field-heading">Meal plan budget <output id="budget-output" for="budget">$125</output></span>
             <input id="budget" name="budget" type="range" min="35" max="350" step="5" value="125" required />
             <span class="range-scale" aria-hidden="true"><span>$35</span><span>$350</span></span>
           </label>
+
+          <fieldset class="plan-days-control">
+            <legend>Number of days</legend>
+            <div class="segmented plan-days-segmented">
+              <input type="radio" name="planDays" id="plan-days-1" value="1" />
+              <label for="plan-days-1">1 day</label>
+              <input type="radio" name="planDays" id="plan-days-5" value="5" checked />
+              <label for="plan-days-5">5 day bulk</label>
+              <input type="radio" name="planDays" id="plan-days-7" value="7" />
+              <label for="plan-days-7">7 day bulk</label>
+            </div>
+          </fieldset>
 
           <label class="setup-field zip-control">
             <span class="field-heading">ZIP code <span class="field-hint">for nearby estimates</span></span>
@@ -118,8 +130,8 @@
       <section id="meals" class="page" aria-label="Selected weekly meals">
         <div class="page-heading">
           <div>
-            <p class="eyebrow">Your bulk meals</p>
-            <h2 class="primary-page-title">5 Day Meal Plan</h2>
+            <p id="meal-plan-eyebrow" class="eyebrow">Your bulk meals</p>
+            <h2 id="meal-plan-title" class="primary-page-title">5 Day Bulk Meal Plan</h2>
             <p id="recipe-source-status">Recipe sources are ready.</p>
           </div>
         </div>

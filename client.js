@@ -355,7 +355,8 @@ let appConfigPromise = null;
 let recipeBank = [...starterRecipeBank];
 
 const meals = ["Breakfast", "Lunch", "Dinner"];
-const prepDays = 5;
+const PLAN_DAY_OPTIONS = [1, 5, 7];
+const DEFAULT_PLAN_DAYS = 5;
 
 const form = document.querySelector("#planner-form");
 const createPlanButton = document.querySelector("#create-plan-button");
@@ -363,6 +364,8 @@ const createPlanButtonLabel = createPlanButton?.querySelector(".button-label");
 const createPlanButtonArrow = createPlanButton?.querySelector(".button-arrow");
 const planLoadingStatus = document.querySelector("#plan-loading-status");
 const mealGrid = document.querySelector("#meal-grid");
+const mealPlanEyebrow = document.querySelector("#meal-plan-eyebrow");
+const mealPlanTitle = document.querySelector("#meal-plan-title");
 const groceryList = document.querySelector("#grocery-list");
 const storeList = document.querySelector("#store-list");
 const storeContext = document.querySelector("#store-context");
@@ -844,11 +847,13 @@ function applyPreferences(prefs) {
   const budget = document.querySelector("#budget");
   const zip = document.querySelector("#zip");
   const people = document.querySelector("#people");
+  const planDays = document.querySelector(`input[name="planDays"][value="${CSS.escape(String(normalizePlanDays(prefs.planDays)))}"]`);
   const preference = document.querySelector(`input[name="preference"][value="${CSS.escape(String(prefs.preference || ""))}"]`);
 
   if (Number.isFinite(Number(prefs.budget))) budget.value = String(prefs.budget);
   if (/^\d{5}$/.test(String(prefs.zip || ""))) zip.value = String(prefs.zip);
   if (Number.isFinite(Number(prefs.people))) people.value = String(prefs.people);
+  if (planDays) planDays.checked = true;
   if (preference) preference.checked = true;
 }
 
@@ -1152,8 +1157,36 @@ function getPreferences() {
     budget: Math.min(350, Math.max(35, Number(document.querySelector("#budget").value || 125))),
     zip: document.querySelector("#zip").value.trim(),
     people: Math.min(8, Math.max(1, Number(document.querySelector("#people").value || 1))),
+    planDays: normalizePlanDays(document.querySelector("input[name='planDays']:checked")?.value),
     preference: document.querySelector("input[name='preference']:checked").value
   };
+}
+
+function normalizePlanDays(value) {
+  const days = Number(value);
+  return PLAN_DAY_OPTIONS.includes(days) ? days : DEFAULT_PLAN_DAYS;
+}
+
+function planDayLabel(days) {
+  const normalizedDays = normalizePlanDays(days);
+  return normalizedDays === 1 ? "1-day" : `${normalizedDays}-day`;
+}
+
+function mealPlanTitleText(days) {
+  const normalizedDays = normalizePlanDays(days);
+  return normalizedDays === 1
+    ? "1 Day Meal Plan"
+    : `${normalizedDays} Day Bulk Meal Plan`;
+}
+
+function updateMealPlanHeading(prefs) {
+  const planDays = normalizePlanDays(prefs?.planDays);
+  if (mealPlanEyebrow) {
+    mealPlanEyebrow.textContent = planDays === 1 ? "Your daily meals" : "Your bulk meals";
+  }
+  if (mealPlanTitle) {
+    mealPlanTitle.textContent = mealPlanTitleText(planDays);
+  }
 }
 
 function setRecipeStatus(message) {
@@ -1292,6 +1325,7 @@ function buildPlan(prefs) {
   const selected = [];
   const usedTitles = new Set();
   const youtubeSlots = youtubeMealSlots(meals.length);
+  const planDays = normalizePlanDays(prefs.planDays);
 
   meals.forEach((meal, mealIndex) => {
     const quickRecipes = recipeBank.filter((recipe) => recipe.meal === meal && isQuickPrep(recipe));
@@ -1315,12 +1349,12 @@ function buildPlan(prefs) {
       }))
       .sort((a, b) => b.score - a.score);
 
-    const selectedMeal = { ...chooseFromTop(candidates, SELECTION_POOL_SIZE).recipe, servings: prefs.people * prepDays };
+    const selectedMeal = { ...chooseFromTop(candidates, SELECTION_POOL_SIZE).recipe, servings: prefs.people * planDays };
     usedTitles.add(selectedMeal.title.toLowerCase());
     selected.push(selectedMeal);
   });
 
-  const estimated = selected.reduce((sum, item) => sum + item.cost * prefs.people * prepDays, 0);
+  const estimated = selected.reduce((sum, item) => sum + item.cost * prefs.people * planDays, 0);
 
   if (estimated > prefs.budget) {
     return selected
@@ -1337,7 +1371,7 @@ function buildPlan(prefs) {
         const cheaperCandidates = avoidRecentRecipes(providerRecipes)
           .sort((a, b) => a.cost - b.cost);
         const cheaper = chooseFromTop(cheaperCandidates, 3);
-        return cheaper ? { ...item, ...cheaper, servings: prefs.people * prepDays } : item;
+        return cheaper ? { ...item, ...cheaper, servings: prefs.people * planDays } : item;
       });
   }
 
@@ -1357,13 +1391,14 @@ function isKitchenStapleIngredient(name) {
 
 function buildGroceries(plan, prefs) {
   const groceries = new Map();
+  const planDays = normalizePlanDays(prefs.planDays);
 
   plan.forEach((recipe) => {
     recipe.ingredients.forEach(([name, amount, unit, category]) => {
       if (isKitchenStapleIngredient(name)) return;
       const key = `${category}:${name}:${unit}`;
       const existing = groceries.get(key) || { name, amount: 0, unit, category };
-      existing.amount += amount * prefs.people * prepDays;
+      existing.amount += amount * prefs.people * planDays;
       groceries.set(key, existing);
     });
   });
@@ -1804,7 +1839,7 @@ function replacementCandidates(meal, currentId, prefs, useYoutube) {
       score: scoreRecipe(recipe, prefs, mealIndex)
     }))
     .sort((a, b) => b.score - a.score)
-    .map(({ recipe }) => ({ ...recipe, servings: prefs.people * prepDays }));
+    .map(({ recipe }) => ({ ...recipe, servings: prefs.people * normalizePlanDays(prefs.planDays) }));
 }
 
 function refreshDependentViews(prefs) {
@@ -2032,6 +2067,8 @@ async function generateMealInstructions(prefs) {
 
 function renderPlan(plan, prefs) {
   const template = document.querySelector("#meal-card-template");
+  const planDays = normalizePlanDays(prefs.planDays);
+  updateMealPlanHeading(prefs);
   mealGrid.innerHTML = "";
 
   plan.forEach((item) => {
@@ -2043,7 +2080,7 @@ function renderPlan(plan, prefs) {
       image.onerror = null;
       image.src = fallbackImage(item.title, item);
     };
-    node.querySelector(".meal-meta").innerHTML = `<span>${item.meal}</span><span>${dollars(item.cost * prefs.people * prepDays)}</span>`;
+    node.querySelector(".meal-meta").innerHTML = `<span>${item.meal}</span><span>${dollars(item.cost * prefs.people * planDays)}</span>`;
     node.querySelector("h3").textContent = item.title;
     node.querySelector("p").textContent = item.summary;
     const favoriteButton = node.querySelector(".favorite-action");
@@ -2053,7 +2090,7 @@ function renderPlan(plan, prefs) {
     favoriteButton.addEventListener("click", () => toggleFavorite(item));
     node.querySelector(".meal-ingredients").innerHTML = item.ingredients
       .map(([name, amount, unit, category]) => {
-        const total = amount * prefs.people * prepDays;
+        const total = amount * prefs.people * planDays;
         return `<li>${escapeHtml(name)} ${escapeHtml(storeQuantityFor({ name, amount: total, unit, category }))}</li>`;
       })
       .join("");
@@ -2180,7 +2217,8 @@ async function loadNearbyStores(zip) {
 
 async function renderStores(plan, prefs) {
   const storesId = ++activeStoresId;
-  const baseCost = plan.reduce((sum, meal) => sum + meal.cost * prefs.people * prepDays, 0);
+  const planDays = normalizePlanDays(prefs.planDays);
+  const baseCost = plan.reduce((sum, meal) => sum + meal.cost * prefs.people * planDays, 0);
 
   storeContext.textContent = `ZIP ${prefs.zip} - loading nearby grocery store addresses.`;
   storeList.innerHTML = `<p class="empty-state">Finding nearby grocery stores...</p>`;
@@ -2225,7 +2263,7 @@ async function renderStores(plan, prefs) {
             </div>
             <div class="store-price">
               <strong>${dollars(store.total)}</strong>
-              <span>estimated 5-day basket</span>
+              <span>estimated ${planDayLabel(planDays)} basket</span>
             </div>
           </article>
         `;
@@ -2304,6 +2342,7 @@ async function rerender(options = {}) {
     authenticated: cloudState.authenticated,
     duration_ms: Math.round(performance.now() - startedAt),
     household_size: prefs.people,
+    plan_days: prefs.planDays,
     preference: prefs.preference,
     source_count: new Set(currentPlan.map((meal) => meal.provider || meal.source || "starter")).size,
   });
@@ -2391,6 +2430,7 @@ form.addEventListener("submit", async (event) => {
   track("meal_plan_requested", {
     authenticated: cloudState.authenticated,
     household_size: prefs.people,
+    plan_days: prefs.planDays,
     preference: prefs.preference,
   });
   setCreatePlanLoading(true);
@@ -2490,7 +2530,7 @@ deleteAccountButton.addEventListener("click", async () => {
   favoriteMeals = [];
   hasBuiltPlan = false;
   clearPlanViews("");
-  applyPreferences({ budget: 125, zip: "60614", people: 2, preference: "balanced" });
+  applyPreferences({ budget: 125, zip: "60614", people: 2, planDays: DEFAULT_PLAN_DAYS, preference: "balanced" });
   updateSubscriptionUi();
   accountActionStatus.textContent = "Your PrepWise account and local data were permanently deleted.";
   if (!cloudState.authenticated) track("account_deleted", { source: "guest" });

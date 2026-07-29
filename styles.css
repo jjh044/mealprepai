@@ -2266,6 +2266,15 @@ button:active:not(:disabled) {
   grid-column: 1 / -1;
 }
 
+.plan-days-control {
+  grid-column: 1 / -1;
+}
+
+.segmented.plan-days-segmented {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .setup-card .budget-control input[type="range"] {
   --range-progress: 29%;
   width: 100%;
