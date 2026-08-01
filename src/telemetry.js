@@ -24,6 +24,7 @@ function sanitizeProperties(properties = {}) {
   delete sanitized.email;
   delete sanitized.password;
   delete sanitized.zip;
+  delete sanitized.postalCode;
   delete sanitized.name;
   return sanitized;
 }

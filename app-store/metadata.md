@@ -17,7 +17,7 @@ Plan five days of practical meals, organize one grocery list, and keep weekly fo
 
 PrepWise turns a few simple choices into a focused five-day meal-prep plan.
 
-Set your weekly budget, household size, ZIP code, and food preference. PrepWise selects breakfast, lunch, and dinner ideas, combines their ingredients into one grocery list, and shows estimated nearby-store comparisons.
+Set your weekly budget, country, postal code, household size, and food preference. PrepWise selects breakfast, lunch, and dinner ideas, combines their ingredients into one grocery list, and shows estimated nearby-store comparisons.
 
 FREE FEATURES
 

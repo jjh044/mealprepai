@@ -47,7 +47,43 @@
           <label class="setup-field budget-control">
             <span class="field-heading">Meal plan budget <output id="budget-output" for="budget">$125</output></span>
             <input id="budget" name="budget" type="range" min="35" max="350" step="5" value="125" required />
-            <span class="range-scale" aria-hidden="true"><span>$35</span><span>$350</span></span>
+            <span class="range-scale" aria-hidden="true"><span id="budget-min-label">$35</span><span id="budget-max-label">$350</span></span>
+          </label>
+
+          <label class="setup-field country-control">
+            <span class="field-heading">Country <span class="field-hint">for currency and stores</span></span>
+            <select id="country" name="country" autocomplete="country" required>
+              <option value="US" selected>United States</option>
+              <option value="GB">United Kingdom</option>
+              <option value="AU">Australia</option>
+              <option value="AT">Austria</option>
+              <option value="BE">Belgium</option>
+              <option value="BG">Bulgaria</option>
+              <option value="HR">Croatia</option>
+              <option value="CY">Cyprus</option>
+              <option value="CZ">Czechia</option>
+              <option value="DK">Denmark</option>
+              <option value="EE">Estonia</option>
+              <option value="FI">Finland</option>
+              <option value="FR">France</option>
+              <option value="DE">Germany</option>
+              <option value="GR">Greece</option>
+              <option value="HU">Hungary</option>
+              <option value="IE">Ireland</option>
+              <option value="IT">Italy</option>
+              <option value="LV">Latvia</option>
+              <option value="LT">Lithuania</option>
+              <option value="LU">Luxembourg</option>
+              <option value="MT">Malta</option>
+              <option value="NL">Netherlands</option>
+              <option value="PL">Poland</option>
+              <option value="PT">Portugal</option>
+              <option value="RO">Romania</option>
+              <option value="SK">Slovakia</option>
+              <option value="SI">Slovenia</option>
+              <option value="ES">Spain</option>
+              <option value="SE">Sweden</option>
+            </select>
           </label>
 
           <fieldset class="plan-days-control">
@@ -63,15 +99,14 @@
           </fieldset>
 
           <label class="setup-field zip-control">
-            <span class="field-heading">ZIP code <span class="field-hint">for nearby estimates</span></span>
+            <span class="field-heading"><span id="postal-label">ZIP code</span> <span class="field-hint">for nearby estimates</span></span>
             <input
               id="zip"
               name="zip"
               type="text"
-              inputmode="numeric"
+              inputmode="text"
               autocomplete="postal-code"
-              pattern="[0-9]{5}"
-              maxlength="5"
+              maxlength="12"
               value="60614"
               required
             />

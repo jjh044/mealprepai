@@ -144,24 +144,32 @@ test("commercially unapproved scraper endpoints are disabled by default", async 
   }
 });
 
-test("store endpoint rejects invalid ZIP codes", async () => {
+test("store endpoint rejects invalid postal codes", async () => {
   await withServer(async (baseUrl) => {
     const response = await fetch(`${baseUrl}/api/stores?zip=invalid`);
     const body = await response.json();
 
     assert.equal(response.status, 400);
     assert.match(body.error, /5-digit/);
+
+    const internationalResponse = await fetch(`${baseUrl}/api/stores?country=AT&postalCode=ABCDE`);
+    const internationalBody = await internationalResponse.json();
+
+    assert.equal(internationalResponse.status, 400);
+    assert.match(internationalBody.error, /valid postal code/);
   });
 });
 
-test("store endpoint does not fall back to fake store cards", async () => {
+test("store endpoint supports configured international locations without fake store cards", async () => {
   const originalRapidApiKey = process.env.RAPIDAPI_KEY;
+  const originalDisablePublicLookup = process.env.DISABLE_PUBLIC_STORE_LOOKUP;
   delete process.env.RAPIDAPI_KEY;
+  process.env.DISABLE_PUBLIC_STORE_LOOKUP = "true";
 
   try {
     await withServer(async (baseUrl) => {
-      for (const zip of ["64154", "60614", "10001", "90210"]) {
-        const response = await fetch(`${baseUrl}/api/stores?zip=${zip}`);
+      for (const query of ["zip=64154", "country=GB&postalCode=SW1A%201AA", "country=AU&postalCode=2000", "country=AT&postalCode=1010"]) {
+        const response = await fetch(`${baseUrl}/api/stores?${query}`);
         const body = await response.json();
 
         assert.equal(response.status, 503);
@@ -171,6 +179,9 @@ test("store endpoint does not fall back to fake store cards", async () => {
     });
   } finally {
     if (originalRapidApiKey) process.env.RAPIDAPI_KEY = originalRapidApiKey;
+    else delete process.env.RAPIDAPI_KEY;
+    if (originalDisablePublicLookup !== undefined) process.env.DISABLE_PUBLIC_STORE_LOOKUP = originalDisablePublicLookup;
+    else delete process.env.DISABLE_PUBLIC_STORE_LOOKUP;
   }
 });
 

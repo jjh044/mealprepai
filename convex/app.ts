@@ -125,20 +125,26 @@ export const bootstrap = query({
 export const savePreferences = mutation({
   args: {
     budget: v.number(),
+    country: v.optional(v.string()),
+    postalCode: v.optional(v.string()),
     zip: v.string(),
     people: v.number(),
+    planDays: v.optional(v.number()),
     preference: v.string(),
   },
   handler: async (ctx, args) => {
     const userId = await requireUserId(ctx);
-    if (args.budget < 35 || args.budget > 350) throw new Error("Invalid budget");
-    if (!/^\d{5}$/.test(args.zip)) throw new Error("Invalid ZIP code");
+    const country = String(args.country || "US").toUpperCase();
+    const postalCode = String(args.postalCode || args.zip || "").trim();
+    if (args.budget < 1 || args.budget > 150000) throw new Error("Invalid budget");
+    if (!/^[A-Z0-9][A-Z0-9 -]{1,11}$/i.test(postalCode)) throw new Error("Invalid postal code");
     if (args.people < 1 || args.people > 8) throw new Error("Invalid household size");
+    if (args.planDays !== undefined && ![1, 5, 7].includes(args.planDays)) throw new Error("Invalid plan length");
     const existing = await ctx.db
       .query("preferences")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .unique();
-    const value = { ...args, userId, updatedAt: Date.now() };
+    const value = { ...args, country, postalCode, zip: postalCode, userId, updatedAt: Date.now() };
     if (existing) await ctx.db.patch(existing._id, value);
     else await ctx.db.insert("preferences", value);
   },

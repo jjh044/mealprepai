@@ -845,16 +845,22 @@ function applyPreferences(prefs) {
   if (!prefs) return;
 
   const budget = document.querySelector("#budget");
+  const country = document.querySelector("#country");
   const zip = document.querySelector("#zip");
   const people = document.querySelector("#people");
   const planDays = document.querySelector(`input[name="planDays"][value="${CSS.escape(String(normalizePlanDays(prefs.planDays)))}"]`);
   const preference = document.querySelector(`input[name="preference"][value="${CSS.escape(String(prefs.preference || ""))}"]`);
+  const countryCode = String(prefs.country || "US").toUpperCase();
+  const postalCode = String(prefs.postalCode || prefs.zip || "").trim();
 
+  if (country && REGION_SETTINGS[countryCode]) country.value = countryCode;
+  syncCountryControls({ preserveBudget: true });
   if (Number.isFinite(Number(prefs.budget))) budget.value = String(prefs.budget);
-  if (/^\d{5}$/.test(String(prefs.zip || ""))) zip.value = String(prefs.zip);
+  if (postalCode) zip.value = postalCode;
   if (Number.isFinite(Number(prefs.people))) people.value = String(prefs.people);
   if (planDays) planDays.checked = true;
   if (preference) preference.checked = true;
+  syncBudgetOutput();
 }
 
 function restoreHistoryEntry(historyId) {
@@ -959,8 +965,17 @@ async function runAiFeatures(prefs) {
   generatePrepTips(prefs);
 }
 
+function localCost(value, prefs = {}) {
+  return value * regionSettings(prefs.country).costFactor;
+}
+
+function money(value, prefs = {}) {
+  const settings = regionSettings(prefs.country);
+  return new Intl.NumberFormat(settings.locale, { style: "currency", currency: settings.currency }).format(value);
+}
+
 function dollars(value) {
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+  return money(value, { country: "US" });
 }
 
 function loadFavorites() {
@@ -1153,9 +1168,15 @@ function fallbackImage(title, recipe = {}) {
 }
 
 function getPreferences() {
+  const country = document.querySelector("#country").value || "US";
+  const settings = regionSettings(country);
+  const postalCode = document.querySelector("#zip").value.trim();
+  const budgetValue = Number(document.querySelector("#budget").value || settings.budget.default);
   return {
-    budget: Math.min(350, Math.max(35, Number(document.querySelector("#budget").value || 125))),
-    zip: document.querySelector("#zip").value.trim(),
+    budget: Math.min(settings.budget.max, Math.max(settings.budget.min, budgetValue)),
+    country,
+    postalCode,
+    zip: postalCode,
     people: Math.min(8, Math.max(1, Number(document.querySelector("#people").value || 1))),
     planDays: normalizePlanDays(document.querySelector("input[name='planDays']:checked")?.value),
     preference: document.querySelector("input[name='preference']:checked").value
@@ -1354,7 +1375,7 @@ function buildPlan(prefs) {
     selected.push(selectedMeal);
   });
 
-  const estimated = selected.reduce((sum, item) => sum + item.cost * prefs.people * planDays, 0);
+  const estimated = localCost(selected.reduce((sum, item) => sum + item.cost * prefs.people * planDays, 0), prefs);
 
   if (estimated > prefs.budget) {
     return selected
@@ -1603,6 +1624,43 @@ const STORE_PACKAGE_RULES = [
     ]
   }
 ];
+
+const REGION_SETTINGS = {
+  US: { label: "United States", locale: "en-US", currency: "USD", postalLabel: "ZIP code", postalExample: "60614", budget: { min: 35, max: 350, default: 125 }, costFactor: 1 },
+  GB: { label: "United Kingdom", locale: "en-GB", currency: "GBP", postalLabel: "Postcode", postalExample: "SW1A 1AA", budget: { min: 30, max: 300, default: 110 }, costFactor: 0.82 },
+  AU: { label: "Australia", locale: "en-AU", currency: "AUD", postalLabel: "Postcode", postalExample: "2000", budget: { min: 55, max: 550, default: 190 }, costFactor: 1.55 },
+  AT: { label: "Austria", locale: "de-AT", currency: "EUR", postalLabel: "Postal code", postalExample: "1010", budget: { min: 35, max: 350, default: 120 }, costFactor: 0.95 },
+  BE: { label: "Belgium", locale: "fr-BE", currency: "EUR", postalLabel: "Postal code", postalExample: "1000", budget: { min: 35, max: 350, default: 120 }, costFactor: 0.96 },
+  BG: { label: "Bulgaria", locale: "bg-BG", currency: "BGN", postalLabel: "Postal code", postalExample: "1000", budget: { min: 60, max: 700, default: 220 }, costFactor: 1.75 },
+  HR: { label: "Croatia", locale: "hr-HR", currency: "EUR", postalLabel: "Postal code", postalExample: "10000", budget: { min: 35, max: 350, default: 115 }, costFactor: 0.9 },
+  CY: { label: "Cyprus", locale: "en-CY", currency: "EUR", postalLabel: "Postal code", postalExample: "1010", budget: { min: 35, max: 350, default: 125 }, costFactor: 0.98 },
+  CZ: { label: "Czechia", locale: "cs-CZ", currency: "CZK", postalLabel: "Postal code", postalExample: "110 00", budget: { min: 800, max: 8000, default: 2800 }, costFactor: 22 },
+  DK: { label: "Denmark", locale: "da-DK", currency: "DKK", postalLabel: "Postal code", postalExample: "1050", budget: { min: 250, max: 2600, default: 900 }, costFactor: 7 },
+  EE: { label: "Estonia", locale: "et-EE", currency: "EUR", postalLabel: "Postal code", postalExample: "10111", budget: { min: 35, max: 350, default: 115 }, costFactor: 0.9 },
+  FI: { label: "Finland", locale: "fi-FI", currency: "EUR", postalLabel: "Postal code", postalExample: "00100", budget: { min: 40, max: 380, default: 130 }, costFactor: 1 },
+  FR: { label: "France", locale: "fr-FR", currency: "EUR", postalLabel: "Postal code", postalExample: "75001", budget: { min: 35, max: 350, default: 120 }, costFactor: 0.95 },
+  DE: { label: "Germany", locale: "de-DE", currency: "EUR", postalLabel: "Postal code", postalExample: "10115", budget: { min: 35, max: 350, default: 120 }, costFactor: 0.95 },
+  GR: { label: "Greece", locale: "el-GR", currency: "EUR", postalLabel: "Postal code", postalExample: "105 58", budget: { min: 35, max: 350, default: 110 }, costFactor: 0.88 },
+  HU: { label: "Hungary", locale: "hu-HU", currency: "HUF", postalLabel: "Postal code", postalExample: "1051", budget: { min: 12000, max: 130000, default: 42000 }, costFactor: 340 },
+  IE: { label: "Ireland", locale: "en-IE", currency: "EUR", postalLabel: "Eircode", postalExample: "D02 X285", budget: { min: 40, max: 400, default: 140 }, costFactor: 1.05 },
+  IT: { label: "Italy", locale: "it-IT", currency: "EUR", postalLabel: "Postal code", postalExample: "00118", budget: { min: 35, max: 350, default: 115 }, costFactor: 0.9 },
+  LV: { label: "Latvia", locale: "lv-LV", currency: "EUR", postalLabel: "Postal code", postalExample: "LV-1050", budget: { min: 35, max: 350, default: 110 }, costFactor: 0.88 },
+  LT: { label: "Lithuania", locale: "lt-LT", currency: "EUR", postalLabel: "Postal code", postalExample: "01100", budget: { min: 35, max: 350, default: 110 }, costFactor: 0.88 },
+  LU: { label: "Luxembourg", locale: "fr-LU", currency: "EUR", postalLabel: "Postal code", postalExample: "1111", budget: { min: 45, max: 450, default: 150 }, costFactor: 1.15 },
+  MT: { label: "Malta", locale: "en-MT", currency: "EUR", postalLabel: "Postal code", postalExample: "VLT 1111", budget: { min: 40, max: 380, default: 130 }, costFactor: 1 },
+  NL: { label: "Netherlands", locale: "nl-NL", currency: "EUR", postalLabel: "Postal code", postalExample: "1012 AB", budget: { min: 35, max: 350, default: 120 }, costFactor: 0.95 },
+  PL: { label: "Poland", locale: "pl-PL", currency: "PLN", postalLabel: "Postal code", postalExample: "00-001", budget: { min: 150, max: 1600, default: 520 }, costFactor: 4.1 },
+  PT: { label: "Portugal", locale: "pt-PT", currency: "EUR", postalLabel: "Postal code", postalExample: "1100-001", budget: { min: 30, max: 320, default: 105 }, costFactor: 0.82 },
+  RO: { label: "Romania", locale: "ro-RO", currency: "RON", postalLabel: "Postal code", postalExample: "010011", budget: { min: 170, max: 1700, default: 560 }, costFactor: 4.4 },
+  SK: { label: "Slovakia", locale: "sk-SK", currency: "EUR", postalLabel: "Postal code", postalExample: "811 01", budget: { min: 35, max: 350, default: 110 }, costFactor: 0.88 },
+  SI: { label: "Slovenia", locale: "sl-SI", currency: "EUR", postalLabel: "Postal code", postalExample: "1000", budget: { min: 35, max: 350, default: 115 }, costFactor: 0.9 },
+  ES: { label: "Spain", locale: "es-ES", currency: "EUR", postalLabel: "Postal code", postalExample: "28001", budget: { min: 30, max: 320, default: 105 }, costFactor: 0.82 },
+  SE: { label: "Sweden", locale: "sv-SE", currency: "SEK", postalLabel: "Postal code", postalExample: "111 20", budget: { min: 400, max: 4000, default: 1350 }, costFactor: 10.8 }
+};
+
+function regionSettings(country) {
+  return REGION_SETTINGS[String(country || "US").toUpperCase()] || REGION_SETTINGS.US;
+}
 
 const STORE_UNIT_LABELS = new Set([
   "bag",
@@ -2080,7 +2138,7 @@ function renderPlan(plan, prefs) {
       image.onerror = null;
       image.src = fallbackImage(item.title, item);
     };
-    node.querySelector(".meal-meta").innerHTML = `<span>${item.meal}</span><span>${dollars(item.cost * prefs.people * planDays)}</span>`;
+    node.querySelector(".meal-meta").innerHTML = `<span>${item.meal}</span><span>${money(localCost(item.cost * prefs.people * planDays, prefs), prefs)}</span>`;
     node.querySelector("h3").textContent = item.title;
     node.querySelector("p").textContent = item.summary;
     const favoriteButton = node.querySelector(".favorite-action");
@@ -2200,12 +2258,16 @@ async function enrichGroceries() {
   }
 }
 
-async function loadNearbyStores(zip) {
+async function loadNearbyStores(prefs) {
   if (location.protocol === "file:") {
     return null;
   }
 
-  const response = await apiFetch(`/api/stores?zip=${encodeURIComponent(zip)}`);
+  const params = new URLSearchParams({
+    country: prefs.country || "US",
+    postalCode: prefs.postalCode || prefs.zip || ""
+  });
+  const response = await apiFetch(`/api/stores?${params}`);
   const body = await response.json();
 
   if (!response.ok) {
@@ -2218,19 +2280,22 @@ async function loadNearbyStores(zip) {
 async function renderStores(plan, prefs) {
   const storesId = ++activeStoresId;
   const planDays = normalizePlanDays(prefs.planDays);
-  const baseCost = plan.reduce((sum, meal) => sum + meal.cost * prefs.people * planDays, 0);
+  const settings = regionSettings(prefs.country);
+  const postalCode = prefs.postalCode || prefs.zip;
+  const locationLabel = `${settings.postalLabel} ${postalCode}`;
+  const baseCost = localCost(plan.reduce((sum, meal) => sum + meal.cost * prefs.people * planDays, 0), prefs);
 
-  storeContext.textContent = `ZIP ${prefs.zip} - loading nearby grocery store addresses.`;
+  storeContext.textContent = `${locationLabel} - loading nearby grocery store addresses.`;
   storeList.innerHTML = `<p class="empty-state">Finding nearby grocery stores...</p>`;
 
   try {
-    const nearby = await loadNearbyStores(prefs.zip);
+    const nearby = await loadNearbyStores(prefs);
     if (storesId !== activeStoresId) return;
 
     const stores = (nearby?.stores || []).filter((store) => store.address);
     if (!stores.length) {
-      storeContext.textContent = `ZIP ${prefs.zip} - no nearby grocery stores with verified addresses were returned.`;
-      storeList.innerHTML = `<p class="empty-state">No nearby store addresses are available right now. Try another ZIP code or check back after the live store lookup is configured.</p>`;
+      storeContext.textContent = `${locationLabel} - no nearby grocery stores with verified addresses were returned.`;
+      storeList.innerHTML = `<p class="empty-state">No nearby store addresses are available right now. Try another postal code or check back after the live store lookup is configured.</p>`;
       return;
     }
 
@@ -2241,7 +2306,7 @@ async function renderStores(plan, prefs) {
       }))
       .sort((a, b) => a.total - b.total);
 
-    storeContext.textContent = `${nearby.location?.label || `ZIP ${prefs.zip}`} - Map providers find nearby store addresses only. Basket totals are app estimates, not live store prices.`;
+    storeContext.textContent = `${nearby.location?.label || locationLabel} - Map providers find nearby store addresses only. Basket totals are localized estimates, not live store prices.`;
     storeList.innerHTML = ranked
       .map((store, index) => {
         const savings = ranked[ranked.length - 1].total - store.total;
@@ -2259,10 +2324,10 @@ async function renderStores(plan, prefs) {
               <h3>${escapeHtml(store.name)}</h3>
               <p class="store-address">${escapeHtml(store.address)}</p>
               <p>${details}</p>
-              <span class="badge ${index === 0 ? "best" : ""}">${index === 0 ? "Best basket" : `${dollars(savings)} vs highest`}</span>
+              <span class="badge ${index === 0 ? "best" : ""}">${index === 0 ? "Best basket" : `${money(savings, prefs)} vs highest`}</span>
             </div>
             <div class="store-price">
-              <strong>${dollars(store.total)}</strong>
+              <strong>${money(store.total, prefs)}</strong>
               <span>estimated ${planDayLabel(planDays)} basket</span>
             </div>
           </article>
@@ -2272,7 +2337,7 @@ async function renderStores(plan, prefs) {
   } catch (error) {
     console.error(error);
     if (storesId !== activeStoresId) return;
-    storeContext.textContent = `ZIP ${prefs.zip} - nearby store addresses could not be loaded.`;
+    storeContext.textContent = `${locationLabel} - nearby store addresses could not be loaded.`;
     storeList.innerHTML = `<p class="empty-state">${escapeHtml(error.message || "Nearby store addresses could not be loaded.")}</p>`;
   }
 }
@@ -2405,14 +2470,39 @@ document.querySelectorAll("[data-page-link]").forEach((button) => {
 
 const budgetOutput = document.querySelector("#budget-output");
 const budgetInput = document.querySelector("#budget");
+const budgetMinLabel = document.querySelector("#budget-min-label");
+const budgetMaxLabel = document.querySelector("#budget-max-label");
+const countryInput = document.querySelector("#country");
+const postalInput = document.querySelector("#zip");
+const postalLabel = document.querySelector("#postal-label");
 const peopleInput = document.querySelector("#people");
 const syncBudgetOutput = () => {
-  budgetOutput.textContent = `$${budgetInput.value}`;
+  budgetOutput.textContent = money(Number(budgetInput.value), { country: countryInput?.value || "US" });
   const progress = ((Number(budgetInput.value) - Number(budgetInput.min)) / (Number(budgetInput.max) - Number(budgetInput.min))) * 100;
   budgetInput.style.setProperty("--range-progress", `${progress}%`);
 };
+
+function syncCountryControls({ preserveBudget = false } = {}) {
+  const settings = regionSettings(countryInput?.value || "US");
+  const currentBudget = Number(budgetInput.value);
+  budgetInput.min = String(settings.budget.min);
+  budgetInput.max = String(settings.budget.max);
+  budgetInput.value = preserveBudget && Number.isFinite(currentBudget)
+    ? String(Math.min(settings.budget.max, Math.max(settings.budget.min, currentBudget)))
+    : String(settings.budget.default);
+  if (budgetMinLabel) budgetMinLabel.textContent = money(settings.budget.min, { country: countryInput?.value || "US" });
+  if (budgetMaxLabel) budgetMaxLabel.textContent = money(settings.budget.max, { country: countryInput?.value || "US" });
+  if (postalLabel) postalLabel.textContent = settings.postalLabel;
+  if (postalInput) {
+    postalInput.placeholder = settings.postalExample;
+    if (!preserveBudget || !postalInput.value.trim()) postalInput.value = settings.postalExample;
+  }
+  syncBudgetOutput();
+}
+
 budgetInput.addEventListener("input", syncBudgetOutput);
-syncBudgetOutput();
+countryInput?.addEventListener("change", () => syncCountryControls());
+syncCountryControls({ preserveBudget: true });
 
 document.querySelectorAll("[data-step-people]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -2530,7 +2620,7 @@ deleteAccountButton.addEventListener("click", async () => {
   favoriteMeals = [];
   hasBuiltPlan = false;
   clearPlanViews("");
-  applyPreferences({ budget: 125, zip: "60614", people: 2, planDays: DEFAULT_PLAN_DAYS, preference: "balanced" });
+  applyPreferences({ budget: 125, country: "US", postalCode: "60614", zip: "60614", people: 2, planDays: DEFAULT_PLAN_DAYS, preference: "balanced" });
   updateSubscriptionUi();
   accountActionStatus.textContent = "Your PrepWise account and local data were permanently deleted.";
   if (!cloudState.authenticated) track("account_deleted", { source: "guest" });

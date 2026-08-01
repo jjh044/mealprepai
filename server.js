@@ -58,6 +58,38 @@ const instacartCache = new Map();
 const instacartProductCache = new Map();
 const storeCache = new Map();
 const youtubeRecipeCache = new Map();
+const REGION_SETTINGS = {
+  US: { countryName: "United States", regionCode: "US", languageCode: "en", postalPattern: /^\d{5}(?:-\d{4})?$/, distanceUnit: "mi" },
+  GB: { countryName: "United Kingdom", regionCode: "GB", languageCode: "en", postalPattern: /^[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}$/i, distanceUnit: "mi" },
+  AU: { countryName: "Australia", regionCode: "AU", languageCode: "en", postalPattern: /^\d{4}$/, distanceUnit: "km" },
+  AT: { countryName: "Austria", regionCode: "AT", languageCode: "de", postalPattern: /^\d{4}$/, distanceUnit: "km" },
+  BE: { countryName: "Belgium", regionCode: "BE", languageCode: "fr", postalPattern: /^\d{4}$/, distanceUnit: "km" },
+  BG: { countryName: "Bulgaria", regionCode: "BG", languageCode: "bg", postalPattern: /^\d{4}$/, distanceUnit: "km" },
+  HR: { countryName: "Croatia", regionCode: "HR", languageCode: "hr", postalPattern: /^\d{5}$/, distanceUnit: "km" },
+  CY: { countryName: "Cyprus", regionCode: "CY", languageCode: "en", postalPattern: /^\d{4}$/, distanceUnit: "km" },
+  CZ: { countryName: "Czechia", regionCode: "CZ", languageCode: "cs", postalPattern: /^\d{3}\s?\d{2}$/, distanceUnit: "km" },
+  DK: { countryName: "Denmark", regionCode: "DK", languageCode: "da", postalPattern: /^\d{4}$/, distanceUnit: "km" },
+  EE: { countryName: "Estonia", regionCode: "EE", languageCode: "et", postalPattern: /^\d{5}$/, distanceUnit: "km" },
+  FI: { countryName: "Finland", regionCode: "FI", languageCode: "fi", postalPattern: /^\d{5}$/, distanceUnit: "km" },
+  FR: { countryName: "France", regionCode: "FR", languageCode: "fr", postalPattern: /^\d{5}$/, distanceUnit: "km" },
+  DE: { countryName: "Germany", regionCode: "DE", languageCode: "de", postalPattern: /^\d{5}$/, distanceUnit: "km" },
+  GR: { countryName: "Greece", regionCode: "GR", languageCode: "el", postalPattern: /^\d{3}\s?\d{2}$/, distanceUnit: "km" },
+  HU: { countryName: "Hungary", regionCode: "HU", languageCode: "hu", postalPattern: /^\d{4}$/, distanceUnit: "km" },
+  IE: { countryName: "Ireland", regionCode: "IE", languageCode: "en", postalPattern: /^[A-Z]\d{2}\s?[A-Z0-9]{4}$/i, distanceUnit: "km" },
+  IT: { countryName: "Italy", regionCode: "IT", languageCode: "it", postalPattern: /^\d{5}$/, distanceUnit: "km" },
+  LV: { countryName: "Latvia", regionCode: "LV", languageCode: "lv", postalPattern: /^(?:LV-)?\d{4}$/i, distanceUnit: "km" },
+  LT: { countryName: "Lithuania", regionCode: "LT", languageCode: "lt", postalPattern: /^(?:LT-)?\d{5}$/i, distanceUnit: "km" },
+  LU: { countryName: "Luxembourg", regionCode: "LU", languageCode: "fr", postalPattern: /^\d{4}$/, distanceUnit: "km" },
+  MT: { countryName: "Malta", regionCode: "MT", languageCode: "en", postalPattern: /^[A-Z]{3}\s?\d{4}$/i, distanceUnit: "km" },
+  NL: { countryName: "Netherlands", regionCode: "NL", languageCode: "nl", postalPattern: /^\d{4}\s?[A-Z]{2}$/i, distanceUnit: "km" },
+  PL: { countryName: "Poland", regionCode: "PL", languageCode: "pl", postalPattern: /^\d{2}-?\d{3}$/, distanceUnit: "km" },
+  PT: { countryName: "Portugal", regionCode: "PT", languageCode: "pt", postalPattern: /^\d{4}-?\d{3}$/, distanceUnit: "km" },
+  RO: { countryName: "Romania", regionCode: "RO", languageCode: "ro", postalPattern: /^\d{6}$/, distanceUnit: "km" },
+  SK: { countryName: "Slovakia", regionCode: "SK", languageCode: "sk", postalPattern: /^\d{3}\s?\d{2}$/, distanceUnit: "km" },
+  SI: { countryName: "Slovenia", regionCode: "SI", languageCode: "sl", postalPattern: /^\d{4}$/, distanceUnit: "km" },
+  ES: { countryName: "Spain", regionCode: "ES", languageCode: "es", postalPattern: /^\d{5}$/, distanceUnit: "km" },
+  SE: { countryName: "Sweden", regionCode: "SE", languageCode: "sv", postalPattern: /^\d{3}\s?\d{2}$/, distanceUnit: "km" }
+};
 const YOUTUBE_VIDEOS_PER_CHANNEL_PER_MEAL = 2;
 const YOUTUBE_VIDEOS_PER_MEAL = 24;
 const YOUTUBE_RECIPES_PER_MEAL = 30;
@@ -1532,36 +1564,39 @@ async function handleInstacartProductRequest(req, res) {
 }
 
 async function handleStoresRequest(requestUrl, res) {
-  const zip = String(requestUrl.searchParams.get("zip") || "").trim();
-  if (!/^\d{5}$/.test(zip)) {
-    sendJson(res, 400, { error: "ZIP must be a 5-digit US ZIP code" });
+  const locationParams = parseStoreLocationParams(requestUrl);
+  if (!locationParams.ok) {
+    sendJson(res, 400, { error: locationParams.error });
     return;
   }
+  const { country, postalCode, settings } = locationParams;
+  const cacheKey = `${country}:${postalCode.toUpperCase()}`;
 
-  if (!process.env.RAPIDAPI_KEY) {
+  if (!process.env.RAPIDAPI_KEY && process.env.DISABLE_PUBLIC_STORE_LOOKUP === "true") {
     sendJson(res, 503, { error: "Nearby store lookup is not configured" });
     return;
   }
 
-  if (storeCache.has(zip)) {
-    sendJson(res, 200, storeCache.get(zip));
+  if (storeCache.has(cacheKey)) {
+    sendJson(res, 200, storeCache.get(cacheKey));
     return;
   }
 
-  const geocode = await geocodeUsZip(zip);
+  const geocode = await geocodePostalArea(postalCode, country, settings);
   const location = geocode.results?.[0]?.geometry?.location;
 
   if (geocode.status !== "OK" || !location) {
-    sendJson(res, 404, { error: "ZIP code could not be geocoded" });
+    sendJson(res, 404, { error: "Postal code could not be geocoded" });
     return;
   }
 
-  const nearbyPlaces = await fetchNearbyGroceryPlaces(zip, location);
+  const nearbyPlaces = await fetchNearbyGroceryPlaces(postalCode, country, settings, location);
 
   const stores = dedupeStoreBrands(nearbyPlaces
     .filter(isGroceryStore)
-    .map((place, index) => normalizeStore(place, location, index))
-    .filter((store) => store.address))
+    .map((place, index) => normalizeStore(place, location, index, settings))
+    .filter((store) => !isExcludedStoreName(store.name))
+    .filter((store) => store.address || store.distance))
     .slice(0, 8);
 
   if (!stores.length) {
@@ -1570,20 +1605,78 @@ async function handleStoresRequest(requestUrl, res) {
   }
 
   const payload = {
-    zip,
+    country,
+    postalCode,
+    zip: country === "US" ? postalCode : undefined,
     location: {
       lat: location.lat,
       lng: location.lng,
-      label: geocode.results?.[0]?.formatted_address || zip
+      label: geocode.results?.[0]?.formatted_address || `${postalCode}, ${settings.countryName}`
     },
     stores
   };
 
-  storeCache.set(zip, payload);
+  storeCache.set(cacheKey, payload);
   sendJson(res, 200, payload);
 }
 
+function parseStoreLocationParams(requestUrl) {
+  const country = String(requestUrl.searchParams.get("country") || "US").trim().toUpperCase();
+  const settings = REGION_SETTINGS[country];
+  if (!settings) {
+    return { ok: false, error: "Country is not supported for nearby store lookup yet" };
+  }
+
+  const postalCode = String(
+    requestUrl.searchParams.get("postalCode") ||
+    requestUrl.searchParams.get("postcode") ||
+    requestUrl.searchParams.get("zip") ||
+    ""
+  ).trim();
+  if (!postalCode || !settings.postalPattern.test(postalCode)) {
+    return { ok: false, error: country === "US" ? "ZIP must be a 5-digit US ZIP code" : "Enter a valid postal code for the selected country" };
+  }
+
+  return { ok: true, country, postalCode, settings };
+}
+
+async function geocodePostalArea(postalCode, country, settings) {
+  if (country === "US") return await geocodeUsZip(postalCode);
+
+  if (!process.env.RAPIDAPI_KEY) {
+    return await geocodePostalAreaFallback(postalCode, country, settings) || { status: "ZERO_RESULTS", results: [] };
+  }
+
+  const attempts = [
+    new URLSearchParams({ components: `postal_code:${postalCode}|country:${country}`, language: settings.languageCode, region: settings.regionCode }),
+    new URLSearchParams({ address: `${postalCode}, ${settings.countryName}`, language: settings.languageCode, region: settings.regionCode }),
+    new URLSearchParams({ address: postalCode, language: settings.languageCode, region: settings.regionCode })
+  ];
+  let lastGeocode = null;
+
+  for (const params of attempts) {
+    try {
+      const geocode = await rapidApiGetFromHost(
+        GOOGLE_PLACES_RAPIDAPI_HOST,
+        `/maps/api/geocode/json?${params}`
+      );
+      lastGeocode = geocode;
+      if (geocode.status === "OK" && geocode.results?.[0]?.geometry?.location) {
+        return geocode;
+      }
+    } catch (error) {
+      console.warn("RapidAPI postal geocode failed", error.message);
+    }
+  }
+
+  return await geocodePostalAreaFallback(postalCode, country, settings) || lastGeocode || { status: "ZERO_RESULTS", results: [] };
+}
+
 async function geocodeUsZip(zip) {
+  if (!process.env.RAPIDAPI_KEY) {
+    return await geocodeUsZipFallback(zip) || { status: "ZERO_RESULTS", results: [] };
+  }
+
   const attempts = [
     new URLSearchParams({ components: `postal_code:${zip}|country:US`, language: "en" }),
     new URLSearchParams({ address: `${zip}, USA`, language: "en" }),
@@ -1632,13 +1725,94 @@ async function geocodeUsZipFallback(zip) {
   }
 }
 
-async function fetchNearbyGroceryPlaces(zip, location) {
+async function geocodePostalAreaFallback(postalCode, country, settings) {
+  const zippopotam = await geocodeZippopotamPostalArea(postalCode, country, settings);
+  if (zippopotam) return zippopotam;
+
+  const attempts = [
+    new URLSearchParams({
+      format: "jsonv2",
+      postalcode: postalCode,
+      country: settings.countryName,
+      countrycodes: country.toLowerCase(),
+      limit: "1",
+      addressdetails: "1"
+    }),
+    new URLSearchParams({
+      format: "jsonv2",
+      q: `${postalCode}, ${settings.countryName}`,
+      countrycodes: country.toLowerCase(),
+      limit: "1",
+      addressdetails: "1"
+    })
+  ];
+
+  for (const params of attempts) {
+    try {
+      const url = new URL("https://nominatim.openstreetmap.org/search");
+      url.search = params.toString();
+
+      const response = await fetch(url, {
+        headers: {
+          "User-Agent": "PrepWise/1.0 (creativesolutionssupport@gmail.com)",
+          Accept: "application/json"
+        }
+      });
+      if (!response.ok) continue;
+      const data = await response.json();
+      const place = Array.isArray(data) ? data[0] : null;
+      const lat = Number(place?.lat);
+      const lng = Number(place?.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+
+      return {
+        status: "OK",
+        results: [{
+          formatted_address: place.display_name || `${postalCode}, ${settings.countryName}`,
+          geometry: { location: { lat, lng } }
+        }]
+      };
+    } catch (error) {
+      console.warn("Fallback postal geocode failed", error.message);
+    }
+  }
+
+  return null;
+}
+
+async function geocodeZippopotamPostalArea(postalCode, country, settings) {
+  try {
+    const response = await fetch(`https://api.zippopotam.us/${country.toLowerCase()}/${encodeURIComponent(postalCode)}`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const place = Array.isArray(data.places) ? data.places[0] : null;
+    const lat = Number(place?.latitude);
+    const lng = Number(place?.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+    return {
+      status: "OK",
+      results: [{
+        formatted_address: [place["place name"], place.state, data["post code"], settings.countryName].filter(Boolean).join(", "),
+        geometry: { location: { lat, lng } }
+      }]
+    };
+  } catch (error) {
+    console.warn("Zippopotam postal geocode failed", error.message);
+    return null;
+  }
+}
+
+async function fetchNearbyGroceryPlaces(postalCode, country, settings, location) {
   const providers = [
-    () => fetchGooglePlacesV2Nearby(location),
-    () => fetchGooglePlacesV2TextSearch(zip),
-    () => fetchOpenStreetMapGroceryPlaces(location),
-    () => fetchGooglePlacesLegacyNearby(location),
-    () => fetchGooglePlacesLegacyTextSearch(zip)
+    ...(process.env.RAPIDAPI_KEY ? [
+      () => fetchGooglePlacesV2Nearby(location, settings),
+      () => fetchGooglePlacesV2TextSearch(postalCode, settings),
+      () => fetchGooglePlacesLegacyNearby(location, settings),
+      () => fetchGooglePlacesLegacyTextSearch(postalCode, settings)
+    ] : []),
+    () => fetchOpenStreetMapOverpassGroceryPlaces(location),
+    () => fetchOpenStreetMapGroceryPlaces(location)
   ];
   const errors = [];
 
@@ -1659,13 +1833,13 @@ async function fetchNearbyGroceryPlaces(zip, location) {
   return [];
 }
 
-async function fetchGooglePlacesV2Nearby(location) {
+async function fetchGooglePlacesV2Nearby(location, settings) {
   const nearby = await rapidApiPostToHost(
     GOOGLE_PLACES_NEW_RAPIDAPI_HOST,
     "/v1/places:searchNearby",
     {
-      languageCode: "en",
-      regionCode: "US",
+      languageCode: settings.languageCode,
+      regionCode: settings.regionCode,
       includedTypes: ["supermarket"],
       maxResultCount: 20,
       locationRestriction: {
@@ -1688,14 +1862,14 @@ async function fetchGooglePlacesV2Nearby(location) {
   return nearby.places || [];
 }
 
-async function fetchGooglePlacesV2TextSearch(zip) {
+async function fetchGooglePlacesV2TextSearch(postalCode, settings) {
   const search = await rapidApiPostToHost(
     GOOGLE_PLACES_NEW_RAPIDAPI_HOST,
     "/v1/places:searchText",
     {
-      textQuery: `grocery stores near ${zip}`,
-      languageCode: "en",
-      regionCode: "US",
+      textQuery: `supermarkets near ${postalCode}, ${settings.countryName}`,
+      languageCode: settings.languageCode,
+      regionCode: settings.regionCode,
       maxResultCount: 20
     },
     30000,
@@ -1754,6 +1928,64 @@ async function fetchOpenStreetMapGroceryPlaces(location) {
   }));
 }
 
+async function fetchOpenStreetMapOverpassGroceryPlaces(location) {
+  const lat = Number(location.lat);
+  const lng = Number(location.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
+
+  const query = `
+    [out:json][timeout:15];
+    (
+      node["shop"~"^(supermarket|grocery|convenience)$"](around:8000,${lat},${lng});
+      way["shop"~"^(supermarket|grocery|convenience)$"](around:8000,${lat},${lng});
+      relation["shop"~"^(supermarket|grocery|convenience)$"](around:8000,${lat},${lng});
+    );
+    out center tags 30;
+  `;
+  const response = await fetch("https://overpass-api.de/api/interpreter", {
+    method: "POST",
+    headers: {
+      "User-Agent": "PrepWise/1.0 (creativesolutionssupport@gmail.com)",
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json"
+    },
+    body: new URLSearchParams({ data: query }).toString()
+  });
+  if (!response.ok) {
+    throw new Error(`OpenStreetMap Overpass returned ${response.status}`);
+  }
+
+  const data = await response.json();
+  return (Array.isArray(data.elements) ? data.elements : [])
+    .map((element, index) => {
+      const tags = element.tags || {};
+      const elementLat = Number(element.lat ?? element.center?.lat);
+      const elementLng = Number(element.lon ?? element.center?.lon);
+      return {
+        id: `overpass-${element.type || "place"}-${element.id || index}`,
+        name: tags.name || tags.brand || "Nearby grocery store",
+        formattedAddress: formatOsmAddress({
+          house_number: tags["addr:housenumber"],
+          road: tags["addr:street"],
+          city: tags["addr:city"],
+          town: tags["addr:town"],
+          village: tags["addr:village"],
+          state: tags["addr:state"],
+          postcode: tags["addr:postcode"]
+        }) || `Map location ${elementLat.toFixed(5)}, ${elementLng.toFixed(5)}`,
+        location: {
+          latitude: elementLat,
+          longitude: elementLng
+        },
+        rating: null,
+        userRatingCount: 0,
+        types: [tags.shop === "convenience" ? "convenience_store" : "supermarket"],
+        coverage: "OpenStreetMap store location, price estimate"
+      };
+    })
+    .filter((place) => Number.isFinite(place.location.latitude) && Number.isFinite(place.location.longitude));
+}
+
 function formatOsmAddress(address = {}) {
   return [
     [address.house_number, address.road].filter(Boolean).join(" "),
@@ -1763,27 +1995,27 @@ function formatOsmAddress(address = {}) {
   ].filter(Boolean).join(", ");
 }
 
-async function fetchGooglePlacesLegacyNearby(location) {
+async function fetchGooglePlacesLegacyNearby(location, settings) {
   const nearby = await rapidApiGetFromHost(
     GOOGLE_PLACES_RAPIDAPI_HOST,
     `/maps/api/place/nearbysearch/json?${new URLSearchParams({
       location: `${location.lat},${location.lng}`,
       radius: "8000",
       type: "supermarket",
-      language: "en"
+      language: settings.languageCode
     })}`
   );
 
   return nearby.results || [];
 }
 
-async function fetchGooglePlacesLegacyTextSearch(zip) {
+async function fetchGooglePlacesLegacyTextSearch(postalCode, settings) {
   const search = await rapidApiGetFromHost(
     GOOGLE_PLACES_RAPIDAPI_HOST,
     `/maps/api/place/textsearch/json?${new URLSearchParams({
-      query: `grocery stores near ${zip}`,
-      region: "us",
-      language: "en"
+      query: `supermarkets near ${postalCode}, ${settings.countryName}`,
+      region: settings.regionCode.toLowerCase(),
+      language: settings.languageCode
     })}`
   );
 
@@ -2789,12 +3021,17 @@ function instacartPrice(product) {
   return value === undefined ? "" : String(value);
 }
 
-function normalizeStore(place, origin, index) {
+function normalizeStore(place, origin, index, settings = REGION_SETTINGS.US) {
   const name = place.displayName?.text || place.name || "Nearby grocery store";
   const location = place.geometry?.location || place.location || {};
   const latitude = location.lat ?? location.latitude;
   const longitude = location.lng ?? location.longitude;
   const miles = distanceMiles(origin.lat, origin.lng, latitude, longitude);
+  const distance = miles === null
+    ? ""
+    : settings.distanceUnit === "km"
+      ? `${(miles * 1.60934).toFixed(1)} km`
+      : `${miles.toFixed(1)} mi`;
   const address = [
     place.formattedAddress,
     place.formatted_address,
@@ -2810,7 +3047,7 @@ function normalizeStore(place, origin, index) {
     id: place.place_id || place.id || `store-${index}`,
     name,
     address,
-    distance: miles === null ? "" : `${miles.toFixed(1)} mi`,
+    distance,
     distanceMiles: miles,
     rating: typeof place.rating === "number" ? place.rating : null,
     ratingsTotal: place.user_ratings_total || place.userRatingCount || 0,
@@ -2847,6 +3084,22 @@ function canonicalStoreBrand(name) {
   const lower = String(name || "").toLowerCase();
 
   if (lower.includes("aldi")) return "aldi";
+  if (lower.includes("lidl")) return "lidl";
+  if (lower.includes("billa")) return "billa";
+  if (lower.includes("spar")) return "spar";
+  if (lower.includes("hofer")) return "hofer";
+  if (lower.includes("tesco")) return "tesco";
+  if (lower.includes("sainsbury")) return "sainsburys";
+  if (lower.includes("asda")) return "asda";
+  if (lower.includes("morrisons")) return "morrisons";
+  if (lower.includes("waitrose")) return "waitrose";
+  if (lower.includes("coles")) return "coles";
+  if (lower.includes("woolworths")) return "woolworths";
+  if (lower.includes("rewe")) return "rewe";
+  if (lower.includes("edeka")) return "edeka";
+  if (lower.includes("carrefour")) return "carrefour";
+  if (lower.includes("auchan")) return "auchan";
+  if (lower.includes("mercadona")) return "mercadona";
   if (lower.includes("trader joe")) return "trader joes";
   if (lower.includes("whole foods")) return "whole foods";
   if (lower.includes("jewel")) return "jewel osco";
@@ -2868,10 +3121,12 @@ function isGroceryStore(place) {
   const types = Array.isArray(place.types) ? place.types : [];
   const typeSet = new Set(types);
   const name = String(place.displayName?.text || place.name || "").toLowerCase();
-  const excludedNamePattern =
-    /\b(7-eleven|bp|casey's|chevron|circle k|citgo|conoco|exxon|flying j|kum\s*&?\s*go|love's|marathon|mobil|pilot|quiktrip|shell|sheetz|speedway|sunoco|texaco|thorntons|valero|wawa)\b/;
 
-  if (typeSet.has("gas_station") || excludedNamePattern.test(name)) {
+  if (typeSet.has("gas_station") || isExcludedStoreName(name)) {
+    return false;
+  }
+
+  if (typeSet.has("restaurant") || typeSet.has("meal_takeaway") || typeSet.has("fast_food")) {
     return false;
   }
 
@@ -2882,9 +3137,18 @@ function isGroceryStore(place) {
   return typeSet.has("supermarket") || typeSet.has("grocery_store") || typeSet.has("grocery_or_supermarket");
 }
 
+function isExcludedStoreName(name) {
+  return /\b(7-eleven|burger king|mcdonald'?s|kfc|subway|starbucks|taco bell|wendy'?s|domino'?s|pizza hut|bp|casey's|chevron|circle k|citgo|conoco|exxon|flying j|kum\s*&?\s*go|love's|marathon|mobil|pilot|quiktrip|shell|sheetz|speedway|sunoco|texaco|thorntons|valero|wawa)\b/i.test(String(name || ""));
+}
+
 function estimateStoreMultiplier(name, index) {
   const lower = name.toLowerCase();
   if (lower.includes("aldi")) return 0.9;
+  if (lower.includes("lidl") || lower.includes("hofer")) return 0.9;
+  if (lower.includes("billa") || lower.includes("spar") || lower.includes("tesco") || lower.includes("sainsbury")) return 0.99;
+  if (lower.includes("asda") || lower.includes("morrisons") || lower.includes("coles") || lower.includes("woolworths")) return 0.97;
+  if (lower.includes("waitrose")) return 1.14;
+  if (lower.includes("rewe") || lower.includes("edeka") || lower.includes("carrefour") || lower.includes("auchan") || lower.includes("mercadona")) return 0.98;
   if (lower.includes("trader joe")) return 0.96;
   if (lower.includes("walmart")) return 0.94;
   if (lower.includes("target")) return 1.05;

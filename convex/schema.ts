@@ -27,8 +27,11 @@ export default defineSchema({
   preferences: defineTable({
     userId: v.id("users"),
     budget: v.number(),
+    country: v.optional(v.string()),
+    postalCode: v.optional(v.string()),
     zip: v.string(),
     people: v.number(),
+    planDays: v.optional(v.number()),
     preference: v.string(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),
